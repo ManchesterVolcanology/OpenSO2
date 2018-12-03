@@ -13,8 +13,14 @@ import tkinter.messagebox as tkMessageBox
 import tkinter.scrolledtext as tkst
 from tkinter import ttk
 import tkinter as tk
+import seabreeze.spectrometers as sb
+from seabreeze import SeaBreezeError
+import logging
 
 from openso2.build_gui import make_input
+from openso2.call_gps import connect_gps, call_gps
+from openso2.program_setup import read_settings
+from openso2.scanner_control import connect_scanner, find_home
 
 # Define some fonts to use in the program
 NORM_FONT = ('Verdana', 8)
@@ -38,6 +44,9 @@ class mygui(tk.Tk):
         # Close program on closure of window
         self.protocol("WM_DELETE_WINDOW", self.handler)
         
+        # Create log
+        logging.getLogger(__name__).addHandler(logging.NullHandler())
+        
         # Button Style
         ttk.Style().configure('TButton', width = 15, height = 20, relief="flat") 
         
@@ -52,12 +61,15 @@ class mygui(tk.Tk):
         spec_frame = tk.LabelFrame(self, text='Spectrometer Control', relief='groove',
                                    font=LARG_FONT)
         spec_frame.grid(row=0, column=0, padx=10, pady=10, sticky='NW')
+        
         scan_frame = tk.LabelFrame(self, text = 'Scanner Control', relief = 'groove',
                                    font=LARG_FONT)
         scan_frame.grid(row=1, column=0, padx=10, pady=10, sticky='NW')
+        
         stat_frame = tk.LabelFrame(self, text = 'Station Settings', relief = 'groove',
                                    font=LARG_FONT)
         stat_frame.grid(row=0, column=1, padx=10, pady=10, sticky='NW')
+        
         disp_frame = tk.LabelFrame(self, text = 'Output', relief = 'groove',
                                    font=LARG_FONT)
         disp_frame.grid(row=1, column=1, padx=10, pady=10, sticky='NW')
@@ -66,26 +78,25 @@ class mygui(tk.Tk):
         global settings
         settings = {}
         
+        # Create common dictionary
+        global common
+        common = {}
+        
         # Read in settings file
-        settings = read_settings('data_bases/ifit_settings.txt', settings)
+        settings = read_settings('data_bases/settings.txt', settings)
                 
 #========================================================================================
 #================================= Spectrometer Control =================================
 #========================================================================================
         
         # Control the spectrometer
-        self.c_spec = tk.StringVar(self, value = 'Not Connected')
+        self.spec_name = tk.StringVar(self, value = 'Not Connected')
         make_input(frame = spec_frame, 
                    text = 'Spectrometer:', 
                    row = 0, column = 0, 
                    var = self.c_spec, 
                    input_type = 'Label',
                    sticky = 'W')
-        
-        # Create button to connect to spectrometer
-        connect_spec_b = ttk.Button(spec_frame, text = 'Connect',
-                                    command = lambda: connect_spec(self, settings))
-        connect_spec_b.grid(row = 0, column = 2, padx = 5, pady = 5)
         
         # Integration Time
         self.int_time = tk.DoubleVar(self, value = settings['int_time'])
@@ -252,8 +263,86 @@ class mygui(tk.Tk):
                            columnspan = 2)
         self.text_box.insert('1.0', 'Welcome to Open SO2! Written by Ben Esse\n\n') 
         
-
-
+#========================================================================================
+#============================= Connect to the spectrometer ==============================
+#========================================================================================
+        
+        # Find connected spectrometers
+        devices = sb.list_devices()
+        
+        # If no devices are connected then set string to show. Else assign first to spec
+        if len(devices) == 0:
+            self.spec = 0
+            settings['Spectrometer'] = 'Not Connected'
+            devices = ['Not Connected']
+            self.print_output('No devices found')
+        else:
+            try:
+                # Connect to spectrometer
+                common['spec'] = sb.Spectrometer(devices[0])
+                
+                # Set intial integration time
+                common['spec'].integration_time_micros(float(self.int_time.get())*1000)
+                
+                # Record serial number in settings
+                settings['Spectrometer'] = str(common['spec'].serial_number)
+                
+                self.print_output('Spectrometer '+settings['Spectrometer']+' Connected')
+                
+            except SeaBreezeError:
+                self.print_output('Spectrometer already open')
+            
+        # Update text to show spectrometer name
+        self.spec_name.set(settings['Spectrometer'])     
+        
+#========================================================================================
+#================================== Connect to the GPS ==================================
+#========================================================================================
+                
+        # Connect to the GPS   
+        common['gps'], err = connect_gps()
+        
+#========================================================================================
+#======================== Connect to the motor and micro switch =========================
+#========================================================================================
+        
+        # Connect to the motor and microswitch
+        common['motor'], common['uswitch'], mh, err = connect_scanner()
+        
+        # If there was an error, report and exit
+        if err[0] == True:
+            self.print_output(err[1])
+            
+        else:
+            
+            # Move the motor to the home position
+            err = find_home(common['motor'], common['uswitch'])
+            
+            if err[0] == True:
+                self.print_output(err[1])
+                
+                
+                
+                
+                
+                
+                
+                
+#========================================================================================
+#========================= Check time and see if ready to scan ==========================
+#========================================================================================                
+                
+    def check_time(self):
+        
+        # Get time form GPS
+        call_gps(common['gps'])
+                
+                
+                
+                
+                
+                
+                
         
 #========================================================================================         
 #========================================================================================
@@ -267,9 +356,6 @@ class mygui(tk.Tk):
         # Report error
         err = traceback.format_exception(*args)
         tkMessageBox.showerror('Exception', err)
-        
-        # Reset formation of the forward model
-        self.build_model_flag = True
 
     # Close program on 'x' button
     def handler(self):

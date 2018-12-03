@@ -6,15 +6,59 @@ Created on Wed Nov 21 14:44:50 2018
 """
 
 import datetime
+import adafruit_gps
+import serial
 
-def call_gps():
+#========================================================================================
+#===================================== Connect GPS ======================================
+#========================================================================================
+
+def connect_gps():
+    
+    '''
+    Function to connect to the GPS
+    
+    INPUTS
+    ------
+    None
+    
+    OUTPUTS
+    -------
+    gps, adafruit_gps object
+        The object for the GPS for other programs to call
+    '''
+    try:
+        
+        # Establish uart access
+        uart = serial.Serial("/dev/ttyUSB0", baudrate=9600, timeout=3000)
+        
+        # Create a GPS module instance
+        gps = adafruit_gps.GPS(uart, debug=False)
+        
+        # Turn on basic GGA and RMC info
+        gps.send_command(b'PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0')
+        
+        # Set update rate to be once a second
+        gps.send_command(b'PMTK220, 1000')
+        
+    except Exception as msg:
+        return None, (True, msg)
+    
+    return gps, (False, 'No error')
+
+#========================================================================================
+#======================================= Call GPS =======================================
+#========================================================================================
+
+def call_gps(gps):
     
     '''
     Function to call the connected GPS.
     
     INPUTS
     ------
-    None
+    gps, adafruit_gps object
+        The object for the GPS for other programs to call 
     
     OUPUTS
     ------
@@ -27,15 +71,34 @@ def call_gps():
     alt, float
         Altitude above sea level (m)
         
-    time, datetime object
+    timestamp, datetime object
         The date and time at the time of the call
+        
+    info, dict
+        Dictionary of other parameters
     '''
     
-    print('This function will call the GPS')
+    # Required to call gps.update() at elast twice a loop
+    gps.update()
     
-    lat = 1
-    lon = 1
-    alt = 1
-    time = datetime.datetime.now()
+    # Pull out the info
+    year = int(gps.timestamp_utc.tm_year)
+    month = int(gps.timestamp_utc.tm_mon)
+    day = int(gps.timestamp_utc.tm_mday)
+    hour = int(gps.timestamp_utc.tm_hour)
+    minute = int(gps.timestamp_utc.tm_min)
+    sec = int(gps.timestamp_utc.tm_sec)
+    alt = int(gps.altitude_m)
     
-    return lat, lon, alt, time
+    # Add other info to the dictionary
+    info = {'n_sat': int(gps.satelites)}
+    
+    # Build timestamp
+    timestamp = datetime.datetime(year = year,
+                                  month = month,
+                                  day = day,
+                                  hour = hour,
+                                  minute = minute,
+                                  second = sec)
+    
+    return lat, lon, alt, timestamp, info
