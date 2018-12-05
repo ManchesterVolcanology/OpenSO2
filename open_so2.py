@@ -307,7 +307,7 @@ class mygui(tk.Tk):
 #========================================================================================
         
         # Connect to the motor and microswitch
-        common['motor'], common['uswitch'], mh, err = connect_scanner()
+        common['motor'], common['uswitch'], err = connect_scanner()
         
         # If there was an error, report and exit
         if err[0] == True:

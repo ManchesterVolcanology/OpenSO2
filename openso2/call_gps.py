@@ -73,25 +73,21 @@ def call_gps(gps):
         
     timestamp, datetime object
         The date and time at the time of the call
-        
-    info, dict
-        Dictionary of other parameters
     '''
     
     # Required to call gps.update() at elast twice a loop
     gps.update()
     
     # Pull out the info
-    year = int(gps.timestamp_utc.tm_year)
-    month = int(gps.timestamp_utc.tm_mon)
-    day = int(gps.timestamp_utc.tm_mday)
-    hour = int(gps.timestamp_utc.tm_hour)
+    year   = int(gps.timestamp_utc.tm_year)
+    month  = int(gps.timestamp_utc.tm_mon)
+    day    = int(gps.timestamp_utc.tm_mday)
+    hour   = int(gps.timestamp_utc.tm_hour)
     minute = int(gps.timestamp_utc.tm_min)
-    sec = int(gps.timestamp_utc.tm_sec)
-    alt = int(gps.altitude_m)
-    
-    # Add other info to the dictionary
-    info = {'n_sat': int(gps.satelites)}
+    sec    = int(gps.timestamp_utc.tm_sec)
+    lat    = int(gps.latitude)
+    lon    = int(gps.longitude)
+    alt    = int(gps.altitude_m)
     
     # Build timestamp
     timestamp = datetime.datetime(year = year,
@@ -101,4 +97,4 @@ def call_gps(gps):
                                   minute = minute,
                                   second = sec)
     
-    return lat, lon, alt, timestamp, info
+    return lat, lon, alt, timestamp
