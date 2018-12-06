@@ -34,20 +34,44 @@ class Scanner:
     '''
     
     # Initialise
-    def __init__(self, steps, speed):
+    def __init__(self, steps=200, speed=10, uswitch_pin = '21'):
+        
+        # Define the GPIO pins
+        gpio_pin = {'4': board.D4,
+                    '5': board.D5,
+                    '6': board.D6,
+                    '12': board.D12,
+                    '13': board.D13,
+                    '16': board.D16,
+                    '17': board.D17,
+                    '18': board.D18,
+                    '19': board.D19,
+                    '20': board.D20,
+                    '21': board.D21,
+                    '22': board.D22,
+                    '23': board.D23,
+                    '24': board.D24,
+                    '25': board.D25,
+                    '27': board.D27}
         
         # Define the no. of steps and rotation speed 
         self.motor_steps = steps
         self.motor_speed = speed
     
         # Connect to the micro switch. It should be at pin 19
-        self.uswitch = digitalio.DigitalInOut(board.D20)
+        self.uswitch = digitalio.DigitalInOut(gpio_pin[uswitch_pin])
         
         # Connect to the motor HAT
         mh = Adafruit_MotorHAT(addr = 0x60)
         
         # Turn off motor at exit
-        atexit.register(mh.getMotor(1).run(Adafruit_MotorHAT.RELEASE))
+        def turnOffMotors():
+            mh.getMotor(1).run(Adafruit_MotorHAT.RELEASE)
+            mh.getMotor(2).run(Adafruit_MotorHAT.RELEASE)
+            mh.getMotor(3).run(Adafruit_MotorHAT.RELEASE)
+            mh.getMotor(4).run(Adafruit_MotorHAT.RELEASE)
+
+        atexit.register(turnOffMotors)
         
         # Connect to the stepper motor
         self.motor = mh.getStepper(steps, 1)
@@ -75,33 +99,26 @@ class Scanner:
         
         OUTPUTS
         -------
-        err, tuple
-            Error message consisting of (bool, msg), where bool is true if there is an 
-            error and msg gives the error message
+        None
         '''
-        
+
         # First check if the switch is turned on 
-        while self.uswitch.value == True:
+        if not self.uswitch.value:
             
-            # Rotate until it is off
-            self.move_scanner(self.motor)
-        
-        # Step the motor until the switch turns on
-        loop = 0
-        while self.uswitch.value == False:
-            
+            # Rotate until it is on
+            self.step(steps = 100, steptype = 'single')
+
+        # Step the motor until the switch turns off
+        while self.uswitch.value:
+
             # Move the motor one step
-            self.motor.oneStep(Adafruit_MotorHAT.FORWARD, Adafruit_MotorHAT.SINGLE)
-            
-            # Check that the motor isn't spinning infinitely
-            if loop > self.motor_steps:
-                return (True, 'Unable to find home')
+            self.step(steptype = 'interleave')
 
 #========================================================================================
 #======================================= Move Motor =====================================
 #========================================================================================
                 
-    def step(self, steps = 1, steptype = 'SINGLE', direction = 'forward'):
+    def step(self, steps = 1, steptype = 'single', direction = 'forward'):
     
         '''
         Function to move the motor by a given number of steps
@@ -139,8 +156,11 @@ class Scanner:
         step_dir = {'forward': Adafruit_MotorHAT.FORWARD,
                     'backward': Adafruit_MotorHAT.BACKWARD}
         
-        # Step!
-        for i in range(steps):
-            self.motor.onestep(step_dir[direction], step_mode[steptype])    
+        if steps > 1:
             
+            for i in range(steps):
+                self.motor.oneStep(step_dir[direction], step_mode[steptype])    
+        
+        else:
+            self.motor.oneStep(step_dir[direction], step_mode[steptype])
     
