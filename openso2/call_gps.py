@@ -9,92 +9,158 @@ import datetime
 import adafruit_gps
 import serial
 
-#========================================================================================
-#===================================== Connect GPS ======================================
-#========================================================================================
-
-def connect_gps():
+class GPS:
 
     '''
-    Function to connect to the GPS
+    GPS class used to control the GPS of the scanning station
 
     INPUTS
     ------
     None
 
-    OUTPUTS
+    METHODS
     -------
-    gps, adafruit_gps object
-        The object for the GPS for other programs to call
+    get_location
+        Function to get the GPS location. Returns the list [lat, lon, alt]
+
+    get_time
+        Function to get the date and time from the GPS clock. Returns a datetime object
     '''
-    try:
+
+    # Initialise
+    def __inti__(self):
 
         # Establish uart access
         uart = serial.Serial("/dev/ttyUSB0", baudrate=9600, timeout=3000)
 
         # Create a GPS module instance
-        gps = adafruit_gps.GPS(uart, debug=False)
+        self.gps = adafruit_gps.GPS(uart, debug=False)
 
         # Turn on basic GGA and RMC info
-        gps.send_command(b'PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0')
+        self.gps.send_command(b'PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0')
 
-        # Set update rate to be once a second
-        gps.send_command(b'PMTK220, 1000')
+        # Set update rate to be twice a second
+        self.gps.send_command(b'PMTK220, 500')
 
-    except Exception as msg:
-        return None, (True, msg)
-
-    return gps, (False, 'No error')
+        # Update gps
+        self.gps.update()
 
 #========================================================================================
-#======================================= Call GPS =======================================
+#======================================= call_gps =======================================
 #========================================================================================
 
-def call_gps(gps):
+    def call_gps(self):
 
-    '''
-    Function to call the connected GPS.
+        '''
+        Function to call the connected GPS.
 
-    INPUTS
-    ------
-    gps, adafruit_gps object
-        The object for the GPS for other programs to call
+        INPUTS
+        ------
+        gps, adafruit_gps object
+            The object for the GPS for other programs to call
 
-    OUPUTS
-    ------
-    lat, float
-        Decimal latitude (degrees, North is positive)
+        OUPUTS
+        ------
+        lat, float
+            Decimal latitude (degrees, North is positive)
 
-    lon, float
-        Decimal longitude (degrees, East is positive)
+        lon, float
+            Decimal longitude (degrees, East is positive)
 
-    alt, float
-        Altitude above sea level (m)
+        alt, float
+            Altitude above sea level (m)
 
-    timestamp, datetime object
-        The date and time at the time of the call
-    '''
+        timestamp, datetime object
+            The date and time at the time of the call
+        '''
 
-    # Required to call gps.update() at elast twice a loop
-    gps.update()
+        # Required to call gps.update() at elast twice a loop
+        self.gps.update()
 
-    # Pull out the info
-    year   = int(gps.timestamp_utc.tm_year)
-    month  = int(gps.timestamp_utc.tm_mon)
-    day    = int(gps.timestamp_utc.tm_mday)
-    hour   = int(gps.timestamp_utc.tm_hour)
-    minute = int(gps.timestamp_utc.tm_min)
-    sec    = int(gps.timestamp_utc.tm_sec)
-    lat    = int(gps.latitude)
-    lon    = int(gps.longitude)
-    alt    = int(gps.altitude_m)
+        # Pull out the info
+        year   = int(self.gps.timestamp_utc.tm_year)
+        month  = int(self.gps.timestamp_utc.tm_mon)
+        day    = int(self.gps.timestamp_utc.tm_mday)
+        hour   = int(self.gps.timestamp_utc.tm_hour)
+        minute = int(self.gps.timestamp_utc.tm_min)
+        sec    = int(self.gps.timestamp_utc.tm_sec)
+        lat    = int(self.gps.latitude)
+        lon    = int(self.gps.longitude)
+        alt    = int(self.gps.altitude_m)
 
-    # Build timestamp
-    timestamp = datetime.datetime(year = year,
-                                  month = month,
-                                  day = day,
-                                  hour = hour,
-                                  minute = minute,
-                                  second = sec)
+        # Build timestamp
+        timestamp = datetime.datetime(year = year,
+                                      month = month,
+                                      day = day,
+                                      hour = hour,
+                                      minute = minute,
+                                      second = sec)
 
-    return lat, lon, alt, timestamp
+        return lat, lon, alt, timestamp
+
+#========================================================================================
+#===================================== get_location =====================================
+#========================================================================================
+
+    def get_location(self):
+
+        '''
+        Function to get the position of the GPS
+
+        INPUTS
+        ------
+        None
+
+        OUTPUTS
+        -------
+        lat, float
+            Latitude in decimal degrees. Positive is North
+
+        lon, float
+            Longitude in decimal degrees. Positive is East
+
+        alt, float
+            Altitude a.s.l. in meters
+        '''
+
+        # Update GPS
+        self.gps.update()
+
+        # Get location information
+        lat = int(self.gps.latitude)
+        lon = int(self.gps.longitude)
+        alt = int(self.gps.altitude_m)
+
+        return lat, lon, alt
+
+#========================================================================================
+#======================================= get_time =======================================
+#========================================================================================
+
+    def get_time(self):
+
+        '''
+        Function to get just the time from the gps clock
+
+        INPUTS
+        ------
+        None
+
+        OUTPUTS
+        -------
+        time_arr, list
+            Returns 6 element array containing year, month, day, hour, minute and second
+        '''
+
+        # Update GPS
+        self.gps.update()
+
+        # Get location information
+        year   = int(self.gps.timestamp_utc.tm_year)
+        month  = int(self.gps.timestamp_utc.tm_mon)
+        day    = int(self.gps.timestamp_utc.tm_mday)
+        hour   = int(self.gps.timestamp_utc.tm_hour)
+        minute = int(self.gps.timestamp_utc.tm_min)
+        sec    = int(self.gps.timestamp_utc.tm_sec)
+
+        return year, month, day, hour, minute, sec

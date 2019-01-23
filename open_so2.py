@@ -6,6 +6,7 @@ Created on Fri Mar  2 09:24:05 2018
 """
 
 # Import required libraries
+import os
 import matplotlib
 matplotlib.use('TkAgg')
 import traceback
@@ -14,13 +15,12 @@ import tkinter.scrolledtext as tkst
 from tkinter import ttk
 import tkinter as tk
 import seabreeze.spectrometers as sb
-#from seabreeze import SeaBreezeError
 import logging
 
 from openso2.build_gui import make_input
-from openso2.call_gps import connect_gps, call_gps
+from openso2.call_gps import GPS
 from openso2.program_setup import read_settings
-from openso2.scanner_control import connect_scanner, find_home
+from openso2.scanner_control import Scanner
 
 # Define some fonts to use in the program
 NORM_FONT = ('Verdana', 8)
@@ -90,6 +90,8 @@ class mygui(tk.Tk):
 
         # Read in settings file
         settings = read_settings('data_bases/settings.txt', settings)
+
+        common['station_name'] = 'TEST'
 
 #========================================================================================
 #================================= Spectrometer Control =================================
@@ -302,46 +304,14 @@ class mygui(tk.Tk):
         self.spec_name.set(settings['Spectrometer'])
 
 #========================================================================================
-#================================== Connect to the GPS ==================================
+#============================ Connect to the GPS and scanner ============================
 #========================================================================================
 
         # Connect to the GPS
-        common['gps'], err = connect_gps()
+        common['gps'] = GPS()
 
-#========================================================================================
-#======================== Connect to the motor and micro switch =========================
-#========================================================================================
-
-        # Connect to the motor and microswitch
-        common['motor'], common['uswitch'], err = connect_scanner()
-
-        # If there was an error, report and exit
-        if err[0] == True:
-            self.print_output(err[1])
-
-        else:
-
-            # Move the motor to the home position
-            err = find_home(common['motor'], common['uswitch'])
-
-            if err[0] == True:
-                self.print_output(err[1])
-
-
-
-
-
-
-
-
-#========================================================================================
-#========================= Check time and see if ready to scan ==========================
-#========================================================================================
-
-    def check_time(self):
-
-        # Get time form GPS
-        call_gps(common['gps'])
+        # Connect to the scanner
+        common['scanner'] = Scanner()
 
 
 
@@ -407,6 +377,46 @@ class mygui(tk.Tk):
         mygui.update(self)
 
 
+#========================================================================================
+#========================================================================================
+#====================================== Control Loop ====================================
+#========================================================================================
+#========================================================================================
+
+    # Function to run the main program loop
+    def control_loop(self):
+
+        # Get time and date from GPS
+        lat, lon, alt, timestamp = common['gps'].call_gps()
+        datestamp = str(timestamp.date())
+
+        # Create data storage folder if it doesn't exist
+        common['fpath'] = 'scan_data/' + datestamp + '/'
+        if not os.path.exists(common['fpath']):
+            os.makedirs(common['fpath'])
+
+        # Check if control loop has been stopped
+        if self.stop_flag:
+            print('Loop stopped')
+            self.stop_flag = False
+            return
+
+        # Check if the station is awake
+        t = timestamp.time()
+        if t > common['start_time'] and t < common['stop_time']:
+
+            # Begin scan
+            print(t, 'Start scan')
+
+            # Re-call the control loop
+            self.after(1, self.control_loop)
+
+
+        else:
+
+            # Re-call the control loop
+            print(t, 'Sleeping...')
+            self.after(1000, self.control_loop)
 
 
 

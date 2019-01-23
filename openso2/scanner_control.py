@@ -19,11 +19,14 @@ class Scanner:
 
     INPUTS
     ------
-    steps, int
+    steps, int (optional)
         The number of steps the stepper motor does for one rotation. Default is 200
 
-    speed, int
+    speed, int (optional)
         The speed the stepper motor will spin in RPM. Default is 10 RPM
+
+    uswitch_pin, int (optional)
+        The GPIO pin that controls the microswitch. Default is 21
 
     METHODS
     -------
@@ -85,7 +88,7 @@ class Scanner:
 #========================================================================================
 
     # Method to find home
-    def home(self):
+    def find_home(self):
 
         '''
         Function to rotate the scanner head to the home position
@@ -131,7 +134,7 @@ class Scanner:
 #======================================= Move Motor =====================================
 #========================================================================================
 
-    def step(self, steps = 1, steptype = 'single', direction = 'forward'):
+    def step(self, steps = 1, steptype = 'micro', direction = 'forward'):
 
         '''
         Function to move the motor by a given number of steps
@@ -146,10 +149,10 @@ class Scanner:
 
         steptype, str
             Stepping type. Must be one of:
-                - single; single step (lowest power)
-                - double; double step (more power but stronger)
+                - single;     single step (lowest power)
+                - double;     double step (more power but stronger)
                 - interleave; finer control, has double the steps of single
-                - micro; slower but with much higher precision (8x)
+                - micro;      slower but with much higher precision (8x)
 
         direction, str
             Stepping direction, either 'forward' or 'backward'
@@ -160,19 +163,14 @@ class Scanner:
         '''
 
         # Set stepping mode dict
-        step_mode = {'single': Adafruit_MotorHAT.SINGLE,
-                     'double': Adafruit_MotorHAT.DOUBLE,
+        step_mode = {'single':     Adafruit_MotorHAT.SINGLE,
+                     'double':     Adafruit_MotorHAT.DOUBLE,
                      'interleave': Adafruit_MotorHAT.INTERLEAVE,
-                     'micro': Adafruit_MotorHAT.MICROSTEP}
+                     'micro':      Adafruit_MotorHAT.MICROSTEP}
 
         # Set stepping direction dict
-        step_dir = {'forward': Adafruit_MotorHAT.FORWARD,
+        step_dir = {'forward':  Adafruit_MotorHAT.FORWARD,
                     'backward': Adafruit_MotorHAT.BACKWARD}
 
-        if steps > 1:
-
-            for i in range(steps):
-                self.motor.oneStep(step_dir[direction], step_mode[steptype])
-
-        else:
+        for i in range(steps):
             self.motor.oneStep(step_dir[direction], step_mode[steptype])
