@@ -14,7 +14,7 @@ The Ocean Optics spectrometer is controlled using a Python library called Python
 ```
 conda install –c poehlmann python-seabreeze 
 ```
-The udev rules must then be downloaded (from https://github.com/ap--/python-seabreeze/blob/master/misc/10-oceanoptics.rules) and saved into the ```/etc/udev/rules.d/``` directory and updated using:
+The udev rules must then be downloaded from [here] (https://github.com/ap--/python-seabreeze/blob/master/misc/10-oceanoptics.rules) and saved into the ```/etc/udev/rules.d/``` directory and updated using:
 ```
 sudo udevadm control –reload-rules
 ```
