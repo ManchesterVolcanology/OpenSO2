@@ -20,7 +20,7 @@ sudo udevadm control –reload-rules
 ```
 
 ### WittyPi 2 HAT
-The power to the Pi is controlled using the WittyPi2 HAT. This controls when the Pi powers down and up to save electricity while it is dark. Details can be found [here] (http://www.uugear.com/doc/WittyPi2_UserManual.pdf). To install the required software use the following commands from the home directory:
+The power to the Pi is controlled using the WittyPi2 HAT. This controls when the Pi powers down and up to save electricity while it is dark. Details can be found [here](http://www.uugear.com/doc/WittyPi2_UserManual.pdf). To install the required software use the following commands from the home directory:
 ```
 wget http://www.uugear.com/repo/WittyPi2/installWittyPi.sh
 sudo sh installWittyPi.sh
@@ -28,7 +28,7 @@ sudo sh installWittyPi.sh
 This script goes through several steps to ensure the WittyPi2 board will operate correctly. Note it is note necessary to install Qt for the GUI.
 
 ### Adafruit Motor HAT
-Control of the stepper motor in the scanner is achieved using this HAT. Details can be found [here] (https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/installing-circuitpython-on-raspberry-pi). To operate first you need to install Adafruit Blinka following these steps:
+Control of the stepper motor in the scanner is achieved using this HAT. Details can be found [here](https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/installing-circuitpython-on-raspberry-pi). To operate first you need to install Adafruit Blinka following these steps:
 ```
 pip install –upgrade setuptools
 ```
