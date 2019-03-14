@@ -1,37 +1,33 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Mar  2 09:24:05 2018
+Created on Fri Jan 25 13:02:09 2019
 
 @author: mqbpwbe2
 """
 
-# Import required libraries
 import os
-import matplotlib
-matplotlib.use('TkAgg')
-import traceback
-import tkinter.messagebox as tkMessageBox
-import tkinter.scrolledtext as tkst
+from pathlib import Path
+import numpy as np
 from tkinter import ttk
 import tkinter as tk
-import seabreeze.spectrometers as sb
-import logging
+import traceback
+import datetime as dt
+import tkinter.scrolledtext as tkst
+import tkinter.messagebox as tkMessageBox
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
-from openso2.build_gui import make_input
-from openso2.call_gps import GPS
-from openso2.program_setup import read_settings
-from openso2.scanner_control import Scanner
+from openso2.program_setup import get_station_info, update_resfp
+from openso2.station_com import Station
+from openso2.analyse_scan import calc_scan_flux
+from openso2.julian_time import hms_to_julian
+from openso2.gui_funcs import update_graph, make_input
 
 # Define some fonts to use in the program
 NORM_FONT = ('Verdana', 8)
 MED_FONT  = ('Veranda', 11)
 LARG_FONT = ('Verdana', 12, 'bold')
-
-# Set up logging
-logging.basicConfig(filename='openso2.log',
-                    filemode='a',
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.DEBUG)
 
 class mygui(tk.Tk):
 
@@ -50,220 +46,98 @@ class mygui(tk.Tk):
         # Close program on closure of window
         self.protocol("WM_DELETE_WINDOW", self.handler)
 
-        # Create log
-        logging.getLogger(__name__).addHandler(logging.NullHandler())
-
         # Button Style
         ttk.Style().configure('TButton', width = 15, height = 20, relief="flat")
 
         # Add a title and icon
-        tk.Tk.wm_title(self, 'Open SO2')
+        tk.Tk.wm_title(self, 'Open SO2 v1.0 - Home Station')
         try:
             tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
         except tk.TclError:
             pass
 
-        # Create frames
-        spec_frame = tk.LabelFrame(self, text='Spectrometer Control', relief='groove',
-                                   font=LARG_FONT)
-        spec_frame.grid(row=0, column=0, padx=10, pady=10, sticky='NW')
+        # Read in the station information
+        self.station_info = get_station_info('data_bases/station_info.txt')
 
-        scan_frame = tk.LabelFrame(self, text = 'Scanner Control', relief = 'groove',
-                                   font=LARG_FONT)
-        scan_frame.grid(row=1, column=0, padx=10, pady=10, sticky='NW')
+        # Create dictionary of station objects
+        self.stat_com = {}
+        for station in self.station_info.keys():
+            self.stat_com[station] = Station(self.station_info[station])
 
-        stat_frame = tk.LabelFrame(self, text = 'Station Settings', relief = 'groove',
-                                   font=LARG_FONT)
-        stat_frame.grid(row=0, column=1, padx=10, pady=10, sticky='NW')
+        # Create dicionaries to hold the flux results
+        self.times  = {}
+        self.fluxes = {}
 
-        disp_frame = tk.LabelFrame(self, text = 'Output', relief = 'groove',
-                                   font=LARG_FONT)
-        disp_frame.grid(row=1, column=1, padx=10, pady=10, sticky='NW')
+        # Populate the dictionaries with arrays for each staiton
+        for station in self.station_info.keys():
+            self.times[station]  = []
+            self.fluxes[station] = []
 
-        # Create settings dictionary
-        global settings
-        settings = {}
+        # Create notebook to hold overview and station info pages
+        nb = ttk.Notebook(self)
 
-        # Create common dictionary
-        global common
-        common = {}
+        # Add overview page
+        overview_page = ttk.Frame(nb)
+        nb.add(overview_page, text = 'Overview')
 
-        # Read in settings file
-        settings = read_settings('data_bases/settings.txt', settings)
+        # Add station pages
+        station_page = {}
+        for station in self.station_info.keys():
 
-        common['station_name'] = 'TEST'
+            station_page[station] = ttk.Frame(nb)
+            nb.add(station_page[station], text = station)
 
-#========================================================================================
-#================================= Spectrometer Control =================================
-#========================================================================================
+        # Add the notebook to the GUI
+        nb.grid(column=0, padx=10, pady=10, sticky = 'NW')
 
-        # Control the spectrometer
-        self.spec_name = tk.StringVar(self, value = 'Not Connected')
-        make_input(frame = spec_frame,
-                   text = 'Spectrometer:',
-                   row = 0, column = 0,
-                   var = self.c_spec,
-                   input_type = 'Label',
-                   sticky = 'W')
+        # Frame for status and control
+        stat_frame = tk.LabelFrame(overview_page, text = 'Control', font = LARG_FONT)
+        stat_frame.grid(row=0, column=0, padx=10, pady=10, sticky="NW")
 
-        # Integration Time
-        self.int_time = tk.DoubleVar(self, value = settings['int_time'])
-        make_input(frame = spec_frame,
-                   text = 'Integration\ntime (ms):',
-                   row = 1, column = 0,
-                   var = self.int_time,
-                   input_type = 'Spinbox',
-                   width = 15,
-                   vals = [50, 1000],
-                   increment = 50)
+        mygui.columnconfigure(index = 1, weight = 1, self = self)
+        mygui.rowconfigure(index = 5, weight = 1, self = self)
 
-        # Coadds
-        self.coadds = tk.DoubleVar(self, value = settings['coadds'])
-        make_input(frame = spec_frame,
-                   text = 'Scans to\nAverage:',
-                   row = 2, column = 0,
-                   var = self.coadds,
-                   input_type = 'Spinbox',
-                   width = 15,
-                   vals = [1, 100])
-
-        # Spectrometer status
-        self.spec_stat = tk.StringVar(self, value = 'Disconnected')
-        make_input(frame = spec_frame,
-                   text = 'Spectrometer\nStatus:',
-                   row = 3, column = 0,
-                   var = self.spec_stat,
-                   input_type = 'Label',
-                   width = 10)
+        # Create frame to hold graphs
+        graph_frame = ttk.Frame(overview_page, relief = 'groove')
+        graph_frame.grid(row=0, column=1, padx=10, pady=10, rowspan=10, sticky="NW")
+        graph_frame.columnconfigure(index = 0, weight = 1)
+        graph_frame.rowconfigure(index = 0, weight = 1)
 
 #========================================================================================
-#=================================== Scanner Control ====================================
+#=============================== Add widjets to overview ================================
 #========================================================================================
 
-        # Scanner starting position
-        self.scan_start = tk.DoubleVar(self, value = 12)
-        make_input(frame = scan_frame,
-                   text = 'Start Pos:',
-                   row = 0, column = 0,
-                   var = self.scan_start,
-                   input_type = 'Spinbox',
-                   width = 15,
-                   vals = [1, 360])
+#===================================== Status Frame =====================================
 
-        # Scanner stopping position
-        self.scan_stop = tk.DoubleVar(self, value = 168)
-        make_input(frame = scan_frame,
-                   text = 'Stop Pos:',
-                   row = 1, column = 0,
-                   var = self.scan_stop,
-                   input_type = 'Spinbox',
-                   width = 15,
-                   vals = [1, 360])
+        # Create status indicator
+        self.status = tk.StringVar(stat_frame, value = 'Standby')
+        self.status_e = tk.Label(stat_frame, textvariable = self.status, fg='red')
+        self.status_e.grid(row=0, column=0, padx=5, pady=5, sticky="EW")
+        self.status_col = 'red'
 
-        # Scanner current position
-        self.scan_curr = tk.DoubleVar(self, value = 0)
-        make_input(frame = scan_frame,
-                   text = 'Current Pos:',
-                   row = 2, column = 0,
-                   var = self.scan_curr,
-                   input_type = 'Label')
+        # Ceate input for the results filepath
+        self.res_fpath = tk.StringVar(value = 'Results/')
+        res_fpath_ent = tk.Entry(stat_frame, font = NORM_FONT, width = 30,
+                                 text = self.res_fpath)
+        res_fpath_ent.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W',
+                           columnspan = 2)
+        res_fpath_b = ttk.Button(stat_frame, text = "Browse",
+                                 command = lambda: update_resfp(self))
+        res_fpath_b.grid(row = 1, column = 2, padx = 5, pady = 5, sticky = 'W')
 
-        # Scanner status
-        self.scan_stat = tk.StringVar(self, value = 'Disconnected')
-        make_input(frame = scan_frame,
-                   text = 'Scanner\nStatus:',
-                   row = 3, column = 0,
-                   var = self.scan_stat,
-                   input_type = 'Label',
-                   width = 10)
-
-#========================================================================================
-#================================== Station Settings ====================================
-#========================================================================================
-
-        # Start time for acquisition
-        self.start_time = tk.DoubleVar(self, value = 0)
+        # Create control for the control loop speed
+        self.loop_speed = tk.IntVar(value = 1)
         make_input(frame = stat_frame,
-                   text = 'Start Time:',
-                   row = 0, column = 0,
-                   var = self.start_time,
-                   input_type = 'Entry',
+                   text = 'Sync Delay (s):',
+                   var = self.loop_speed,
+                   input_type = 'Spinbox',
+                   row = 2, column = 0,
+                   vals = (1, 600),
                    width = 10)
-
-        # Stop time for acquisition
-        self.stop_time = tk.DoubleVar(self, value = 0)
-        make_input(frame = stat_frame,
-                   text = 'Stop Time:',
-                   row = 1, column = 0,
-                   var = self.stop_time,
-                   input_type = 'Entry',
-                   width = 10)
-
-#========================================================================================
-#=================================== Station Output =====================================
-#========================================================================================
-
-        row_n = 0
-        # Scan number
-        self.scan_no = tk.DoubleVar(self, value = 0)
-        make_input(frame = disp_frame,
-                   text = 'Scan no.:',
-                   row = row_n, column = 0,
-                   var = self.scan_no,
-                   input_type = 'Label',
-                   width = 10)
-
-        # Spectrum Number
-        self.spec_no = tk.DoubleVar(self, value = 0)
-        make_input(frame = disp_frame,
-                   text = 'Spectrum no.:',
-                   row = row_n, column = 2,
-                   var = self.spec_no,
-                   input_type = 'Label',
-                   width = 10)
-        row_n += 1
-
-        # Last spectrum SO2
-        self.last_so2 = tk.DoubleVar(self, value = 0)
-        make_input(frame = disp_frame,
-                   text = 'Last SO2:',
-                   row = row_n, column = 0,
-                   var = self.last_so2,
-                   input_type = 'Label',
-                   width = 10)
-
-        # Last spectrum error
-        self.last_err = tk.DoubleVar(self, value = 0)
-        make_input(frame = disp_frame,
-                   text = '+/-',
-                   row = row_n, column = 2,
-                   var = self.last_err,
-                   input_type = 'Label',
-                   width = 10)
-        row_n += 1
-
-        # Last spectrum intensity
-        self.last_int = tk.DoubleVar(self, value = 0)
-        make_input(frame = disp_frame,
-                   text = '   Last\nIntensity:',
-                   row = row_n, column = 0,
-                   var = self.last_int,
-                   input_type = 'Label',
-                   width = 10)
-
-        # Last scan flux
-        self.last_flux = tk.DoubleVar(self, value = 0)
-        make_input(frame = disp_frame,
-                   text = 'Last Flux:',
-                   row = row_n, column = 2,
-                   var = self.last_int,
-                   input_type = 'Label',
-                   width = 10)
-        row_n += 1
 
         # Create frame to hold text output
-        text_frame = ttk.Frame(disp_frame)
-        text_frame.grid(row=row_n, column=0, padx=10, pady=10, columnspan=4, sticky="NW")
+        text_frame = ttk.Frame(stat_frame)
+        text_frame.grid(row=3, column=0, padx=10, pady=10, columnspan=5, sticky="NW")
 
         # Build text box
         self.text_box = tkst.ScrolledText(text_frame, width = 42, height = 8)
@@ -271,63 +145,240 @@ class mygui(tk.Tk):
                            columnspan = 2)
         self.text_box.insert('1.0', 'Welcome to Open SO2! Written by Ben Esse\n\n')
 
+#===================================== Graph Frame ======================================
+
+        # Create figure to hold the graphs
+        plt.rcParams.update({'font.size': 8})
+        self.fig = plt.figure(figsize = (6,6))
+        gs = gridspec.GridSpec(3, 1, height_ratios = (2,1,1))
+
+        # Create plot axes
+        self.ax0 = self.fig.add_subplot(gs[0])
+        self.ax1 = self.fig.add_subplot(gs[1])
+        self.ax2 = self.fig.add_subplot(gs[2])
+
+        # Set axis labels
+        self.ax0.set_xlabel('Time (decimal hours)',    fontsize = 10)
+        self.ax0.set_ylabel('SO$_2$ Flux (t/day)',     fontsize = 10)
+        self.ax1.set_xlabel('Time (decimal hours)',    fontsize = 10)
+        self.ax1.set_ylabel('Plume Height (m a.s.l.)', fontsize = 10)
+        self.ax2.set_xlabel('Time (decimal hours)',    fontsize = 10)
+        self.ax2.set_ylabel('Wind Speed (m/s)',        fontsize = 10)
+
+        # Create lines for each station flux plot
+        self.flux_lines = {}
+        for station in self.station_info.keys():
+            self.flux_lines[station], = self.ax0.plot(0, 0, 'o-', label = station)
+
+        self.height_line, = self.ax1.plot(0, 0, 'o-')
+        self.wind_speed_line = self.ax2.plot(0, 0, 'o-')
+
+        # Make the plot look nice
+        plt.tight_layout()
+
+        # Add legend
+        self.ax0.legend(loc = 0)
+
+        # Create the canvas to hold the graph in the GUI
+        self.canvas = FigureCanvasTkAgg(self.fig, graph_frame)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().grid(row=0, column=0, padx=10, pady = 10)
+
+        # Add matplotlib toolbar above the plot canvas
+        toolbar_frame = tk.Frame(graph_frame, bg = 'black')
+        toolbar_frame.grid(row=1,column=0, sticky = 'W', padx = 5, pady = 5)
+        toolbar = NavigationToolbar2Tk(self.canvas, toolbar_frame)
+        toolbar.update()
+
 #========================================================================================
-#============================= Connect to the spectrometer ==============================
+#========================== Add widjets to the station pages ============================
 #========================================================================================
 
-        # Find connected spectrometers
-        devices = sb.list_devices()
+        # Create dictionaries to hold the corresponding widgets for each station
+        self.station_widjets = {}
 
-        # If no devices are connected then set string to show. Else assign first to spec
-        if len(devices) == 0:
-            self.spec = 0
-            settings['Spectrometer'] = 'Not Connected'
-            devices = ['Not Connected']
-            self.print_output('No devices found')
+        for station in self.station_info.keys():
+
+            # Ceate sub dictionary to hold the widjets for this staiton
+            station_w = {}
+
+            # Create a frame to hold the station status
+            s_frame = tk.LabelFrame(station_page[station], text = 'Station Status',
+                                    font = LARG_FONT)
+            s_frame.grid(row = 0, column = 0)
+
+            # Create status indicator
+            station_w['status'] = tk.StringVar(value = 'Idle')
+            make_input(frame = s_frame,
+                       text = 'Status:',
+                       var = station_w['status'],
+                       input_type = 'Label',
+                       row = 0, column = 0)
+
+            # Create temperature indicator
+            station_w['temp'] = tk.DoubleVar(value = 0)
+            make_input(frame = s_frame,
+                       text = 'Temperature:',
+                       var = station_w['temp'],
+                       input_type = 'Label',
+                       row = 1, column = 0)
+
+            # Create a scanner position indicator
+            station_w['pos'] = tk.IntVar(value = 0)
+            make_input(frame = s_frame,
+                       text = 'Scanner Position:',
+                       var = station_w['pos'],
+                       input_type = 'Label',
+                       row = 2, column = 0)
+
+            # Add the station widjets to the master dictionary
+            self.station_widjets[station] = station_w
+
+#========================================================================================
+#=============================== Start the control loop =================================
+#========================================================================================
+
+        # Begin the control loop
+        self.after(1000, self.control_loop)
+
+#========================================================================================
+#===================================== Control Loop =====================================
+#========================================================================================
+
+    def control_loop(self):
+
+        # Check the date and time
+        timestamp = dt.datetime.now()
+        today_date = str(timestamp.date())
+
+        # Create dictinary to hold the file paths
+        m_fpath     = {}
+        so2_fpaths  = {}
+        spec_fpaths = {}
+        flux_fpaths = {}
+
+        # Check that the required results folders and files exist
+        for station in self.station_info.keys():
+
+            # Build master filepath and add to dictionaries
+            m_fpath[station] = self.res_fpath.get() + today_date + '/' + station + '/'
+            so2_fpaths[station]  = m_fpath[station] + '/so2/'
+            spec_fpaths[station] = m_fpath[station] + '/spectra/'
+            flux_fpaths[station] = m_fpath[station] + today_date + '_' + station + \
+                                   '_fluxes.csv'
+
+            # Create the folder
+            os.makedirs(so2_fpaths[station],  exist_ok = True)
+            os.makedirs(spec_fpaths[station], exist_ok = True)
+
+            # Create the results file if it doesn't exist
+            if not Path(flux_fpaths[station]).is_file():
+
+                # Create the file and write the header row
+                with open(flux_fpaths[station], 'w') as w:
+                    w.write('Time,Plume Height (m),Wind Speed (ms-1),Flux (t/day)\n')
+
+        # Pull station data and update
+        ##### Not yet implemented #####
+
+        # If the stations are operational sync the so2 files. If sleeping sync spectra
+        jul_time = hms_to_julian(timestamp)
+        if jul_time > 6 and jul_time < 16:
+            sync_mode = '/so2/'
         else:
-            try:
-                # Connect to spectrometer
-                common['spec'] = sb.Spectrometer(devices[0])
+            sync_mode = '/spectra/'
 
-                # Set intial integration time
-                common['spec'].integration_time_micros(float(self.int_time.get())*1000)
+        # Sync the home folders with remotes
+        self.status.set('Syncing')
+        self.update()
+        new_fnames = {}
+        for station in self.station_info.keys():
 
-                # Record serial number in settings
-                settings['Spectrometer'] = str(common['spec'].serial_number)
+            # Generate local and remote file paths to sync
+            local_fpath = m_fpath[station] + sync_mode
+            remote_fpath = '/home/pi/open_so2/Results/' + today_date + sync_mode
 
-                self.print_output('Spectrometer '+settings['Spectrometer']+' Connected')
+            # Sync the files
+            n_files, new_fnames[station] = self.stat_com[station].sync(local_fpath,
+                                                                       remote_fpath)
 
-            except:
-                self.print_output('Spectrometer already open')
+        # Update status indicator
+        self.status.set('Standby')
+        self.update()
 
-        # Update text to show spectrometer name
-        self.spec_name.set(settings['Spectrometer'])
+        # If there are any new scans analysed then calculate the fluxes
+        if sync_mode == '/so2/':
+
+            for s in self.station_info.keys():
+
+                for fname in new_fnames[s]:
+
+                    # Build path to the latest SO2 data file
+                    fpath = self.res_fpath.get() + today_date + '/' + s + '/SO2/' + fname
+
+                    # Extract the time from the filename
+                    scan_timestamp = dt.datetime.strptime(fname.split('_')[1], '%H%M%S')
+                    scan_time = hms_to_julian(scan_timestamp)
+
+                    # Get the wind speed
+                    wind_speed = 10
+
+                    # Calculate the new plume height
+                    plume_height = 1000
+
+                    # Calculate the flux from the scan
+                    flux = calc_scan_flux(fpath, wind_speed, plume_height, 'arc')
+
+                    ################################
+                    # Add a bit of error
+                    flux += (np.random.rand()-0.5)*0.5e3
+                    ################################
+
+                    # Add the time and flux to the results arrays
+                    self.times[s].append(scan_time)
+                    self.fluxes[s].append(flux)
+
+                    # Update the results file
+                    with open(flux_fpaths[s], 'a') as a:
+                        a.write(str(scan_timestamp.time()) + ',' + str(wind_speed) + \
+                                ',' + str(plume_height) + ',' + str(flux) + '\n')
+
+                if len(new_fnames[s]) != 0:
+
+                    # Update the plots
+                    y_up_lim = 1.1 * (max(self.fluxes[s]))
+                    data = np.array(([self.times[s],self.fluxes[s],'auto',[0,y_up_lim]]))
+                    lines = [self.flux_lines[s]]
+                    axes  = [self.ax0]
+                    update_graph(lines, axes, self.canvas, data)
+
+        # Update the status colour
+        if self.status_col == 'red':
+            self.status_e.config(fg = 'green')
+            self.status_col = 'green'
+        else:
+            self.status_e.config(fg = 'red')
+            self.status_col = 'red'
+
+        # Pull the loop speed from the GUI
+        try:
+            loop_delay = int(self.loop_speed.get())
+        except ValueError:
+            loop_delay = 60
+
+        self.after(loop_delay * 1000, self.control_loop)
 
 #========================================================================================
-#============================ Connect to the GPS and scanner ============================
-#========================================================================================
-
-        # Connect to the GPS
-        common['gps'] = GPS()
-
-        # Connect to the scanner
-        common['scanner'] = Scanner()
-
-
-
-
-
-
-
-
-#========================================================================================
-#========================================================================================
-#===================================== GUI Operations ===================================
-#========================================================================================
+#==================================== GUI Operations ====================================
 #========================================================================================
 
     # Report exceptions in a new window
     def report_callback_exception(self, *args):
+
+        # Update status indicator
+        self.status.set('ERROR')
+        self.status_e.config(fg = 'red')
+        self.update()
 
         # Report error
         err = traceback.format_exception(*args)
@@ -339,7 +390,7 @@ class mygui(tk.Tk):
         # Turn on stopping flag
         self.stop_flag = True
 
-        # Open save dialouge
+        # Open exit dialouge
         text = 'Are you sure you want to quit?'
         message = tkMessageBox.askquestion('Exit', message = text, type = 'yesno')
 
@@ -348,78 +399,6 @@ class mygui(tk.Tk):
 
         if message == 'no':
             pass
-
-    # Function to print text to the output box
-    def print_output(self, text, add_line = True):
-
-        if add_line == True:
-            # Add new line return to text
-            text = text + '\n\n'
-
-        else:
-            text = text + '\n'
-
-        # Write text with a new line
-        self.text_box.insert(tk.END, text)
-
-        # Scroll if needed
-        self.text_box.see(tk.END)
-
-        # Write to notes file
-        try:
-            with open(self.notes_fname, 'a') as a:
-                a.write(text)
-
-        except AttributeError:
-            pass
-
-        # Force gui to update
-        mygui.update(self)
-
-
-#========================================================================================
-#========================================================================================
-#====================================== Control Loop ====================================
-#========================================================================================
-#========================================================================================
-
-    # Function to run the main program loop
-    def control_loop(self):
-
-        # Get time and date from GPS
-        lat, lon, alt, timestamp = common['gps'].call_gps()
-        datestamp = str(timestamp.date())
-
-        # Create data storage folder if it doesn't exist
-        common['fpath'] = 'scan_data/' + datestamp + '/'
-        if not os.path.exists(common['fpath']):
-            os.makedirs(common['fpath'])
-
-        # Check if control loop has been stopped
-        if self.stop_flag:
-            print('Loop stopped')
-            self.stop_flag = False
-            return
-
-        # Check if the station is awake
-        t = timestamp.time()
-        if t > common['start_time'] and t < common['stop_time']:
-
-            # Begin scan
-            print(t, 'Start scan')
-
-            # Re-call the control loop
-            self.after(1, self.control_loop)
-
-
-        else:
-
-            # Re-call the control loop
-            print(t, 'Sleeping...')
-            self.after(1000, self.control_loop)
-
-
-
 
 # Run the App!
 if __name__ == '__main__':

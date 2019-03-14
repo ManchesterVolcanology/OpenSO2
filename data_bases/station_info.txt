@@ -1,0 +1,3 @@
+Station Name ;    Host    ; username ; password
+TEST         ; 10.99.15.2 ; pi       ; tomohawk
+TEST2        ; 10.99.15.2 ; pi       ; tomohawk

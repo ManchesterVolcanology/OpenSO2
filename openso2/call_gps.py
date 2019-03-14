@@ -73,7 +73,7 @@ class GPS:
         timestamp, datetime object
             The date and time at the time of the call
         '''
-
+        '''
         # Required to call gps.update() at elast twice a loop
         self.gps.update()
 
@@ -95,7 +95,9 @@ class GPS:
                                       hour = hour,
                                       minute = minute,
                                       second = sec)
-
+        '''
+        lat, lon, alt = 0, 0, 0
+        timestamp = datetime.datetime.now()
         return lat, lon, alt, timestamp
 
 #========================================================================================
@@ -151,7 +153,7 @@ class GPS:
         time_arr, list
             Returns 6 element array containing year, month, day, hour, minute and second
         '''
-
+        '''
         # Update GPS
         self.gps.update()
 
@@ -162,5 +164,14 @@ class GPS:
         hour   = int(self.gps.timestamp_utc.tm_hour)
         minute = int(self.gps.timestamp_utc.tm_min)
         sec    = int(self.gps.timestamp_utc.tm_sec)
+        '''
+
+        t = datetime.datetime.now()
+        year = '{:04d}'.format(t.year)
+        month = '{:02d}'.format(t.month)
+        day = '{:02d}'.format(t.day)
+        hour = '{:02d}'.format(t.hour)
+        minute = '{:02d}'.format(t.minute)
+        sec = '{:02d}'.format(t.second)
 
         return year, month, day, hour, minute, sec

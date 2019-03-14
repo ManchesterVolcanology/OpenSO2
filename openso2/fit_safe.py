@@ -120,7 +120,7 @@ def fit_spec(common, spectrum, grid):
         fitted_flag = False
 
         # Log
-        logging.warning('Fit failed')
+        logging.error('Excepion Occurred', exc_info=True)
 
     # Return results, either to a queue if threaded, or as an array if not
     return popt, perr, fitted_flag
@@ -157,11 +157,18 @@ def ifit_fwd_model(grid, p0, p1, p2, shift, stretch, ring_amt, so2_amt, no2_amt,
     no2_T = np.exp(-(np.multiply(com['no2_xsec'], no2_amt)))
     o3_T  = np.exp(-(np.multiply(com['o3_xsec'],  o3_amt)))
 
+    # Background sky spectrum
+    sol_spec = np.multiply(bg_poly, com['sol'])
+
     # Ring effect
     ring_T = np.exp(np.multiply(com['ring'], ring_amt))
+    sol_T = np.multiply(sol_spec, ring_T)
 
-    # Build the model
-    raw_F = np.prod([com['sol'], so2_T, no2_T, o3_T, bg_poly, ring_T])
+    # Background sky spectrum
+    bg_spec = np.multiply(np.multiply(sol_T, no2_T), o3_T)
+
+    # Include gasses and areosol
+    raw_F = np.multiply(bg_spec, so2_T)
 
     # Convolve with the ILS
     F_conv = np.convolve(raw_F, make_ils(0.6), 'same')
