@@ -7,7 +7,7 @@ The Open SO<sub>2</sub> scanner uses open source software written in Python to c
 This guide will outline the steps to installing the necessary software onto the Raspberry Pi.
 
 ### Python - Anaconda
-Python is already installed on the Raspberry Pi, but Anaconda is recommended for the spectrometer control. This can be downloaded [here](https://github.com/jjhelmus/berryconda). Python 3 should be used. Be sure to add anaconda to PATH.
+Python is already installed on the Raspberry Pi, but Anaconda is recommended for the spectrometer control. For the Raspberry Pi a version called Berryconda is used, which can be downloaded [here](https://github.com/jjhelmus/berryconda). Python 3 should be used. Be sure to add anaconda to PATH.
 
 ### Python Seabreeze
 The Ocean Optics spectrometer is controlled using a Python library called Python Seabreeze, which is maintained on GitHub [here](https://github.com/ap--/python-seabreeze). The library is installed using:
