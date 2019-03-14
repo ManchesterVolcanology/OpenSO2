@@ -30,7 +30,7 @@ This script goes through several steps to ensure the WittyPi2 board will operate
 ### Adafruit Motor HAT
 Control of the stepper motor in the scanner is achieved using this HAT. Details can be found [here] (https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/installing-circuitpython-on-raspberry-pi). To operate first you need to install Adafruit Blinka following these steps:
 ```
-sudo pip install –upgrade setuptools
+pip install –upgrade setuptools
 ```
 Next enable I2C and SPI and reboot. Then run the following commands:
 ```
@@ -39,5 +39,5 @@ pip install adafruit-blinka
 ```
 Then install the circuit python library for motor control
 ```
-sudo pip install adafruit-circuitpython-motorkit
+pip install adafruit-circuitpython-motorkit
 ```
