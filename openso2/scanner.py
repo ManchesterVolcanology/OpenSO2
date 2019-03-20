@@ -35,7 +35,7 @@ class Scanner:
     '''
 
     # Initialise
-    def __init__(self, uswitch_pin = 21):
+    def __init__(self, uswitch_pin = 21, step_type = 'interleave'):
 
         # Define the GPIO pins
         gpio_pin = {'4':  board.D4,
@@ -70,6 +70,9 @@ class Scanner:
 
         # Set the motor position to zero
         self.position = 0
+
+        # Define the type of stepping
+        self.step_type = step_type
 
 #========================================================================================
 #======================================= Find Home ======================================
@@ -107,6 +110,7 @@ class Scanner:
             # Move the motor one step
             self.step(steptype = 'interleave')
             i += 1
+
             # Check if the scanner is home. Connection with switch can fail, so check
             # after 1 second
             if not self.uswitch.value:
@@ -164,15 +168,19 @@ class Scanner:
         step_dir = {'forward':  stepper.FORWARD,
                     'backward': stepper.BACKWARD}
 
+        # Perform steps
         for i in range(steps):
             self.motor.onestep(direction = step_dir[direction],
                                style = step_mode[steptype])
 
+            # Add a short rest between steps to improve accuracy
+            time.sleep(0.01)
+
         # Update the motor postion
         if direction == 'backward':
-            self.position -= steps
-        elif direction == 'forward':
             self.position += steps
+        elif direction == 'forward':
+            self.position -= steps
 
         # Write position to file
         try:
@@ -185,7 +193,7 @@ class Scanner:
 #===================================== Acuire Scan ======================================
 #========================================================================================
 
-def acquire_scan(Scanner, GPS, Spectrometer, common):
+def acquire_scan(Scanner, GPS, Spectrometer, common, settings):
 
     '''
     Function to perform a scan. Simultaneously analyses the spectra from the previous
@@ -220,13 +228,17 @@ def acquire_scan(Scanner, GPS, Spectrometer, common):
     # Return the scanner position to home
     Scanner.find_home()
 
+    # Get time
+    y, mo, d, h, m, s = GPS.get_time()
+
     # Take the dark spectrum
     dark = Spectrometer.intensities()
-    scan_data[0] = np.append(np.array([0, 0, 0, 0, Scanner.position, 0, 0]), dark)
+    dark_data = np.array([0, h, m, s, Scanner.position, 1, common['spec_int_time']])
+    scan_data[0] = np.append(dark_data, dark)
 
     # Move scanner to start position
     logging.info('Moving to start position')
-    Scanner.step(steps = 50)
+    Scanner.step(steps = settings['steps_to_start'])
 
     # Begin stepping through the scan
     for step_no in range(1, 101):
@@ -239,18 +251,19 @@ def acquire_scan(Scanner, GPS, Spectrometer, common):
 
         # Add the data to the array
         # Has the format N_acq, Hour, Min, Sec, MotorPos, Coadds, Int time
-        scan_data[step_no] = np.append(np.array([step_no, h, m, s, Scanner.position,0,0]),
-                                       spec_int)
+        spec_data = np.array([step_no, h, m, s, Scanner.position, 1,
+                              common['spec_int_time']])
+        scan_data[step_no] = np.append(spec_data, spec_int)
 
         # Step the scanner
-        Scanner.step(2)
+        Scanner.step(settings['steps_per_spec'])
 
     # Scan complete
     logging.info('Scan complete')
 
     # Save the scan data
     fname = str(y) + str(mo) + str(d) + '_' + str(h) + str(m) + str(s) + '_' + \
-            common['station_name'] + '_v_1_1_Block' + str(common['scan_no']) + '.npy'
+            settings['station_name'] + '_v_1_1_Block' + str(common['scan_no']) + '.npy'
     fpath = common['fpath'] + 'spectra/' + fname
 
     np.save(fpath, scan_data.astype('float16'))

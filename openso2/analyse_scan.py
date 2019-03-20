@@ -59,8 +59,8 @@ def read_scan(fpath):
         for n, line in enumerate(data):
 
             # Split the spectrum from the spectrum info
-            info[n] = data[n][:5]
-            spec[n] = data[n][5:]
+            info[n] = data[n][:7]
+            spec[n] = data[n][7:]
 
         # Get the station data
         scanner, spec_name, intercept, c1, c2, c3 = get_spec_details(fpath)
@@ -73,7 +73,7 @@ def read_scan(fpath):
 
         return 0, wavelength, info, spec
 
-    except:
+    except Exception as e:
         return 1, 0, 0, 0
 
 #========================================================================================
@@ -149,6 +149,57 @@ def analyse_scan(**common):
         fname = common['scan_fpath'].split('/')[-1][:-4] + '_so2.npy'
         fpath = common['fpath'] + 'so2/' + fname
         np.save(fpath, fit_data.astype('float32'))
+
+#========================================================================================
+#==================================== Update Int Time ===================================
+#========================================================================================
+
+def update_int_time(common, settings):
+
+    '''
+    Function to calculate a new integration time based on the intensity of the previous
+    scan
+
+    INPUTS
+    ------
+    scan_fpath, str
+        Filepath to previous scan
+
+    prev_int_time, int
+        Previous scan integration time (ms)
+
+    target_int, int
+        Target intensity i ncounts for the spectrometer to read
+
+    OUTPUTS
+    -------
+    new_int_time, int
+        New integration time for the next scan
+    '''
+
+    # Load the previous scan
+    err, x, info, spec = read_scan(common['scan_fpath'])
+
+    # Find the maximum intensity
+    max_int = np.max(spec)
+
+    # Scale the intensity to the target
+    scale = settings['target_int'] / max_int
+
+    # Scale the integration time by this factor
+    int_time = common['spec_int_time'] * scale
+
+    # Find the nearest integration time
+    int_times = np.arange(start = settings['min_int_time'],
+                          stop  = settings['max_int_time'] + settings['int_time_step'],
+                          step  = settings['int_time_step'])
+
+    # Find the nearest value
+    diff = ((int_times - int_time)**2)**0.5
+    idx = np.where(diff == min(diff))[0][0]
+
+    # Return the updated integration time
+    return int(int_times[idx])
 
 #========================================================================================
 #==================================== Calc Scan Flux ====================================

@@ -8,34 +8,11 @@ from multiprocessing import Process
 import logging
 
 from openso2.scanner import Scanner, acquire_scan
-from openso2.analyse_scan import analyse_scan
+from openso2.analyse_scan import analyse_scan, update_int_time
 from openso2.call_gps import GPS
 from openso2.program_setup import read_settings
 from openso2.julian_time import hms_to_julian
 from openso2.station_status import status_loop
-
-#========================================================================================
-#==================================== Set up logging ====================================
-#========================================================================================
-
-#############################################
-import datetime
-date = str(datetime.datetime.now().date())
-#############################################
-
-# Create log name
-logname = f'log/{date}.log'
-log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-
-# Make sure the log folder exists
-if not os.path.exists('log'):
-    os.makedirs('log')
-
-# Create the logger
-logging.basicConfig(filename=logname,
-                    filemode = 'w',
-                    format = log_fmt,
-                    level = logging.INFO)
 
 #========================================================================================
 #=========================== Create comon and settings dicts ============================
@@ -48,6 +25,46 @@ common = {}
 settings = read_settings('data_bases/station_settings.txt')
 
 #========================================================================================
+#============================ Connect to the GPS and scanner ============================
+#========================================================================================
+
+# Connect to the GPS
+gps = GPS()
+
+# Wait for GPS to get a fix
+while True:
+    timestamp, lat, lon, alt = gps.call_gps()
+
+    if timestamp != '':
+        break
+
+# Convert the timestamp to a date and a julian time
+datestamp = timestamp[0:10]
+
+# Connect to the scanner
+scanner = Scanner()
+
+#========================================================================================
+#==================================== Set up logging ====================================
+#========================================================================================
+
+# Create log name
+logname = f'log/{datestamp}.log'
+log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+
+# Make sure the log folder exists
+if not os.path.exists('log'):
+    os.makedirs('log')
+
+# Create the logger
+logging.basicConfig(filename=logname,
+                    filemode = 'w',
+                    format = log_fmt,
+                    level = logging.INFO)
+
+logging.info('Station awake')
+
+#========================================================================================
 #============================= Connect to the spectrometer ==============================
 #========================================================================================
 
@@ -58,21 +75,12 @@ devices = sb.list_devices()
 spec = sb.Spectrometer(devices[0])
 
 # Set intial integration time
-spec.integration_time_micros(1.5e6)
+common['spec_int_time'] = settings['start_int_time']
+spec.integration_time_micros(common['spec_int_time'] * 1000)
 
 # Record serial number in settings
 settings['Spectrometer'] = str(spec.serial_number)
 logging.info('Spectrometer ' + settings['Spectrometer'] + ' Connected')
-
-#========================================================================================
-#============================ Connect to the GPS and scanner ============================
-#========================================================================================
-
-# Connect to the GPS
-gps = GPS()
-
-# Connect to the scanner
-scanner = Scanner()
 
 #========================================================================================
 #==================================== Start scanning ====================================
@@ -98,7 +106,7 @@ common['poly_n'] = 3
 common['params'] = [1.0, 1.0, 1.0, -0.2, 0.05, 1.0, 1.0e16, 1.0e17, 1.0e19]
 
 # Set the station name
-common['station_name'] = 'TEST'
+common['station_name'] = settings['station_name']
 
 # Create loop counter
 common['scan_no'] = 0
@@ -118,53 +126,71 @@ status_p.start()
 #=============================== Begin the scanning loop ================================
 #========================================================================================
 
+# Create results folder
+common['fpath'] = 'Results/' + datestamp + '/'
+if not os.path.exists(common['fpath'] + 'so2/'):
+    os.makedirs(common['fpath'] + 'so2/')
+if not os.path.exists(common['fpath'] + 'spectra/'):
+    os.makedirs(common['fpath'] + 'spectra/')
+
+# Get time and convert to julian time
+timestamp, lat, lon, alt = gps.call_gps()
+jul_t = hms_to_julian(timestamp[11:19], str_format = '%H:%M:%S')
+
+# If before scan time, wait
+while jul_t < settings['start_time']:
+    logging.info('Station standby')
+    time.sleep(60)
+
+    # Update time
+    timestamp, lat, lon, alt = gps.call_gps()
+    jul_t = hms_to_julian(timestamp[11:19], str_format = '%H:%M:%S')
+
+
 # Begin loop
-while True:
+while jul_t < settings['stop_time']:
+
+    logging.info('Station active')
 
     # Get scan start time
-    lat, lon, alt, timestamp = gps.call_gps()
-    jul_t = hms_to_julian(timestamp)
+    timestamp, lat, lon, alt = gps.call_gps()
 
-    # Create results folder if it doesn't exist
-    datestamp = str(timestamp.date())
-    common['fpath'] = 'Results/' + datestamp + '/'
-    if not os.path.exists(common['fpath'] + 'so2/'):
-        os.makedirs(common['fpath'] + 'so2/')
-    if not os.path.exists(common['fpath'] + 'spectra/'):
-        os.makedirs(common['fpath'] + 'spectra/')
+    # Convert the timestamp to a date and a julian time
+    datestamp = timestamp[0:10]
+    jul_t = hms_to_julian(timestamp[11:19], str_format = '%H:%M:%S')
 
-    # Check if it is time to scan
-    if jul_t > settings['start_time'] and jul_t < settings['stop_time']:
+    logging.info('Begin scan ' + str(common['scan_no']))
 
-        logging.info('Begin scan ' + str(common['scan_no']))
+    # Scan!
+    common['scan_fpath'] = acquire_scan(scanner, gps, spec, common, settings)
 
-        # Scan!
-        common['scan_fpath'] = acquire_scan(scanner, gps, spec, common)
+    # Update the spectrometer integration time
+    common['spec_int_time'] = update_int_time(common, settings)
+    spec.integration_time_micros(common['spec_int_time'] * 1000)
 
-        # Clear any finished processes from the processes list
-        processes = [pro for pro in processes if pro.is_alive()]
+    # Clear any finished processes from the processes list
+    processes = [pro for pro in processes if pro.is_alive()]
 
-        # Check the number of processes. If there are more than two then don't start
-        # another to prevent too many processes running at once
-        if len(processes) <= 2:
+    # Check the number of processes. If there are more than two then don't start
+    # another to prevent too many processes running at once
+    if len(processes) <= 2:
 
-            # Create new process to handle fitting of the last scan
-            p = Process(target = analyse_scan, kwargs = common)
+        # Create new process to handle fitting of the last scan
+        p = Process(target = analyse_scan, kwargs = common)
 
-            # Add to array of active processes
-            processes.append(p)
+        # Add to array of active processes
+        processes.append(p)
 
-            # Begin the process
-            p.start()
-
-        else:
-            # Log that the process was not started
-            msg = f"Too many processes running, scan {common['scan_no']} not analysed"
-            logging.warning(msg)
-
-        common['scan_no'] += 1
+        # Begin the process
+        p.start()
 
     else:
-        logging.info('Station sleeping')
-        time.sleep(60)
+        # Log that the process was not started
+        msg = f"Too many processes running, scan {common['scan_no']} not analysed"
+        logging.warning(msg)
 
+    # Update the scan number
+    common['scan_no'] += 1
+
+logging.info('Station going to sleep')
+gps.stop()

@@ -5,9 +5,9 @@ Created on Wed Nov 21 14:44:50 2018
 @author: mqbpwbe2
 """
 
-import datetime
-import adafruit_gps
-import serial
+import gps
+import logging
+from multiprocessing import Process, Queue
 
 class GPS:
 
@@ -28,22 +28,78 @@ class GPS:
     '''
 
     # Initialise
-    def __inti__(self):
+    def __init__(self):
 
-        # Establish uart access
-        uart = serial.Serial("/dev/ttyUSB0", baudrate=9600, timeout=3000)
+        # Listen on port 2947 (GPSD) of localhost
+        self.session = gps.gps("localhost", "2947")
+        self.session.stream(gps.WATCH_ENABLE | gps.WATCH_NEWSTYLE)
 
-        # Create a GPS module instance
-        self.gps = adafruit_gps.GPS(uart, debug=False)
+        # Create an empty GPS data list to hold the data
+        self.gps_data = ['', '', '', '']
 
-        # Turn on basic GGA and RMC info
-        self.gps.send_command(b'PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0')
+        # Create a stopping flag to halt the update loop
+        self.stop_flag = False
 
-        # Set update rate to be twice a second
-        self.gps.send_command(b'PMTK220, 500')
+        # Create a queue to hold the time info
+        self.q = Queue()
 
-        # Update gps
-        self.gps.update()
+        # Set off the GPS loop
+        gps_pro = Process(target = self.gps_update, args=(self.q,))
+        gps_pro.start()
+
+#========================================================================================
+#======================================= call_gps =======================================
+#========================================================================================
+
+    def gps_update(self, q):
+
+        '''
+        Function to loop the GPS
+
+        This is called automatically by the GPS object, no need to run again!
+
+        INPUTS
+        ------
+        q, multiprocessing.Queue
+            Queue into which the gps data is placed. It is cleared before each placement
+            to ensure the queue doesn't grow very long between calls
+        '''
+
+        while not self.stop_flag:
+
+            # Emtpy the queue
+            while q.qsize() > 1:
+                q.get()
+
+            # Get GPS data
+            try:
+                # Wait for a 'TPV' report
+                report = self.session.next()
+
+                if report['class'] == 'TPV':
+
+                    time, latitude, longitude, altitude = '', '', '', ''
+
+                    # Cycle through attributes and pull info if available
+                    if hasattr(report, 'latitude'):
+                        latitude = report.latitude
+                    if hasattr(report, 'longitude'):
+                        longitude = report.longitude
+                    if hasattr(report, 'altitude'):
+                        altitude = report.altitude
+                    if hasattr(report, 'time'):
+                        time = report.time
+
+                    # Add the results to the queue
+                    q.put([time, latitude, longitude, altitude])
+
+            except KeyError:
+                pass
+
+            except StopIteration:
+                self.session = None
+                logging.info('GPSD has terminated')
+
 
 #========================================================================================
 #======================================= call_gps =======================================
@@ -52,62 +108,7 @@ class GPS:
     def call_gps(self):
 
         '''
-        Function to call the connected GPS.
-
-        INPUTS
-        ------
-        gps, adafruit_gps object
-            The object for the GPS for other programs to call
-
-        OUPUTS
-        ------
-        lat, float
-            Decimal latitude (degrees, North is positive)
-
-        lon, float
-            Decimal longitude (degrees, East is positive)
-
-        alt, float
-            Altitude above sea level (m)
-
-        timestamp, datetime object
-            The date and time at the time of the call
-        '''
-        '''
-        # Required to call gps.update() at elast twice a loop
-        self.gps.update()
-
-        # Pull out the info
-        year   = int(self.gps.timestamp_utc.tm_year)
-        month  = int(self.gps.timestamp_utc.tm_mon)
-        day    = int(self.gps.timestamp_utc.tm_mday)
-        hour   = int(self.gps.timestamp_utc.tm_hour)
-        minute = int(self.gps.timestamp_utc.tm_min)
-        sec    = int(self.gps.timestamp_utc.tm_sec)
-        lat    = int(self.gps.latitude)
-        lon    = int(self.gps.longitude)
-        alt    = int(self.gps.altitude_m)
-
-        # Build timestamp
-        timestamp = datetime.datetime(year = year,
-                                      month = month,
-                                      day = day,
-                                      hour = hour,
-                                      minute = minute,
-                                      second = sec)
-        '''
-        lat, lon, alt = 0, 0, 0
-        timestamp = datetime.datetime.now()
-        return lat, lon, alt, timestamp
-
-#========================================================================================
-#===================================== get_location =====================================
-#========================================================================================
-
-    def get_location(self):
-
-        '''
-        Function to get the position of the GPS
+        Function to get the time and position form the GPS
 
         INPUTS
         ------
@@ -115,34 +116,26 @@ class GPS:
 
         OUTPUTS
         -------
-        lat, float
-            Latitude in decimal degrees. Positive is North
-
-        lon, float
-            Longitude in decimal degrees. Positive is East
-
-        alt, float
-            Altitude a.s.l. in meters
+        gps_data, list
+            List of strings holding the GPS data in the format [time, lat, lon, alt]
         '''
 
-        # Update GPS
-        self.gps.update()
+        # Pull the data from the GPS object
+        if self.q.qsize() > 0:
+            self.gps_data = self.q.get()
 
-        # Get location information
-        lat = int(self.gps.latitude)
-        lon = int(self.gps.longitude)
-        alt = int(self.gps.altitude_m)
+        # Return the data
+        return self.gps_data
 
-        return lat, lon, alt
 
 #========================================================================================
-#======================================= get_time =======================================
+#======================================= stop_gps =======================================
 #========================================================================================
 
-    def get_time(self):
+    def stop(self):
 
         '''
-        Function to get just the time from the gps clock
+        Function to stop the gps update loop
 
         INPUTS
         ------
@@ -150,28 +143,8 @@ class GPS:
 
         OUTPUTS
         -------
-        time_arr, list
-            Returns 6 element array containing year, month, day, hour, minute and second
-        '''
-        '''
-        # Update GPS
-        self.gps.update()
-
-        # Get location information
-        year   = int(self.gps.timestamp_utc.tm_year)
-        month  = int(self.gps.timestamp_utc.tm_mon)
-        day    = int(self.gps.timestamp_utc.tm_mday)
-        hour   = int(self.gps.timestamp_utc.tm_hour)
-        minute = int(self.gps.timestamp_utc.tm_min)
-        sec    = int(self.gps.timestamp_utc.tm_sec)
+        None
         '''
 
-        t = datetime.datetime.now()
-        year = '{:04d}'.format(t.year)
-        month = '{:02d}'.format(t.month)
-        day = '{:02d}'.format(t.day)
-        hour = '{:02d}'.format(t.hour)
-        minute = '{:02d}'.format(t.minute)
-        sec = '{:02d}'.format(t.second)
-
-        return year, month, day, hour, minute, sec
+        # Turn on the stop flag
+        self.stop_flag = True
