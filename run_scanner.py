@@ -5,48 +5,23 @@ import numpy as np
 import time
 import seabreeze.spectrometers as sb
 from multiprocessing import Process
+import datetime
 import logging
 
 from openso2.scanner import Scanner, acquire_scan
 from openso2.analyse_scan import analyse_scan, update_int_time
-from openso2.call_gps import GPS
+from openso2.call_gps import sync_gps_time
 from openso2.program_setup import read_settings
 from openso2.julian_time import hms_to_julian
-from openso2.station_status import status_loop
-
-#========================================================================================
-#=========================== Create comon and settings dicts ============================
-#========================================================================================
-
-# Create an empty dictionary to hold the comon parameters
-common = {}
-
-# Read in the station operation settings file
-settings = read_settings('data_bases/station_settings.txt')
-
-#========================================================================================
-#============================ Connect to the GPS and scanner ============================
-#========================================================================================
-
-# Connect to the GPS
-gps = GPS()
-
-# Wait for GPS to get a fix
-while True:
-    timestamp, lat, lon, alt = gps.call_gps()
-
-    if timestamp != '':
-        break
-
-# Convert the timestamp to a date and a julian time
-datestamp = timestamp[0:10]
-
-# Connect to the scanner
-scanner = Scanner()
+#from openso2.station_status import status_loop
 
 #========================================================================================
 #==================================== Set up logging ====================================
 #========================================================================================
+
+# Get the date
+dt = datetime.datetime.now()
+datestamp = str(dt.date())
 
 # Create log name
 logname = f'log/{datestamp}.log'
@@ -63,6 +38,27 @@ logging.basicConfig(filename=logname,
                     level = logging.INFO)
 
 logging.info('Station awake')
+
+#========================================================================================
+#=========================== Create comon and settings dicts ============================
+#========================================================================================
+
+# Create an empty dictionary to hold the comon parameters
+common = {}
+
+# Read in the station operation settings file
+settings = read_settings('data_bases/station_settings.txt')
+
+#========================================================================================
+#============================ Connect to the GPS and scanner ============================
+#========================================================================================
+
+# Set off process to set the system time from GPS
+gps_p = Process(target = sync_gps_time)
+gps_p.start()
+
+# Connect to the scanner
+scanner = Scanner()
 
 #========================================================================================
 #============================= Connect to the spectrometer ==============================
@@ -102,7 +98,7 @@ common['wave_stop']  = 318
 # Set the order of the background poly
 common['poly_n'] = 3
 
-# Add other parameters
+# Set first gues for parameters
 common['params'] = [1.0, 1.0, 1.0, -0.2, 0.05, 1.0, 1.0e16, 1.0e17, 1.0e19]
 
 # Set the station name
@@ -117,11 +113,11 @@ processes = []
 #========================================================================================
 #================================== Set up status loop ==================================
 #========================================================================================
-
+'''
 # Launch a seperate processs to keep the station status up to date
 status_p = Process(target = status_loop)
 status_p.start()
-
+'''
 #========================================================================================
 #=============================== Begin the scanning loop ================================
 #========================================================================================
@@ -134,8 +130,8 @@ if not os.path.exists(common['fpath'] + 'spectra/'):
     os.makedirs(common['fpath'] + 'spectra/')
 
 # Get time and convert to julian time
-timestamp, lat, lon, alt = gps.call_gps()
-jul_t = hms_to_julian(timestamp[11:19], str_format = '%H:%M:%S')
+timestamp = datetime.datetime.now()
+jul_t = hms_to_julian(timestamp)
 
 # If before scan time, wait
 while jul_t < settings['start_time']:
@@ -143,8 +139,8 @@ while jul_t < settings['start_time']:
     time.sleep(60)
 
     # Update time
-    timestamp, lat, lon, alt = gps.call_gps()
-    jul_t = hms_to_julian(timestamp[11:19], str_format = '%H:%M:%S')
+    timestamp = datetime.datetime.now()
+    jul_t = hms_to_julian(timestamp)
 
 
 # Begin loop
@@ -152,17 +148,15 @@ while jul_t < settings['stop_time']:
 
     logging.info('Station active')
 
-    # Get scan start time
-    timestamp, lat, lon, alt = gps.call_gps()
-
-    # Convert the timestamp to a date and a julian time
-    datestamp = timestamp[0:10]
-    jul_t = hms_to_julian(timestamp[11:19], str_format = '%H:%M:%S')
+    # Update time
+    timestamp = datetime.datetime.now()
+    jul_t = hms_to_julian(timestamp)
+    datestamp = str(timestamp.date())
 
     logging.info('Begin scan ' + str(common['scan_no']))
 
     # Scan!
-    common['scan_fpath'] = acquire_scan(scanner, gps, spec, common, settings)
+    common['scan_fpath'] = acquire_scan(scanner, spec, common, settings)
 
     # Update the spectrometer integration time
     common['spec_int_time'] = update_int_time(common, settings)
@@ -193,4 +187,3 @@ while jul_t < settings['stop_time']:
     common['scan_no'] += 1
 
 logging.info('Station going to sleep')
-gps.stop()

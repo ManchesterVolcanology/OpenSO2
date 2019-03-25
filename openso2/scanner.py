@@ -7,6 +7,7 @@ Created on Fri Nov 23 15:34:46 2018
 
 import numpy as np
 import logging
+import datetime
 import board
 import atexit
 import digitalio
@@ -30,7 +31,7 @@ class Scanner:
     find_home
         Function that rotates the scanner to the home position
 
-    move
+    step
         Moves the scanner by a specified number of steps
     '''
 
@@ -100,7 +101,7 @@ class Scanner:
         if not self.uswitch.value:
 
             # Rotate until it is on
-            self.step(steps = 100, steptype = 'interleave')
+            self.step(steps = 100)
 
         # Step the motor until the switch turns off
         home = False
@@ -108,7 +109,7 @@ class Scanner:
         while not home:
 
             # Move the motor one step
-            self.step(steptype = 'interleave')
+            self.step()
             i += 1
 
             # Check if the scanner is home. Connection with switch can fail, so check
@@ -130,7 +131,7 @@ class Scanner:
 #======================================= Move Motor =====================================
 #========================================================================================
 
-    def step(self, steps = 1, steptype = 'interleave', direction = 'backward'):
+    def step(self, steps = 1, direction = 'backward'):
 
         '''
         Function to move the motor by a given number of steps
@@ -171,7 +172,7 @@ class Scanner:
         # Perform steps
         for i in range(steps):
             self.motor.onestep(direction = step_dir[direction],
-                               style = step_mode[steptype])
+                               style = step_mode[self.step_type])
 
             # Add a short rest between steps to improve accuracy
             time.sleep(0.01)
@@ -193,7 +194,7 @@ class Scanner:
 #===================================== Acuire Scan ======================================
 #========================================================================================
 
-def acquire_scan(Scanner, GPS, Spectrometer, common, settings):
+def acquire_scan(Scanner, Spectrometer, common, settings):
 
     '''
     Function to perform a scan. Simultaneously analyses the spectra from the previous
@@ -229,7 +230,17 @@ def acquire_scan(Scanner, GPS, Spectrometer, common, settings):
     Scanner.find_home()
 
     # Get time
-    y, mo, d, h, m, s = GPS.get_time()
+    t = datetime.datetime.now()
+    y = t.year
+    mo = t.month
+    d = t.day
+    h = t.hour
+    m = t.minute
+    s = t.second
+
+    # Form the filename of the scan file
+    fname = str(y) + str(mo) + str(d) + '_' + str(h) + str(m) + str(s) + '_' + \
+            settings['station_name'] + '_v_1_1_Block' + str(common['scan_no']) + '.npy'
 
     # Take the dark spectrum
     dark = Spectrometer.intensities()
@@ -247,7 +258,10 @@ def acquire_scan(Scanner, GPS, Spectrometer, common, settings):
         spec_int = Spectrometer.intensities()
 
         # Get time
-        y, mo, d, h, m, s = GPS.get_time()
+        t = datetime.datetime.now()
+        h = t.hour
+        m = t.minute
+        s = t.second
 
         # Add the data to the array
         # Has the format N_acq, Hour, Min, Sec, MotorPos, Coadds, Int time
@@ -262,8 +276,6 @@ def acquire_scan(Scanner, GPS, Spectrometer, common, settings):
     logging.info('Scan complete')
 
     # Save the scan data
-    fname = str(y) + str(mo) + str(d) + '_' + str(h) + str(m) + str(s) + '_' + \
-            settings['station_name'] + '_v_1_1_Block' + str(common['scan_no']) + '.npy'
     fpath = common['fpath'] + 'spectra/' + fname
 
     np.save(fpath, scan_data.astype('float16'))

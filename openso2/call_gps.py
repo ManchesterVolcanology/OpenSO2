@@ -9,6 +9,30 @@ import gps
 import logging
 from multiprocessing import Process, Queue
 
+import subprocess
+
+def sync_gps_time():
+
+    # Listen on port 2947 (GPSD) of localhost
+    gpsd = gps.gps("localhost", "2947")
+    gpsd.stream(gps.WATCH_ENABLE | gps.WATCH_NEWSTYLE)
+
+    while True:
+      #wait until the next GPSD time tick
+      gpsd.next()
+      if gpsd.utc != None and gpsd.utc != '':
+        #gpsd.utc is formatted like"2015-04-01T17:32:04.000Z"
+        #convert it to a form the date -u command will accept: "20140401 17:32:04"
+        #use python slice notation [start:end] (where end desired end char + 1)
+        #   gpsd.utc[0:4] is "2015"
+        #   gpsd.utc[5:7] is "04"
+        #   gpsd.utc[8:10] is "01"
+        gpsutc = gpsd.utc[0:4] + gpsd.utc[5:7] + gpsd.utc[8:10] + ' ' + gpsd.utc[11:19]
+        subprocess.call('sudo date -u --set="%s"' % gpsutc, shell = True)
+        break
+
+
+
 class GPS:
 
     '''
