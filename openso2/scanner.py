@@ -36,7 +36,7 @@ class Scanner:
     '''
 
     # Initialise
-    def __init__(self, uswitch_pin = 21, step_type = 'interleave'):
+    def __init__(self, uswitch_pin = 21, step_type = 'single'):
 
         # Define the GPIO pins
         gpio_pin = {'4':  board.D4,
@@ -97,32 +97,20 @@ class Scanner:
         None
         '''
 
-        # First check if the switch is turned on
-        if not self.uswitch.value:
+        # First check if the switch is turned off (station is at home)
+        while not self.uswitch.value:
 
             # Rotate until it is on
-            self.step(steps = 100)
+            self.step()
 
         # Step the motor until the switch turns off
-        home = False
         i = 0
-        while not home:
-
-            # Move the motor one step
+        while self.uswitch.value:
             self.step()
             i += 1
-
-            # Check if the scanner is home. Connection with switch can fail, so check
-            # after 1 second
-            if not self.uswitch.value:
-
-                # Sleep one second
-                time.sleep(1)
-
-                # Check if really home
-                if not self.uswitch.value:
-                    home = True
-                    logging.info('Steps to home: ' + str(i))
+            
+        # Log steps to home
+        logging.info('Steps to home: ' + str(i))
 
         # Once home set the motor position to 0
         self.position = 0
