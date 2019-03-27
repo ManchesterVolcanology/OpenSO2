@@ -23,17 +23,17 @@ from openso2.julian_time import hms_to_julian
 dt = datetime.datetime.now()
 datestamp = str(dt.date())
 
-# Create log name
-logname = f'log/{datestamp}.log'
-log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-
 # Make sure the log folder exists
 if not os.path.exists('log'):
     os.makedirs('log')
 
+# Create log name
+logname = f'log/{datestamp}.log'
+log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+
 # Create the logger
 logging.basicConfig(filename=logname,
-                    filemode = 'w',
+                    filemode = 'a',
                     format = log_fmt,
                     level = logging.INFO)
 
@@ -88,7 +88,8 @@ model_grid, common['o3_xsec']  = np.loadtxt('data_bases/Ref/o3.txt',   unpack = 
 model_grid, common['no2_xsec'] = np.loadtxt('data_bases/Ref/no2.txt',  unpack = True)
 model_grid, common['sol']      = np.loadtxt('data_bases/Ref/sol.txt',  unpack = True)
 model_grid, common['ring']     = np.loadtxt('data_bases/Ref/ring.txt', unpack = True)
-x, common['flat']              = np.loadtxt('data_bases/Ref/flat.txt', unpack = True)
+x, common['flat'] = np.loadtxt('data_bases/Ref/flat_'+settings['Spectrometer']+'.txt', 
+                               unpack = True)
 
 # Set the model grid
 common['model_grid'] = model_grid
@@ -185,5 +186,9 @@ while jul_t < settings['stop_time']:
 
     # Update the scan number
     common['scan_no'] += 1
+
+# Finish up any analysis that is still ongoing
+for p in processes:
+    p.join()
 
 logging.info('Station going to sleep')
