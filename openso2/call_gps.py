@@ -29,7 +29,7 @@ def sync_gps_time():
         #   gpsd.utc[8:10] is "01"
         gpsutc = gpsd.utc[0:4] + gpsd.utc[5:7] + gpsd.utc[8:10] + ' ' + gpsd.utc[11:19]
         subprocess.call('sudo date -u --set="%s"' % gpsutc, shell = True)
-        logging.info('System time updated from GPS: ' + gpsutc;)
+        logging.info('System time updated from GPS: ' + gpsutc)
         break
 
 
