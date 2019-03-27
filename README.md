@@ -41,3 +41,26 @@ Then install the circuit python library for motor control
 ```
 pip install adafruit-circuitpython-motorkit
 ```
+
+### GPS
+To obtain the GPS information requires the GPS module in python. To install the gps module run:
+```
+pip install gps
+```
+
+### Start up script
+Open SO<sub>2</sub> is designed to run on startup. This is achieved by following these steps.
+
+First make sure the script ```run_scanner.py``` is executable by navigating to the open_so2 folder and running:
+```
+chmod +x run_scanner.py
+```
+Now to make sure it runs on startup add the following lines to the startup script found at ```/etc/rc.local``` above the ```exit 0``` line:
+```
+sudo systemctl stop gpsd.socket
+sudo systemctl disable gpsd.socket
+sudo gpsd /dev/ttyUSB0 -F /var/run/gpsd.sock
+
+cd /home/pi/open_so2/
+/home/pi/open_so2/./run_scanner.py
+```
