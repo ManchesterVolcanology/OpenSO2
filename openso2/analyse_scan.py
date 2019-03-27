@@ -101,8 +101,7 @@ def analyse_scan(**common):
     fit_data = np.zeros((105, 5))
 
     # Read in the scan data
-    #err, x, info_block, spec_block = read_scan(common['scan_fpath'])
-    err, x, info_block, spec_block = read_scan('20110410_080934_TEST_v_5_0_Block45.npy')
+    err, x, info_block, spec_block = read_scan(common['scan_fpath'])
 
     # Logthe start of the scan
     logging.info('Start scan analysis')
