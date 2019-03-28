@@ -294,6 +294,51 @@ def calc_scan_flux(fpath, windspeed = 10, height = 1000, plume_type = 'flat'):
     return flux
 
 #========================================================================================
+#================================== calc_plume_height ===================================
+#========================================================================================
+
+def calc_plume_height(station, fpath):
+    
+    '''
+    Function to calculate the plume height from two station scans
+    ***Currently returns 1000 m as not confired***
+    
+    INPUTS
+    ------
+    station, str
+        Station name for which the scan is being 
+    
+    OUTPUTS
+    -------
+    plume_height, float
+        The height of the plume in m a.s.l.
+    '''
+
+    return 1000.0
+
+#========================================================================================
+#=================================== get_wind_speed =====================================
+#========================================================================================
+
+def get_wind_speed():
+    
+    '''
+    Function to get the wind speed.
+    ***Currently just returns 10 m/s as not configured***
+    
+    INPUTS
+    ------
+    None
+    
+    OUTPUTS
+    -------
+    wind_speed, float
+        The latest windspeed in m/s
+    '''
+    
+    return 10.0
+
+#========================================================================================
 #================================== get_spec_details ====================================
 #========================================================================================
 

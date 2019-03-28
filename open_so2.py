@@ -20,7 +20,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 
 from openso2.program_setup import get_station_info, update_resfp
 from openso2.station_com import Station
-from openso2.analyse_scan import calc_scan_flux
+from openso2.analyse_scan import calc_scan_flux, calc_plume_height, get_wind_speed
 from openso2.julian_time import hms_to_julian
 from openso2.gui_funcs import update_graph, make_input
 
@@ -64,14 +64,17 @@ class mygui(tk.Tk):
         for station in self.station_info.keys():
             self.stat_com[station] = Station(self.station_info[station])
 
-        # Create dicionaries to hold the flux results
-        self.times  = {}
-        self.fluxes = {}
+        # Create dicionaries to hold the flux results and plume height and speed
+        self.times   = {}
+        self.fluxes  = {}
+        self.wtimes  = []
+        self.heights = []
+        self.speeds  = []
 
-        # Populate the dictionaries with arrays for each staiton
+        # Populate the flux dictionaries with arrays for each staiton
         for station in self.station_info.keys():
-            self.times[station]  = []
-            self.fluxes[station] = []
+            self.times[station]   = []
+            self.fluxes[station]  = []
 
         # Create notebook to hold overview and station info pages
         nb = ttk.Notebook(self)
@@ -126,7 +129,7 @@ class mygui(tk.Tk):
         res_fpath_b.grid(row = 1, column = 2, padx = 5, pady = 5, sticky = 'W')
 
         # Create control for the control loop speed
-        self.loop_speed = tk.IntVar(value = 1)
+        self.loop_speed = tk.IntVar(value = 30)
         make_input(frame = stat_frame,
                    text = 'Sync Delay (s):',
                    var = self.loop_speed,
@@ -321,22 +324,20 @@ class mygui(tk.Tk):
                     scan_time = hms_to_julian(scan_timestamp)
 
                     # Get the wind speed
-                    wind_speed = 10
+                    wind_speed = get_wind_speed()
 
                     # Calculate the new plume height
-                    plume_height = 1000
+                    plume_height = calc_plume_height()
 
                     # Calculate the flux from the scan
                     flux = calc_scan_flux(fpath, wind_speed, plume_height, 'arc')
 
-                    ################################
-                    # Add a bit of error
-                    flux += (np.random.rand()-0.5)*0.5e3
-                    ################################
-
-                    # Add the time and flux to the results arrays
+                    # Add to the results arrays
                     self.times[s].append(scan_time)
                     self.fluxes[s].append(flux)
+                    self.wtimes.append(scan_time)
+                    self.heights.append(plume_height)
+                    self.speeds.append(wind_speed)
 
                     # Update the results file
                     with open(flux_fpaths[s], 'a') as a:
@@ -346,10 +347,14 @@ class mygui(tk.Tk):
                 if len(new_fnames[s]) != 0:
 
                     # Update the plots
-                    y_up_lim = 1.1 * (max(self.fluxes[s]))
-                    data = np.array(([self.times[s],self.fluxes[s],'auto',[0,y_up_lim]]))
-                    lines = [self.flux_lines[s]]
-                    axes  = [self.ax0]
+                    y_lim = [1.1 * (max(self.fluxes[s])),
+                             1.1 * (max(self.heights)),
+                             1.1 * (max(self.speeds))]
+                    data = np.array(([self.times[s],self.fluxes[s],'auto',[0,y_lim[0]]],
+                                     [self.wtimes,self.heights,'auto',[0,y_lim[1]]],
+                                     [self.wtimes,self.speeds,'auto',[0,y_lim[2]]]))
+                    lines = [self.flux_lines[s], self.height_line, self.wind_speed_line]
+                    axes  = [self.ax0, self.ax1, self.ax2]
                     update_graph(lines, axes, self.canvas, data)
 
         # Update the status colour
