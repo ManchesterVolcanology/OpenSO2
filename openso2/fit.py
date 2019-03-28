@@ -164,7 +164,7 @@ def ifit_fwd_model(grid, p0, p1, p2, shift, stretch, ring_amt, so2_amt, no2_amt,
     raw_F = np.prod([com['sol'], so2_T, no2_T, o3_T, bg_poly, ring_T])
 
     # Convolve with the ILS
-    F_conv = np.convolve(raw_F, make_ils(0.6), 'same')
+    F_conv = np.convolve(raw_F, com['ils'], 'same')
 
     # Apply shift and stretch to the model_grid
     shift_model_grid = np.add(com['model_grid'], shift)

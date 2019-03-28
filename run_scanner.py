@@ -53,9 +53,8 @@ settings = read_settings('data_bases/station_settings.txt')
 #============================ Connect to the GPS and scanner ============================
 #========================================================================================
 
-# Set off process to set the system time from GPS
-gps_p = Process(target = sync_gps_time)
-gps_p.start()
+# Sync time with the GPS
+sync_gps_time()
 
 # Connect to the scanner
 scanner = Scanner()
@@ -79,7 +78,7 @@ settings['Spectrometer'] = str(spec.serial_number)
 logging.info('Spectrometer ' + settings['Spectrometer'] + ' Connected')
 
 #========================================================================================
-#==================================== Start scanning ====================================
+#================================= Read in ref spectra ==================================
 #========================================================================================
 
 # Read in reference spectra
@@ -88,8 +87,12 @@ model_grid, common['o3_xsec']  = np.loadtxt('data_bases/Ref/o3.txt',   unpack = 
 model_grid, common['no2_xsec'] = np.loadtxt('data_bases/Ref/no2.txt',  unpack = True)
 model_grid, common['sol']      = np.loadtxt('data_bases/Ref/sol.txt',  unpack = True)
 model_grid, common['ring']     = np.loadtxt('data_bases/Ref/ring.txt', unpack = True)
-x, common['flat'] = np.loadtxt('data_bases/Ref/flat_'+settings['Spectrometer']+'.txt', 
+
+# Get spectrometer flat spectrum and ILS
+x, common['flat'] = np.loadtxt('data_bases/Ref/flat_'+settings['Spectrometer'] + '.txt', 
                                unpack = True)
+x, common['ils'] = np.loadtxt('data_bases/Ref/ils_' + settings['spectrometer'] + '.txt',
+                              unpack = True)
 
 # Set the model grid
 common['model_grid'] = model_grid
@@ -143,15 +146,12 @@ while jul_t < settings['start_time']:
     timestamp = datetime.datetime.now()
     jul_t = hms_to_julian(timestamp)
 
-
 # Begin loop
 while jul_t < settings['stop_time']:
 
     logging.info('Station active')
-
-    # Update time
-    timestamp = datetime.datetime.now()
-    jul_t = hms_to_julian(timestamp)
+    
+    # Update date
     datestamp = str(timestamp.date())
 
     logging.info('Begin scan ' + str(common['scan_no']))
@@ -186,6 +186,10 @@ while jul_t < settings['stop_time']:
 
     # Update the scan number
     common['scan_no'] += 1
+
+    # Update time
+    timestamp = datetime.datetime.now()
+    jul_t = hms_to_julian(timestamp)
 
 # Finish up any analysis that is still ongoing
 for p in processes:

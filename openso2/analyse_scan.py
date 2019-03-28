@@ -101,8 +101,7 @@ def analyse_scan(**common):
     fit_data = np.zeros((105, 5))
 
     # Read in the scan data
-    #err, x, info_block, spec_block = read_scan(common['scan_fpath'])
-    err, x, info_block, spec_block = read_scan('20110410_080934_TEST_v_5_0_Block45.npy')
+    err, x, info_block, spec_block = read_scan(common['scan_fpath'])
 
     # Logthe start of the scan
     logging.info('Start scan analysis')
@@ -293,6 +292,51 @@ def calc_scan_flux(fpath, windspeed = 10, height = 1000, plume_type = 'flat'):
     flux = flux_kg_s * 1.0e-3 * 8.64e4
 
     return flux
+
+#========================================================================================
+#================================== calc_plume_height ===================================
+#========================================================================================
+
+def calc_plume_height(station, fpath):
+    
+    '''
+    Function to calculate the plume height from two station scans
+    ***Currently returns 1000 m as not confired***
+    
+    INPUTS
+    ------
+    station, str
+        Station name for which the scan is being 
+    
+    OUTPUTS
+    -------
+    plume_height, float
+        The height of the plume in m a.s.l.
+    '''
+
+    return 1000.0
+
+#========================================================================================
+#=================================== get_wind_speed =====================================
+#========================================================================================
+
+def get_wind_speed():
+    
+    '''
+    Function to get the wind speed.
+    ***Currently just returns 10 m/s as not configured***
+    
+    INPUTS
+    ------
+    None
+    
+    OUTPUTS
+    -------
+    wind_speed, float
+        The latest windspeed in m/s
+    '''
+    
+    return 10.0
 
 #========================================================================================
 #================================== get_spec_details ====================================
