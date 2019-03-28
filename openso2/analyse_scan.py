@@ -196,6 +196,10 @@ def update_int_time(common, settings):
     # Find the nearest value
     diff = ((int_times - int_time)**2)**0.5
     idx = np.where(diff == min(diff))[0][0]
+    new_int_time = int(int_times[idx])
+
+    # Log change
+    logging.info('Updated integration time to ' + str(new_int_time) + ' ms')
 
     # Return the updated integration time
     return int(int_times[idx])
