@@ -1,6 +1,6 @@
-station_name;TEST;<class 'str'>
-start_time;8;<class 'float'>
-stop_time;16;<class 'float'>
+station_name;LOVE;<class 'str'>
+start_time;12;<class 'float'>
+stop_time;20;<class 'float'>
 model_pad;3;<class 'float'>
 model_res;0.05;<class 'float'>
 min_int_time;50;<class 'int'>
