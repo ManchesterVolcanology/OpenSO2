@@ -259,6 +259,7 @@ def acquire_scan(Scanner, Spectrometer, common, settings):
 
         # Step the scanner
         Scanner.step(settings['steps_per_spec'])
+        time.sleep(0.5)
 
     # Scan complete
     logging.info('Scan complete')
