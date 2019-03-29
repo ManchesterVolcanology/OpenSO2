@@ -327,7 +327,7 @@ class mygui(tk.Tk):
                     wind_speed = get_wind_speed()
 
                     # Calculate the new plume height
-                    plume_height = calc_plume_height()
+                    plume_height = calc_plume_height(s, fname)
 
                     # Calculate the flux from the scan
                     flux = calc_scan_flux(fpath, wind_speed, plume_height, 'arc')

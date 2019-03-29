@@ -161,14 +161,11 @@ def update_int_time(common, settings):
 
     INPUTS
     ------
-    scan_fpath, str
-        Filepath to previous scan
-
-    prev_int_time, int
-        Previous scan integration time (ms)
-
-    target_int, int
-        Target intensity i ncounts for the spectrometer to read
+    common, dict
+        Common dictionary of parameters for the program
+        
+    settings, dict
+        Dictionary of station settings
 
     OUTPUTS
     -------
@@ -381,7 +378,8 @@ def get_spec_details(fpath):
               'emil': ['I2J5768', 295.9804618, 0.049231176, -5.52944e-6,  -6.98636E-12 ],
               'even': ['I2J5775', 296.2851694, 0.04864757,  -5.17264e-6,  -0.106506e-10],
               'etst': ['I2J5770', 295.1845975, 0.049603817, -5.54717e-6,  -3.531373-11 ],
-              'TEST': ['I2J5769', 296.6937822, 0.047945548, -4.89043e-6,  -1.77072e-10 ],}
+              'LOVE': ['USB2+H15972', 275.88781999999975, 0.09256299600000058, -8.025713200000456e-06, 9.706872043555717e-23],
+              'BROD': ['FLMS02929', 298.4462299999999, 0.0780060889999999, -5.226187099999893e-06, -1.4457043469125537e-23]}
 
     # Get just filename
     fname = fpath.split('/')[-1]
