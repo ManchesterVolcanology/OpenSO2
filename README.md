@@ -25,7 +25,18 @@ The power to the Pi is controlled using the WittyPi2 HAT. This controls when the
 wget http://www.uugear.com/repo/WittyPi2/installWittyPi.sh
 sudo sh installWittyPi.sh
 ```
-This script goes through several steps to ensure the WittyPi2 board will operate correctly. Note it is note necessary to install Qt for the GUI.
+This script goes through several steps to ensure the WittyPi2 board will operate correctly. Note it is not necessary to install Qt for the GUI. Once it is installed a correct script to tell the board when to power on and off is required. In the wittyPi folder create a text document called ```schedule.wpi``` containing the following text:
+```
+BEGIN 2018-01-01 06:00:00
+END   2050-01-01 23:59:59
+ON    12H
+OFF   12H
+```
+This script tells the wittyPi board to turn the Pi on from 6:00 to 18:00 everyday. Not that this is UTC, so the ```BEGIN``` time will require adjusting for the local time zone. The script is then activated by running
+```
+sudo ./run_script.sh
+```
+This will summerise the timing details so they can be checked.
 
 ### Adafruit Motor HAT
 Control of the stepper motor in the scanner is achieved using this HAT. Details can be found [here](https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/installing-circuitpython-on-raspberry-pi). To operate first you need to install Adafruit Blinka following these steps:
@@ -47,6 +58,7 @@ To obtain the GPS information requires the GPS module in python. To install the 
 ```
 pip install gps
 ```
+Open SO<sub>2</sub> also changes the RTC time of the wittyPi board to make sure that the board time matches the system time of the Pi when connected to the GPS. This requires the ```system_to_rtc.sh``` file to be placed in the wittyPi folder. Make sure it is executeable with ```chmod +x system_to_rtc.sh```
 
 ### Start up script
 Open SO<sub>2</sub> is designed to run on startup. This is achieved by following these steps.
@@ -62,5 +74,5 @@ sudo systemctl disable gpsd.socket
 sudo gpsd /dev/ttyUSB0 -F /var/run/gpsd.sock
 
 cd /home/pi/open_so2/
-/home/pi/open_so2/./run_scanner.py
+sudo /home/pi/open_so2/./run_scanner.py
 ```
