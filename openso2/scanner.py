@@ -240,6 +240,7 @@ def acquire_scan(Scanner, Spectrometer, common, settings):
     Scanner.step(steps = settings['steps_to_start'])
 
     # Begin stepping through the scan
+    logging.info('Begin scanning')
     for step_no in range(1, 101):
 
         # Acquire spectrum

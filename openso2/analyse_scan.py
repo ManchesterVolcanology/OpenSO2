@@ -104,7 +104,7 @@ def analyse_scan(**common):
     err, x, info_block, spec_block = read_scan(common['scan_fpath'])
 
     # Logthe start of the scan
-    logging.info('Start scan analysis')
+    logging.info('Start scan ' + str(common['scan_no']) + ' analysis')
 
     # Check for read error
     if err == 0:
@@ -142,7 +142,7 @@ def analyse_scan(**common):
             # Add the fit results to the results array
             fit_data[n-1] = [dec_time, motor_pos, angle, popt[6], perr[6]]
 
-        logging.info('Spectral analysis complete')
+        logging.info('Scan ' + str(common['scan_no']) + ' analysis complete')
 
         # Save the data
         fname = common['scan_fpath'].split('/')[-1][:-4] + '_so2.npy'

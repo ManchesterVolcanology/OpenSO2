@@ -159,6 +159,8 @@ while jul_t < settings['stop_time']:
     # Scan!
     common['scan_fpath'] = acquire_scan(scanner, spec, common, settings)
 
+    logging.info('Scan ' + str(common['scan_no']) + ' complete')
+
     # Update the spectrometer integration time
     common['spec_int_time'] = update_int_time(common, settings)
     spec.integration_time_micros(common['spec_int_time'] * 1000)
