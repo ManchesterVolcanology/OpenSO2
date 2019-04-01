@@ -54,8 +54,9 @@ pip install adafruit-circuitpython-motorkit
 ```
 
 ### GPS
-To obtain the GPS information requires the GPS module in python. To install the gps module run:
+To obtain the GPS information requires the GPS module in python as well as GSPD to talk to the GPS device. To install these run:
 ```
+sudo apt-get install gpsd gpsd-clients
 pip install gps
 ```
 Open SO<sub>2</sub> also changes the RTC time of the wittyPi board to make sure that the board time matches the system time of the Pi when connected to the GPS. This requires the ```system_to_rtc.sh``` file to be placed in the wittyPi folder. Make sure it is executeable with ```chmod +x system_to_rtc.sh```
