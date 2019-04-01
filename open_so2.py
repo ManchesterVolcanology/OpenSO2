@@ -286,7 +286,7 @@ class mygui(tk.Tk):
 
         # If the stations are operational sync the so2 files. If sleeping sync spectra
         jul_time = hms_to_julian(timestamp)
-        if jul_time > 6 and jul_time < 16:
+        if jul_time > 10 and jul_time < 20:
             sync_mode = '/so2/'
         else:
             sync_mode = '/spectra/'
@@ -345,7 +345,7 @@ class mygui(tk.Tk):
                                 ',' + str(plume_height) + ',' + str(flux) + '\n')
 
                 if len(new_fnames[s]) != 0:
-
+                    '''
                     # Update the plots
                     y_lim = [1.1 * (max(self.fluxes[s])),
                              1.1 * (max(self.heights)),
@@ -356,7 +356,16 @@ class mygui(tk.Tk):
                     lines = [self.flux_lines[s], self.height_line, self.wind_speed_line]
                     axes  = [self.ax0, self.ax1, self.ax2]
                     update_graph(lines, axes, self.canvas, data)
-
+                    '''
+                    # Update the plots
+                    y_lim = [1.1 * (max(self.fluxes[s])),
+                             1.1 * (max(self.heights)),
+                             1.1 * (max(self.speeds))]
+                    data = np.array(([self.times[s],self.fluxes[s],'auto',[0,y_lim[0]]]))
+                    lines = [self.flux_lines[s]]
+                    axes  = [self.ax0]
+                    update_graph(lines, axes, self.canvas, data)
+                    
         # Update the status colour
         if self.status_col == 'red':
             self.status_e.config(fg = 'green')

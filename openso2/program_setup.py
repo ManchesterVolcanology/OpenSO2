@@ -142,6 +142,35 @@ def update_resfp(self):
     if fpath != '':
         self.res_fpath.set(fpath + '/')
 
+#========================================================================================
+#================================== Update scan files ===================================
+#========================================================================================
+
+def update_scanfp(self):
+
+    '''
+    Function to change the scans to analyse
+
+    INPUTS
+    ------
+    self,
+        Program object containing parameters
+
+    OUTPUTS
+    -------
+    None
+    '''
+
+    # Open dialouge to get files
+    fpaths = fd.askopenfilenames()
+
+    if fpaths != '':
+        self.scan_fpaths = []
+        for f in fpaths:
+            self.scan_fpaths.append(str(f))
+            
+        self.scan_ent.set(str(len(self.scan_fpaths)) + ' scans selected')
+
 
 
 

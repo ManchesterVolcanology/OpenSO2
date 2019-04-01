@@ -21,10 +21,17 @@ class Scanner:
     Scanner class used to control the scanner head which consists of a stepper motor and
     a microswitch
 
-    INPUTS
-    ------
+    PARAMETERS
+    ----------
     uswitch_pin, int (optional)
         The GPIO pin that connects to the microswitch. Default is 21
+
+    steptype, str
+        Stepping type. Must be one of:
+            - single;     single step (lowest power)
+            - double;     double step (more power but stronger)
+            - interleave; finer control, has double the steps of single
+            - micro;      slower but with much higher precision (8x)
 
     METHODS
     -------
@@ -132,13 +139,6 @@ class Scanner:
         steps, int
             Number of steps to move
 
-        steptype, str
-            Stepping type. Must be one of:
-                - single;     single step (lowest power)
-                - double;     double step (more power but stronger)
-                - interleave; finer control, has double the steps of single
-                - micro;      slower but with much higher precision (8x)
-
         direction, str
             Stepping direction, either 'forward' or 'backward'
 
@@ -175,7 +175,7 @@ class Scanner:
         try:
             with open('Station/position.txt', 'w') as w:
                 w.write(str(self.position))
-        except:
+        except FileNotFoundError:
             pass
 
 #========================================================================================
@@ -227,7 +227,8 @@ def acquire_scan(Scanner, Spectrometer, common, settings):
     s = t.second
 
     # Form the filename of the scan file
-    fname = str(y) + str(mo) + str(d) + '_' + str(h) + str(m) + str(s) + '_' + \
+    fname = str(y).zfill(2) + str(mo).zfill(2) + str(d).zfill(2) + '_' + \
+            str(h).zfill(2) + str(m).zfill(2)  + str(s).zfill(2) + '_' + \
             settings['station_name'] + '_v_1_1_Block' + str(common['scan_no']) + '.npy'
 
     # Take the dark spectrum
@@ -244,7 +245,10 @@ def acquire_scan(Scanner, Spectrometer, common, settings):
     for step_no in range(1, 101):
 
         # Acquire spectrum
-        spec_int = Spectrometer.intensities()
+        spec_int = np.zeros(len(dark))
+        for i in range(settings['coadds']):
+            spec_int = np.add(spec_int, Spectrometer.intensities())
+        spec_int = np.divide(spec_int, settings['coadds'])
 
         # Get time
         t = datetime.datetime.now()
@@ -260,7 +264,6 @@ def acquire_scan(Scanner, Spectrometer, common, settings):
 
         # Step the scanner
         Scanner.step(settings['steps_per_spec'])
-        time.sleep(0.5)
 
     # Scan complete
     logging.info('Scan complete')

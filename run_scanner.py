@@ -7,7 +7,7 @@ import seabreeze.spectrometers as sb
 from multiprocessing import Process
 import datetime
 import logging
-
+    
 from openso2.scanner import Scanner, acquire_scan
 from openso2.analyse_scan import analyse_scan, update_int_time
 from openso2.call_gps import sync_gps_time
@@ -50,14 +50,11 @@ common = {}
 settings = read_settings('data_bases/station_settings.txt')
 
 #========================================================================================
-#============================ Connect to the GPS and scanner ============================
+#==================================== Sync GPS Time =====================================
 #========================================================================================
 
 # Sync time with the GPS
 sync_gps_time()
-
-# Connect to the scanner
-scanner = Scanner()
 
 #========================================================================================
 #============================= Connect to the spectrometer ==============================
@@ -89,10 +86,9 @@ model_grid, common['sol']      = np.loadtxt('data_bases/Ref/sol.txt',  unpack = 
 model_grid, common['ring']     = np.loadtxt('data_bases/Ref/ring.txt', unpack = True)
 
 # Get spectrometer flat spectrum and ILS
-x, common['flat'] = np.loadtxt('data_bases/Ref/flat_'+settings['Spectrometer'] + '.txt', 
-                               unpack = True)
-x, common['ils'] = np.loadtxt('data_bases/Ref/ils_' + settings['spectrometer'] + '.txt',
+x,common['flat'] = np.loadtxt('data_bases/Ref/flat_'+settings['Spectrometer']+'.txt', 
                               unpack = True)
+common['ils'] = np.loadtxt('data_bases/Ref/ils_'+settings['Spectrometer']+'.txt')
 
 # Set the model grid
 common['model_grid'] = model_grid
@@ -102,7 +98,7 @@ common['wave_stop']  = 318
 # Set the order of the background poly
 common['poly_n'] = 3
 
-# Set first gues for parameters
+# Set first guess for parameters
 common['params'] = [1.0, 1.0, 1.0, -0.2, 0.05, 1.0, 1.0e16, 1.0e17, 1.0e19]
 
 # Set the station name
@@ -118,6 +114,10 @@ processes = []
 #================================== Set up status loop ==================================
 #========================================================================================
 '''
+# Create Station folder to hold status files  
+if not os.path.exists('Station/'):
+    os.makedirs('Station/')
+
 # Launch a seperate processs to keep the station status up to date
 status_p = Process(target = status_loop)
 status_p.start()
@@ -145,6 +145,9 @@ while jul_t < settings['start_time']:
     # Update time
     timestamp = datetime.datetime.now()
     jul_t = hms_to_julian(timestamp)
+    
+# Connect to the scanner
+scanner = Scanner(step_type = settings['step_type'])
 
 # Begin loop
 while jul_t < settings['stop_time']:
@@ -192,6 +195,9 @@ while jul_t < settings['stop_time']:
     # Update time
     timestamp = datetime.datetime.now()
     jul_t = hms_to_julian(timestamp)
+
+# Release the scanner
+scanner.motor.release()
 
 # Finish up any analysis that is still ongoing
 for p in processes:

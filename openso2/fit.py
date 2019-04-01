@@ -3,8 +3,6 @@ import logging
 from scipy.interpolate import griddata
 from scipy.optimize import curve_fit
 
-from openso2.make_ils import make_ils
-
 #========================================================================================
 #===================================== make_poly ========================================
 #========================================================================================
@@ -99,29 +97,41 @@ def fit_spec(common, spectrum, grid):
     y = np.divide(y, common['flat'])
 
     # Appempt to fit!
-    try:
-        # Fit
-        popt, pcov = curve_fit(ifit_fwd_model, grid, y, p0 = common['params'])
-
-        # Get fit errors
-        perr = np.sqrt(np.diag(pcov))
-
-        # Fit successful
-        fitted_flag = True
-
-    # If fit fails, report and carry on
-    except Exception as e:
-
+    if not np.any(y == 0):
+        try:
+            # Fit
+            popt, pcov = curve_fit(ifit_fwd_model, grid, y, p0 = common['params'])
+        
+            # Get fit errors
+            perr = np.sqrt(np.diag(pcov))
+        
+            # Fit successful
+            fitted_flag = True
+        
+        # If fit fails, report and carry on
+        except RuntimeError:
+    
+            # Fill returned arrays with zeros
+            popt = np.zeros(len(common['params']))
+            perr = np.zeros(len(common['params']))
+    
+            # Turn off fitted flag
+            fitted_flag = False
+            
+            # Log
+            logging.warning('Fit failed')
+            
+    else:
         # Fill returned arrays with zeros
         popt = np.zeros(len(common['params']))
         perr = np.zeros(len(common['params']))
 
         # Turn off fitted flag
         fitted_flag = False
-
+        
         # Log
-        logging.warning('Fit failed')
-
+        logging.warning('Intensity too low')
+    
     # Return results, either to a queue if threaded, or as an array if not
     return popt, perr, fitted_flag
 
@@ -159,9 +169,9 @@ def ifit_fwd_model(grid, p0, p1, p2, shift, stretch, ring_amt, so2_amt, no2_amt,
 
     # Ring effect
     ring_T = np.exp(np.multiply(com['ring'], ring_amt))
-
+    
     # Build the model
-    raw_F = np.prod([com['sol'], so2_T, no2_T, o3_T, bg_poly, ring_T])
+    raw_F = np.prod([com['sol'], so2_T, no2_T, o3_T, bg_poly, ring_T], axis = 0)
 
     # Convolve with the ILS
     F_conv = np.convolve(raw_F, com['ils'], 'same')

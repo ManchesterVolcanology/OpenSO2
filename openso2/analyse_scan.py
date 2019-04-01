@@ -47,30 +47,31 @@ def read_scan(fpath):
     '''
 
     try:
-        # Read in the numpy file
+    
+        #Read in the numpy file
         data = np.load(fpath)
-
+    
         # Create empty arrays to hold the spectra
         w, h = data.shape
         info = np.zeros((w, 7))
         spec = np.zeros((w, h - 7))
-
+    
         # Unpack the data
         for n, line in enumerate(data):
-
+    
             # Split the spectrum from the spectrum info
             info[n] = data[n][:7]
             spec[n] = data[n][7:]
-
+    
         # Get the station data
         scanner, spec_name, intercept, c1, c2, c3 = get_spec_details(fpath)
-
+    
         # Generate the wavelength grid
         pixel_no = np.arange(h-7) + 1
         wavelength = intercept + np.multiply(pixel_no, c1)  + \
                      np.multiply(np.power(pixel_no, 2), c2) + \
                      np.multiply(np.power(pixel_no, 3), c3)
-
+    
         return 0, wavelength, info, spec
 
     except Exception as e:
@@ -124,7 +125,7 @@ def analyse_scan(**common):
             n_aq, h, m, s, motor_pos, int_time, coadds = info
 
             # Convert motor position to angle
-            angle = float(motor_pos) * 0.06 - 90
+            angle = float(motor_pos) / 33.25 - 102
 
             # Convert time to decimal hours
             dec_time = hms_to_julian(dt.time(int(h), int(m), int(s)))
