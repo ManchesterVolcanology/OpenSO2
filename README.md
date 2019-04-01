@@ -61,6 +61,12 @@ pip install gps
 ```
 Open SO<sub>2</sub> also changes the RTC time of the wittyPi board to make sure that the board time matches the system time of the Pi when connected to the GPS. This requires the ```system_to_rtc.sh``` file to be placed in the wittyPi folder. Make sure it is executeable with ```chmod +x system_to_rtc.sh```
 
+You should also check that the time zone for the Pi is set to UTC. Run:
+```
+sudo dpkg-reconfigure tzdata
+```
+Then select ```None of the above``` and set the TZ to UTC.
+
 ### Start up script
 Open SO<sub>2</sub> is designed to run on startup. This is achieved by following these steps.
 
