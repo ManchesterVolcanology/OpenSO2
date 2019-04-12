@@ -20,7 +20,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 
 from openso2.program_setup import get_station_info, update_resfp
 from openso2.station_com import Station
-from openso2.analyse_scan import calc_scan_flux, calc_plume_height, get_wind_speed
+from openso2.analyse_scan import calc_scan_flux, calc_plume_height, get_wind_speed, read_scan_so2
 from openso2.julian_time import hms_to_julian
 from openso2.gui_funcs import update_graph, make_input
 
@@ -161,20 +161,24 @@ class mygui(tk.Tk):
         self.ax2 = self.fig.add_subplot(gs[2])
 
         # Set axis labels
-        self.ax0.set_xlabel('Time (decimal hours)',    fontsize = 10)
-        self.ax0.set_ylabel('SO$_2$ Flux (t/day)',     fontsize = 10)
-        self.ax1.set_xlabel('Time (decimal hours)',    fontsize = 10)
-        self.ax1.set_ylabel('Plume Height (m a.s.l.)', fontsize = 10)
-        self.ax2.set_xlabel('Time (decimal hours)',    fontsize = 10)
-        self.ax2.set_ylabel('Wind Speed (m/s)',        fontsize = 10)
+        self.ax0.set_xlabel('Time (decimal hours)', fontsize = 10)
+        self.ax0.set_ylabel('SO$_2$ Flux (t/day)',  fontsize = 10)
+        self.ax1.set_xlabel('Scan Angle (deg)',     fontsize = 10)
+        self.ax1.set_ylabel('SO2 CD (ppm.m)',       fontsize = 10)
+        self.ax2.set_xlabel('Time (decimal hours)', fontsize = 10)
+        self.ax2.set_ylabel('Wind Speed (m/s)',     fontsize = 10)
 
         # Create lines for each station flux plot
         self.flux_lines = {}
         for station in self.station_info.keys():
             self.flux_lines[station], = self.ax0.plot(0, 0, 'o-', label = station)
 
-        self.height_line, = self.ax1.plot(0, 0, 'o-')
+        self.cd_line, = self.ax1.plot(0, 0, 'o-')
         self.wind_speed_line = self.ax2.plot(0, 0, 'o-')
+        
+        # Add a title
+        self.date = str(dt.datetime.now().date())
+        self.ax0.set_title(self.date)
 
         # Make the plot look nice
         plt.tight_layout()
@@ -253,6 +257,26 @@ class mygui(tk.Tk):
         # Check the date and time
         timestamp = dt.datetime.now()
         today_date = str(timestamp.date())
+        
+        # Check if the date has changed
+        if today_date != self.date:
+            
+            # Update the date
+            self.date = today_date
+            
+            # Change the plot title
+            self.ax0.set_title(today_date)
+
+            # Clear the results lists
+            for s in self.station_info.keys():
+                self.times[s]   = []
+                self.fluxes[s]  = []
+            
+                # Clear the plots
+                data = np.array(([self.times[s], self.fluxes[s], 'auto', [0, 500]]))
+                lines = [self.flux_lines[s]]
+                axes  = [self.ax0]
+                update_graph(lines, axes, self.canvas, data)
 
         # Create dictinary to hold the file paths
         m_fpath     = {}
@@ -322,6 +346,9 @@ class mygui(tk.Tk):
                     # Extract the time from the filename
                     scan_timestamp = dt.datetime.strptime(fname.split('_')[1], '%H%M%S')
                     scan_time = hms_to_julian(scan_timestamp)
+                    
+                    # Get the scan data
+                    scan_angles, so2_cd = read_scan_so2(fpath)
 
                     # Get the wind speed
                     wind_speed = get_wind_speed()
@@ -361,9 +388,10 @@ class mygui(tk.Tk):
                     y_lim = [1.1 * (max(self.fluxes[s])),
                              1.1 * (max(self.heights)),
                              1.1 * (max(self.speeds))]
-                    data = np.array(([self.times[s],self.fluxes[s],'auto',[0,y_lim[0]]]))
-                    lines = [self.flux_lines[s]]
-                    axes  = [self.ax0]
+                    data = np.array(([self.times[s],self.fluxes[s],'auto',[0,y_lim[0]]],
+                                     [scan_angles,  so2_cd,        'auto', 'auto'     ]))
+                    lines = [self.flux_lines[s], self.cd_line]
+                    axes  = [self.ax0, self.ax1]
                     update_graph(lines, axes, self.canvas, data)
                     
         # Update the status colour

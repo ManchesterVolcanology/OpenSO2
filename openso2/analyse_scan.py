@@ -203,6 +203,38 @@ def update_int_time(common, settings):
     return int(int_times[idx])
 
 #========================================================================================
+#==================================== Read Scan SO2 =====================================
+#========================================================================================
+
+def read_scan_so2(fpath):
+    
+    '''
+    Function to read the so2 results file from a scan
+    
+    INPUTS
+    ------
+    fpath, str
+        File path to the scan results file
+        
+    OUTPUTS
+    -------
+    scan_angless, numpy array
+        Scan angles
+        
+    so2_cd, numpy array
+        SO2 column densities
+    '''
+    
+    # Read in the scan so2 file
+    scan_data = np.load(fpath)
+
+    # Unpack useful information
+    scan_angles = scan_data[:,2]
+    so2_cds     = scan_data[:,3]
+    
+    return scan_angles, so2_cds
+
+#========================================================================================
 #==================================== Calc Scan Flux ====================================
 #========================================================================================
 
@@ -245,12 +277,8 @@ def calc_scan_flux(fpath, windspeed = 10, height = 1000, plume_type = 'flat'):
         raise Exception('Plume type not recognised. Must be one of "flat", "cylinder"' +\
                         ' or "arc"')
 
-    # Read in the scan so2 file
-    scan_data = np.load(fpath)
-
-    # Unpack useful information
-    angles  = scan_data[:,2]
-    so2_amt = scan_data[:,3]
+    # Read in scan data
+    angles, so2_amt = read_scan_so2(fpath)
 
     # Convert the angles to radians
     phi = [radians(a) for a in angles]
