@@ -44,7 +44,7 @@ logging.info('Station awake')
 #========================================================================================
 
 # Create an empty dictionary to hold the comon parameters
-common = {}
+common = {'datestamp': datestamp}
 
 # Read in the station operation settings file
 settings = read_settings('data_bases/station_settings.txt')
