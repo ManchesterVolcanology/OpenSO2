@@ -175,7 +175,7 @@ class mygui(tk.Tk):
 
         self.cd_line, = self.ax1.plot(0, 0, 'o-')
         self.wind_speed_line = self.ax2.plot(0, 0, 'o-')
-        
+
         # Add a title
         self.date = str(dt.datetime.now().date())
         self.ax0.set_title(self.date)
@@ -257,13 +257,13 @@ class mygui(tk.Tk):
         # Check the date and time
         timestamp = dt.datetime.now()
         today_date = str(timestamp.date())
-        
+
         # Check if the date has changed
         if today_date != self.date:
-            
+
             # Update the date
             self.date = today_date
-            
+
             # Change the plot title
             self.ax0.set_title(today_date)
 
@@ -271,7 +271,7 @@ class mygui(tk.Tk):
             for s in self.station_info.keys():
                 self.times[s]   = []
                 self.fluxes[s]  = []
-            
+
                 # Clear the plots
                 data = np.array(([self.times[s], self.fluxes[s], 'auto', [0, 500]]))
                 lines = [self.flux_lines[s]]
@@ -310,7 +310,7 @@ class mygui(tk.Tk):
 
         # If the stations are operational sync the so2 files. If sleeping sync spectra
         jul_time = hms_to_julian(timestamp)
-        if jul_time > 10 and jul_time < 20:
+        if jul_time > 8 and jul_time < 16:
             sync_mode = '/so2/'
         else:
             sync_mode = '/spectra/'
@@ -346,7 +346,7 @@ class mygui(tk.Tk):
                     # Extract the time from the filename
                     scan_timestamp = dt.datetime.strptime(fname.split('_')[1], '%H%M%S')
                     scan_time = hms_to_julian(scan_timestamp)
-                    
+
                     # Get the scan data
                     scan_angles, so2_cd = read_scan_so2(fpath)
 
@@ -393,7 +393,7 @@ class mygui(tk.Tk):
                     lines = [self.flux_lines[s], self.cd_line]
                     axes  = [self.ax0, self.ax1]
                     update_graph(lines, axes, self.canvas, data)
-                    
+
         # Update the status colour
         if self.status_col == 'red':
             self.status_e.config(fg = 'green')

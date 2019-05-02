@@ -115,7 +115,7 @@ class Scanner:
         while self.uswitch.value:
             self.step()
             i += 1
-            
+
         # Log steps to home
         logging.info('Steps to home: ' + str(i))
 
@@ -227,9 +227,8 @@ def acquire_scan(Scanner, Spectrometer, common, settings):
     s = t.second
 
     # Form the filename of the scan file
-    fname = str(y).zfill(2) + str(mo).zfill(2) + str(d).zfill(2) + '_' + \
-            str(h).zfill(2) + str(m).zfill(2)  + str(s).zfill(2) + '_' + \
-            settings['station_name'] + '_v_1_1_Block' + str(common['scan_no']) + '.npy'
+    fname = f'{y:02d}{mo:02d}{d:02d}_{h:02d}{m:02d}{s:02d}_' + settings['station_name']+\
+            '_v_1_1_Block' + str(common['scan_no']) + '.npy'
 
     # Take the dark spectrum
     dark = Spectrometer.intensities()
