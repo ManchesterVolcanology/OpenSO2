@@ -219,9 +219,9 @@ def acquire_scan(Scanner, Spectrometer, common, settings):
 
     # Get time
     t = datetime.datetime.now()
-    y = t.year
-    mo = t.month
-    d = t.day
+    y = common['datestamp'][0:4]
+    mo = common['datestamp'][5:7]
+    d = common['datestamp'][8:10]
     h = t.hour
     m = t.minute
     s = t.second

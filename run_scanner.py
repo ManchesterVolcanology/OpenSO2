@@ -7,7 +7,7 @@ import seabreeze.spectrometers as sb
 from multiprocessing import Process
 import datetime
 import logging
-    
+
 from openso2.scanner import Scanner, acquire_scan
 from openso2.analyse_scan import analyse_scan, update_int_time
 from openso2.call_gps import sync_gps_time
@@ -86,7 +86,7 @@ model_grid, common['sol']      = np.loadtxt('data_bases/Ref/sol.txt',  unpack = 
 model_grid, common['ring']     = np.loadtxt('data_bases/Ref/ring.txt', unpack = True)
 
 # Get spectrometer flat spectrum and ILS
-x,common['flat'] = np.loadtxt('data_bases/Ref/flat_'+settings['Spectrometer']+'.txt', 
+x,common['flat'] = np.loadtxt('data_bases/Ref/flat_'+settings['Spectrometer']+'.txt',
                               unpack = True)
 common['ils'] = np.loadtxt('data_bases/Ref/ils_'+settings['Spectrometer']+'.txt')
 
@@ -114,7 +114,7 @@ processes = []
 #================================== Set up status loop ==================================
 #========================================================================================
 '''
-# Create Station folder to hold status files  
+# Create Station folder to hold status files
 if not os.path.exists('Station/'):
     os.makedirs('Station/')
 
@@ -145,7 +145,7 @@ while jul_t < settings['start_time']:
     # Update time
     timestamp = datetime.datetime.now()
     jul_t = hms_to_julian(timestamp)
-    
+
 # Connect to the scanner
 scanner = Scanner(step_type = settings['step_type'])
 
@@ -153,9 +153,6 @@ scanner = Scanner(step_type = settings['step_type'])
 while jul_t < settings['stop_time']:
 
     logging.info('Station active')
-    
-    # Update date
-    datestamp = str(timestamp.date())
 
     logging.info('Begin scan ' + str(common['scan_no']))
 
