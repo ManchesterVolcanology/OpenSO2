@@ -47,31 +47,31 @@ def read_scan(fpath):
     '''
 
     try:
-    
+
         #Read in the numpy file
         data = np.load(fpath)
-    
+
         # Create empty arrays to hold the spectra
         w, h = data.shape
         info = np.zeros((w, 7))
         spec = np.zeros((w, h - 7))
-    
+
         # Unpack the data
         for n, line in enumerate(data):
-    
+
             # Split the spectrum from the spectrum info
             info[n] = data[n][:7]
             spec[n] = data[n][7:]
-    
+
         # Get the station data
         scanner, spec_name, intercept, c1, c2, c3 = get_spec_details(fpath)
-    
+
         # Generate the wavelength grid
         pixel_no = np.arange(h-7) + 1
         wavelength = intercept + np.multiply(pixel_no, c1)  + \
                      np.multiply(np.power(pixel_no, 2), c2) + \
                      np.multiply(np.power(pixel_no, 3), c3)
-    
+
         return 0, wavelength, info, spec
 
     except Exception as e:
@@ -99,7 +99,7 @@ def analyse_scan(**common):
     '''
 
     # Create empty array to hold the results
-    fit_data = np.zeros((105, 5))
+    fit_data = np.zeros((104, 5))
 
     # Read in the scan data
     err, x, info_block, spec_block = read_scan(common['scan_fpath'])
@@ -164,7 +164,7 @@ def update_int_time(common, settings):
     ------
     common, dict
         Common dictionary of parameters for the program
-        
+
     settings, dict
         Dictionary of station settings
 
@@ -207,31 +207,31 @@ def update_int_time(common, settings):
 #========================================================================================
 
 def read_scan_so2(fpath):
-    
+
     '''
     Function to read the so2 results file from a scan
-    
+
     INPUTS
     ------
     fpath, str
         File path to the scan results file
-        
+
     OUTPUTS
     -------
     scan_angless, numpy array
         Scan angles
-        
+
     so2_cd, numpy array
         SO2 column densities
     '''
-    
+
     # Read in the scan so2 file
     scan_data = np.load(fpath)
 
     # Unpack useful information
     scan_angles = scan_data[:,2]
     so2_cds     = scan_data[:,3]
-    
+
     return scan_angles, so2_cds
 
 #========================================================================================
@@ -328,16 +328,16 @@ def calc_scan_flux(fpath, windspeed = 10, height = 1000, plume_type = 'flat'):
 #========================================================================================
 
 def calc_plume_height(station, fpath):
-    
+
     '''
     Function to calculate the plume height from two station scans
     ***Currently returns 1000 m as not confired***
-    
+
     INPUTS
     ------
     station, str
-        Station name for which the scan is being 
-    
+        Station name for which the scan is being
+
     OUTPUTS
     -------
     plume_height, float
@@ -351,21 +351,21 @@ def calc_plume_height(station, fpath):
 #========================================================================================
 
 def get_wind_speed():
-    
+
     '''
     Function to get the wind speed.
     ***Currently just returns 10 m/s as not configured***
-    
+
     INPUTS
     ------
     None
-    
+
     OUTPUTS
     -------
     wind_speed, float
         The latest windspeed in m/s
     '''
-    
+
     return 10.0
 
 #========================================================================================

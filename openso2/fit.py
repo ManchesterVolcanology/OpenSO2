@@ -97,41 +97,41 @@ def fit_spec(common, spectrum, grid):
     y = np.divide(y, common['flat'])
 
     # Appempt to fit!
-    if not np.any(y == 0):
+    if not np.any(y == 0) and max(y) > 3000:
         try:
             # Fit
             popt, pcov = curve_fit(ifit_fwd_model, grid, y, p0 = common['params'])
-        
+
             # Get fit errors
             perr = np.sqrt(np.diag(pcov))
-        
+
             # Fit successful
             fitted_flag = True
-        
+
         # If fit fails, report and carry on
-        except RuntimeError:
-    
-            # Fill returned arrays with zeros
-            popt = np.zeros(len(common['params']))
-            perr = np.zeros(len(common['params']))
-    
+        except (RuntimeError, ValueError, np.linalg.linalg.LinAlgError) as e:
+
+            # Fill returned arrays with nans
+            popt = np.full(len(common['params']), np.nan)
+            perr = np.full(len(common['params']), np.nan)
+
             # Turn off fitted flag
             fitted_flag = False
-            
+
             # Log
             logging.warning('Fit failed')
-            
+
     else:
-        # Fill returned arrays with zeros
-        popt = np.zeros(len(common['params']))
-        perr = np.zeros(len(common['params']))
+        # Fill returned arrays with nans
+        popt = np.full(len(common['params']), np.nan)
+        perr = np.full(len(common['params']), np.nan)
 
         # Turn off fitted flag
         fitted_flag = False
-        
+
         # Log
         logging.warning('Intensity too low')
-    
+
     # Return results, either to a queue if threaded, or as an array if not
     return popt, perr, fitted_flag
 
@@ -140,7 +140,7 @@ def fit_spec(common, spectrum, grid):
 #======================================== ifit_fwd ======================================
 #========================================================================================
 
-def ifit_fwd_model(grid, p0, p1, p2, shift, stretch, ring_amt, so2_amt, no2_amt, o3_amt):
+def ifit_fwd_model(grid, p0, p1, p2, p3, shift, stretch, ring_amt, so2_amt, no2_amt, o3_amt):
 
     '''
     iFit forward model to fit measured UV sky spectra
@@ -159,19 +159,26 @@ def ifit_fwd_model(grid, p0, p1, p2, shift, stretch, ring_amt, so2_amt, no2_amt,
         Fitted spectrum interpolated onto the spectrometer wavelength grid
     '''
 
-    # Construct background polynomial
-    bg_poly = make_poly(com['model_grid'], [p0, p1, p2])
+    # Construct background polynomial and add to the fraunhoffer reference spectrum
+    bg_poly = make_poly(com['model_grid'], [p0, p1, p2, p3])
+    frs = np.multiply(com['sol'], bg_poly)
 
-    # Build gas transmittance spectra
-    so2_T = np.exp(-(np.multiply(com['so2_xsec'], so2_amt)))
-    no2_T = np.exp(-(np.multiply(com['no2_xsec'], no2_amt)))
-    o3_T  = np.exp(-(np.multiply(com['o3_xsec'],  o3_amt)))
+    # Build gas spectra
+    so2_T = -(np.multiply(com['so2_xsec'], so2_amt))
+    no2_T = -(np.multiply(com['no2_xsec'], no2_amt))
+    o3_T  = -(np.multiply(com['o3_xsec'],  o3_amt))
 
     # Ring effect
-    ring_T = np.exp(np.multiply(com['ring'], ring_amt))
-    
-    # Build the model
-    raw_F = np.prod([com['sol'], so2_T, no2_T, o3_T, bg_poly, ring_T], axis = 0)
+    ring_T = np.multiply(com['ring'], ring_amt)
+
+    # Combine into a single array
+    exponent_data = np.column_stack((so2_T, no2_T, o3_T, ring_T))
+
+    # Sum the data
+    exponent = np.exp(np.sum(exponent_data, axis = 1))
+
+    # Multipy by the fraunhofer reference spectrum
+    raw_F = np.multiply(frs, exponent)
 
     # Convolve with the ILS
     F_conv = np.convolve(raw_F, com['ils'], 'same')

@@ -1,6 +1,7 @@
 #!/home/pi/berryconda3/bin/python
 
 import os
+import sys
 import numpy as np
 import time
 import seabreeze.spectrometers as sb
@@ -37,167 +38,175 @@ logging.basicConfig(filename=logname,
                     format = log_fmt,
                     level = logging.INFO)
 
+# Create handler to log any exceptions
+def my_handler(type, value, tb):
+    logging.exception(f'Uncaught exception: {value}', exc_info = True)
+
+sys.excepthook = my_handler
+
 logging.info('Station awake')
+
+if __name__ == '__main__':
 
 #========================================================================================
 #=========================== Create comon and settings dicts ============================
 #========================================================================================
 
-# Create an empty dictionary to hold the comon parameters
-common = {'datestamp': datestamp}
+    # Create an empty dictionary to hold the comon parameters
+    common = {'datestamp': datestamp}
 
-# Read in the station operation settings file
-settings = read_settings('data_bases/station_settings.txt')
+    # Read in the station operation settings file
+    settings = read_settings('data_bases/station_settings.txt')
 
 #========================================================================================
 #==================================== Sync GPS Time =====================================
 #========================================================================================
 
-# Sync time with the GPS
-sync_gps_time()
+    # Sync time with the GPS
+    sync_gps_time()
 
 #========================================================================================
 #============================= Connect to the spectrometer ==============================
 #========================================================================================
 
-# Find connected spectrometers
-devices = sb.list_devices()
+    # Find connected spectrometers
+    devices = sb.list_devices()
 
-# Connect to spectrometer
-spec = sb.Spectrometer(devices[0])
+    # Connect to spectrometer
+    spec = sb.Spectrometer(devices[0])
 
-# Set intial integration time
-common['spec_int_time'] = settings['start_int_time']
-spec.integration_time_micros(common['spec_int_time'] * 1000)
+    # Set intial integration time
+    common['spec_int_time'] = settings['start_int_time']
+    spec.integration_time_micros(common['spec_int_time'] * 1000)
 
-# Record serial number in settings
-settings['Spectrometer'] = str(spec.serial_number)
-logging.info('Spectrometer ' + settings['Spectrometer'] + ' Connected')
+    # Record serial number in settings
+    settings['Spectrometer'] = str(spec.serial_number)
+    logging.info('Spectrometer ' + settings['Spectrometer'] + ' Connected')
 
 #========================================================================================
 #================================= Read in ref spectra ==================================
 #========================================================================================
 
-# Read in reference spectra
-model_grid, common['so2_xsec'] = np.loadtxt('data_bases/Ref/so2.txt',  unpack = True)
-model_grid, common['o3_xsec']  = np.loadtxt('data_bases/Ref/o3.txt',   unpack = True)
-model_grid, common['no2_xsec'] = np.loadtxt('data_bases/Ref/no2.txt',  unpack = True)
-model_grid, common['sol']      = np.loadtxt('data_bases/Ref/sol.txt',  unpack = True)
-model_grid, common['ring']     = np.loadtxt('data_bases/Ref/ring.txt', unpack = True)
+    # Read in reference spectra
+    model_grid, common['so2_xsec'] = np.loadtxt('data_bases/Ref/so2.txt',  unpack = True)
+    model_grid, common['o3_xsec']  = np.loadtxt('data_bases/Ref/o3.txt',   unpack = True)
+    model_grid, common['no2_xsec'] = np.loadtxt('data_bases/Ref/no2.txt',  unpack = True)
+    model_grid, common['sol']      = np.loadtxt('data_bases/Ref/sol.txt',  unpack = True)
+    model_grid, common['ring']     = np.loadtxt('data_bases/Ref/ring.txt', unpack = True)
 
-# Get spectrometer flat spectrum and ILS
-x,common['flat'] = np.loadtxt('data_bases/Ref/flat_'+settings['Spectrometer']+'.txt',
-                              unpack = True)
-common['ils'] = np.loadtxt('data_bases/Ref/ils_'+settings['Spectrometer']+'.txt')
+    # Get spectrometer flat spectrum and ILS
+    x,common['flat'] = np.loadtxt('data_bases/Ref/flat_'+settings['Spectrometer']+'.txt',
+                                  unpack = True)
+    common['ils'] = np.loadtxt('data_bases/Ref/ils_'+settings['Spectrometer']+'.txt')
 
-# Set the model grid
-common['model_grid'] = model_grid
-common['wave_start'] = 305
-common['wave_stop']  = 318
+    # Set the model grid
+    common['model_grid'] = model_grid
+    common['wave_start'] = 310
+    common['wave_stop']  = 320
 
-# Set the order of the background poly
-common['poly_n'] = 3
+    # Set the order of the background poly
+    #common['poly_n'] = 3
 
-# Set first guess for parameters
-common['params'] = [1.0, 1.0, 1.0, -0.2, 0.05, 1.0, 1.0e16, 1.0e17, 1.0e19]
+    # Set first guess for parameters
+    common['params'] = [1.0, 1.0, 1.0, 1.0, -0.2, 0.05, 1.0, 1.0e16, 1.0e17, 1.0e19]
 
-# Set the station name
-common['station_name'] = settings['station_name']
+    # Set the station name
+    common['station_name'] = settings['station_name']
 
-# Create loop counter
-common['scan_no'] = 0
+    # Create loop counter
+    common['scan_no'] = 0
 
-# Create list to hold active processes
-processes = []
+    # Create list to hold active processes
+    processes = []
 
 #========================================================================================
 #================================== Set up status loop ==================================
 #========================================================================================
-'''
-# Create Station folder to hold status files
-if not os.path.exists('Station/'):
-    os.makedirs('Station/')
+    '''
+    # Create Station folder to hold status files
+    if not os.path.exists('Station/'):
+        os.makedirs('Station/')
 
-# Launch a seperate processs to keep the station status up to date
-status_p = Process(target = status_loop)
-status_p.start()
-'''
+    # Launch a seperate processs to keep the station status up to date
+    status_p = Process(target = status_loop)
+    status_p.start()
+    '''
 #========================================================================================
 #=============================== Begin the scanning loop ================================
 #========================================================================================
 
-# Create results folder
-common['fpath'] = 'Results/' + datestamp + '/'
-if not os.path.exists(common['fpath'] + 'so2/'):
-    os.makedirs(common['fpath'] + 'so2/')
-if not os.path.exists(common['fpath'] + 'spectra/'):
-    os.makedirs(common['fpath'] + 'spectra/')
+    # Create results folder
+    common['fpath'] = 'Results/' + datestamp + '/'
+    if not os.path.exists(common['fpath'] + 'so2/'):
+        os.makedirs(common['fpath'] + 'so2/')
+    if not os.path.exists(common['fpath'] + 'spectra/'):
+        os.makedirs(common['fpath'] + 'spectra/')
 
-# Get time and convert to julian time
-timestamp = datetime.datetime.now()
-jul_t = hms_to_julian(timestamp)
-
-# If before scan time, wait
-while jul_t < settings['start_time']:
-    logging.info('Station standby')
-    time.sleep(60)
-
-    # Update time
+    # Get time and convert to julian time
     timestamp = datetime.datetime.now()
     jul_t = hms_to_julian(timestamp)
 
-# Connect to the scanner
-scanner = Scanner(step_type = settings['step_type'])
+    # If before scan time, wait
+    while jul_t < settings['start_time']:
+        logging.info('Station standby')
+        time.sleep(60)
 
-# Begin loop
-while jul_t < settings['stop_time']:
+        # Update time
+        timestamp = datetime.datetime.now()
+        jul_t = hms_to_julian(timestamp)
 
-    logging.info('Station active')
+    # Connect to the scanner
+    scanner = Scanner(step_type = settings['step_type'])
 
-    logging.info('Begin scan ' + str(common['scan_no']))
+    # Begin loop
+    while jul_t < settings['stop_time']:
 
-    # Scan!
-    common['scan_fpath'] = acquire_scan(scanner, spec, common, settings)
+        logging.info('Station active')
 
-    logging.info('Scan ' + str(common['scan_no']) + ' complete')
+        logging.info('Begin scan ' + str(common['scan_no']))
 
-    # Update the spectrometer integration time
-    common['spec_int_time'] = update_int_time(common, settings)
-    spec.integration_time_micros(common['spec_int_time'] * 1000)
+        # Scan!
+        common['scan_fpath'] = acquire_scan(scanner, spec, common, settings)
 
-    # Clear any finished processes from the processes list
-    processes = [pro for pro in processes if pro.is_alive()]
+        logging.info('Scan ' + str(common['scan_no']) + ' complete')
 
-    # Check the number of processes. If there are more than two then don't start
-    # another to prevent too many processes running at once
-    if len(processes) <= 2:
+        # Update the spectrometer integration time
+        common['spec_int_time'] = update_int_time(common, settings)
+        spec.integration_time_micros(common['spec_int_time'] * 1000)
 
-        # Create new process to handle fitting of the last scan
-        p = Process(target = analyse_scan, kwargs = common)
+        # Clear any finished processes from the processes list
+        processes = [pro for pro in processes if pro.is_alive()]
 
-        # Add to array of active processes
-        processes.append(p)
+        # Check the number of processes. If there are more than two then don't start
+        # another to prevent too many processes running at once
+        if len(processes) <= 2:
 
-        # Begin the process
-        p.start()
+            # Create new process to handle fitting of the last scan
+            p = Process(target = analyse_scan, kwargs = common)
 
-    else:
-        # Log that the process was not started
-        msg = f"Too many processes running, scan {common['scan_no']} not analysed"
-        logging.warning(msg)
+            # Add to array of active processes
+            processes.append(p)
 
-    # Update the scan number
-    common['scan_no'] += 1
+            # Begin the process
+            p.start()
 
-    # Update time
-    timestamp = datetime.datetime.now()
-    jul_t = hms_to_julian(timestamp)
+        else:
+            # Log that the process was not started
+            msg = f"Too many processes running, scan {common['scan_no']} not analysed"
+            logging.warning(msg)
 
-# Release the scanner
-scanner.motor.release()
+        # Update the scan number
+        common['scan_no'] += 1
 
-# Finish up any analysis that is still ongoing
-for p in processes:
-    p.join()
+        # Update time
+        timestamp = datetime.datetime.now()
+        jul_t = hms_to_julian(timestamp)
 
-logging.info('Station going to sleep')
+    # Release the scanner
+    scanner.motor.release()
+
+    # Finish up any analysis that is still ongoing
+    for p in processes:
+        p.join()
+
+    logging.info('Station going to sleep')

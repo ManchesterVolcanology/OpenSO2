@@ -1,0 +1,3 @@
+Station Name ;      Host     ; username ; password
+LOVE         ; 172.17.104.13 ; pi       ; soufriere
+BROD         ; 172.17.104.12 ; pi       ; soufriere
