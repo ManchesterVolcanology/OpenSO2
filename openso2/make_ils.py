@@ -6,94 +6,76 @@ Created on Wed May 10 14:16:04 2017
 """
 
 import numpy as np
+from scipy.special import gamma
 
 #========================================================================================
 #======================================== make_ils ======================================
 #========================================================================================
 
-def make_gauss(interval, fwhm):
+def make_ils(interval, FWEM, k = 2, a_w = 0, a_k = 0):
 
     '''
-    Gaussian function
+    Function to generate a synthetic instrument line shape based on a super gaussian
+    function:
+
+                     { exp(-| x / (w-a_w) | ^ (k-a_k)) for x <= 0
+    G(x) = A(w, k) * {
+                     { exp(-| x / (w+a_w) | ^ (k+a_k)) for x > 0
+
+    where A(w, k) = k / (2 * w * Gamma(1/k)).
+
+    See Beirle et al (2017) for more details: doi:10.5194/amt-10-581-2017
 
     INPUTS
     ------
-    interval, float
-        Model grid spacing
+    interval, int
+        The spacing of the wavelength grid on which the ILS is built
 
-    fwhm, float
-        The full width half maximum of the desired Gaussain
+    FWEM, float
+        The Full Width eth Maximum of the lineshape, defined as 2*w = FWEM
 
-    OUTPUTS
-    -------
-    gauss, array
-        Outputted normalised gaussian lineshape
-    '''
+    k, float
+        Controls the shape of the lineshape (default = 2):
+            - k < 2 -> sharp point and wide tails
+            - k = 2 -> normal Gaussian
+            - k > 2 -> flat top, approaches boxcar at k -> inf
 
-    # Create grid 5 times bigger than FWHM
-    n = (fwhm * 5) / interval
-    x = np.divide(np.arange(n), (n-1))
-    x = np.subtract(x, 0.5)
-    x = np.multiply(x, (fwhm*5))
-
-    # Define sigma
-    sigma = fwhm / 2.36
-
-    # Create gauss
-    gauss = (1/(sigma*np.sqrt(2*np.pi))) * np.exp(-0.5*np.power((np.divide(x, sigma)),2))
-
-    # Normalise
-    gauss = np.divide(gauss, np.sum(gauss))
-
-    return gauss
-
-#========================================================================================
-#======================================== make_ils ======================================
-#========================================================================================
-
-def make_ils(fit_res, interval = 0.01, ils_gauss_weight = 1.0):
-
-    '''
-    Function to calculate the intrument line shape (ILS) of the spectrometer
-
-    INPUTS
-    ------
-    fit_res, float
-        Resolution of the fit (FWHM for a pure gaussian ILS)
-
-    interval, float
-        Model grid spacing
-
-    ils_gaus_weight, float (0 - 1)
-        Weighting of gaussian contributio to ILS. Boxcar contribution is caclulated as
-        1 - ils_gauss_wieght
+    a_w and a_k, float,
+        Controls the asymetry of the lineshape
 
     OUTPUTS
     -------
-    ils, array
-        The instrument line shape (ILS) of the spectrometer
+    ils, numpy array
+        The calculated ILS function on a wavelength grid of the given spacing and 5 times
+        the width of the supplied FWEM
     '''
 
-    # Calculate pure Gaussian lineshape
-    gauss_ils = make_gauss(interval, fit_res)
+    # Create a grid 6 times that of the width
+    grid = np.arange(-FWEM * 2, FWEM * 2, interval)
 
-    # Calculate pure boxcar lineshape and normalise
-    box_npts = int(fit_res/interval)+1
-    box_ils = np.divide(np.ones(box_npts), box_npts)
+    # Calculate w as half of the FWEM
+    w = 0.5 * FWEM
 
-    # Apply weightings
-    gauss_ils = np.multiply(gauss_ils, ils_gauss_weight)
-    box_ils = np.multiply(box_ils, (1 - ils_gauss_weight))
+    # Form empty array
+    super_g = np.zeros(len(grid))
+
+    # Calculate A
+    A = k / (FWEM * gamma(1/k))
+
+    # Split the x grid into =ve and -ve arrays
+    neg_idx = np.where(grid <= 0)
+    pos_idx = np.where(grid > 0)
+    neg_grid = grid[neg_idx]
+    pos_grid = grid[pos_idx]
+
+    # Calculate the asymetric supergaussian function
+    neg_g = np.multiply(A, np.exp(-np.power(np.abs((neg_grid) / (w - a_w) ), k - a_k)))
+    pos_g = np.multiply(A, np.exp(-np.power(np.abs((pos_grid) / (w + a_w) ), k + a_k)))
 
     # Combine
-    idx0 = int(((len(gauss_ils)/2)+1) - (box_npts/2))
-    idx1 = int((len(gauss_ils)/2) + (box_npts/2))
-    idx0 = idx0 + ((idx1-idx0) - (box_npts))
-    gauss_ils[idx0:idx1] = np.add(gauss_ils[idx0:idx1], box_ils)
-    ils = gauss_ils
+    super_g = np.append(neg_g, pos_g)
 
-    # Normalise
-    ils = np.divide(ils, np.sum(ils))
+    super_g = np.divide(super_g, sum(super_g))
 
-    return ils
+    return super_g
 

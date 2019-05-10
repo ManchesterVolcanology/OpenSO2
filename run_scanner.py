@@ -14,6 +14,7 @@ from openso2.analyse_scan import analyse_scan, update_int_time
 from openso2.call_gps import sync_gps_time
 from openso2.program_setup import read_settings
 from openso2.julian_time import hms_to_julian
+from openso2.make_ils import make_ils
 #from openso2.station_status import status_loop
 
 #========================================================================================
@@ -97,7 +98,9 @@ if __name__ == '__main__':
     # Get spectrometer flat spectrum and ILS
     x,common['flat'] = np.loadtxt('data_bases/Ref/flat_'+settings['Spectrometer']+'.txt',
                                   unpack = True)
-    common['ils'] = np.loadtxt('data_bases/Ref/ils_'+settings['Spectrometer']+'.txt')
+    ils_params = np.loadtxt('data_bases/Ref/ils_params_'+settings['Spectrometer']+'.txt')
+    FWEM, k, a_w, a_k = ils_params
+    common['ils'] = make_ils(0.01, FWEM, k, a_w, a_k)
 
     # Set the model grid
     common['model_grid'] = model_grid
