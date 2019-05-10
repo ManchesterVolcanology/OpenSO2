@@ -14,7 +14,6 @@ from openso2.analyse_scan import analyse_scan, update_int_time
 from openso2.call_gps import sync_gps_time
 from openso2.program_setup import read_settings
 from openso2.julian_time import hms_to_julian
-#from openso2.station_status import status_loop
 
 #========================================================================================
 #==================================== Set up logging ====================================
@@ -38,18 +37,43 @@ logging.basicConfig(filename=logname,
                     format = log_fmt,
                     level = logging.INFO)
 
+#========================================================================================
+#=================================== Set up status log ==================================
+#========================================================================================
+
+def log_status(status):
+
+    # Make sure the Station directory exists
+    if not os.path.exists('Station'):
+        os.makedirs('Station')
+
+    try:
+        # Write the current status to the status file
+        with open('Station/status.txt', 'w') as w:
+            time_str = datetime.datetime.now()
+            w.write(f'{time_str} - {status}')
+
+    except Exception as e:
+        logging.warning('Failed to update status file', exc_info = True)
+
 # Create handler to log any exceptions
 def my_handler(type, value, tb):
+    log_status('Error')
     logging.exception(f'Uncaught exception: {value}', exc_info = True)
 
 sys.excepthook = my_handler
 
-logging.info('Station awake')
+#========================================================================================
+#================================ Begin the main program ================================
+#========================================================================================
 
 if __name__ == '__main__':
 
+    log_status('Idle')
+    logging.info('Station awake')
+
 #========================================================================================
-#=========================== Create comon and settings dicts ============================
+#=========================== Create com,on and settings dicts ===========================
 #========================================================================================
 
     # Create an empty dictionary to hold the comon parameters
@@ -95,9 +119,9 @@ if __name__ == '__main__':
     model_grid, common['ring']     = np.loadtxt('data_bases/Ref/ring.txt', unpack = True)
 
     # Get spectrometer flat spectrum and ILS
-    x,common['flat'] = np.loadtxt('data_bases/Ref/flat_'+settings['Spectrometer']+'.txt',
+    x,common['flat'] = np.loadtxt(f'data_bases/Ref/flat_{settings["Spectrometer"]}.txt',
                                   unpack = True)
-    common['ils'] = np.loadtxt('data_bases/Ref/ils_'+settings['Spectrometer']+'.txt')
+    common['ils'] = np.loadtxt(f'data_bases/Ref/ils_{settings["Spectrometer"]}.txt')
 
     # Set the model grid
     common['model_grid'] = model_grid
@@ -119,18 +143,6 @@ if __name__ == '__main__':
     # Create list to hold active processes
     processes = []
 
-#========================================================================================
-#================================== Set up status loop ==================================
-#========================================================================================
-    '''
-    # Create Station folder to hold status files
-    if not os.path.exists('Station/'):
-        os.makedirs('Station/')
-
-    # Launch a seperate processs to keep the station status up to date
-    status_p = Process(target = status_loop)
-    status_p.start()
-    '''
 #========================================================================================
 #=============================== Begin the scanning loop ================================
 #========================================================================================
@@ -161,6 +173,7 @@ if __name__ == '__main__':
     # Begin loop
     while jul_t < settings['stop_time']:
 
+        log_status('Active')
         logging.info('Station active')
 
         logging.info('Begin scan ' + str(common['scan_no']))
@@ -209,4 +222,6 @@ if __name__ == '__main__':
     for p in processes:
         p.join()
 
+    # Change the station status
+    log_status('Idle')
     logging.info('Station going to sleep')

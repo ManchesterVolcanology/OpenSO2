@@ -5,6 +5,7 @@ Created on Thu Jan 24 15:13:52 2019
 @author: mqbpwbe2
 """
 
+import os
 import pysftp
 import glob
 import logging
@@ -23,6 +24,9 @@ class Station:
             - username: Username for the remote server
             - password: Password for the remote server
 
+    name, str
+        Name of the station. Default is "TEST"
+
     METHODS
     -------
     sync(local_path, remote_path)
@@ -33,10 +37,11 @@ class Station:
         the station settings.
     '''
 
-    def __init__(self, cinfo):
+    def __init__(self, cinfo, name = 'TEST'):
 
         # Set the connection information for this station object
         self.cinfo = cinfo
+        self.name = name
 
 
 #========================================================================================
@@ -126,24 +131,30 @@ class Station:
             Dictionary containing the status of the station
         '''
 
-        # Ceate dictionary to hold station staus
-        status = {}
+        if not os.path.exists('Station'):
+            os.makedirs('Station')
 
         cnopts = pysftp.CnOpts()
         cnopts.hostkeys = None
 
-        # Open connection
-        with pysftp.Connection(**self.cinfo, cnopts=cnopts) as sftp:
+        try:
 
-            # Get the status file
-            sftp.get('/home/pi/open_so2/Station/temp.txt', 'Temp/temp.txt')
+            # Open connection
+            with pysftp.Connection(**self.cinfo, cnopts=cnopts) as sftp:
+
+                # Get the status file
+                sftp.get('/home/pi/open_so2/Station/status.txt',
+                         f'Station/{self.name}_status.txt')
 
 
-        with open('Temp/temp.txt', 'r') as r:
+            with open(f'Station/{self.name}_statusstatus.txt', 'r') as r:
 
-            status['temp'] = r.readline()
+                time, status = r.readline().strip().split(' - ')
 
-        return status
+        except Exception as e:
+            time, status = '', 'N/C'
+
+        return time, status
 
 
 

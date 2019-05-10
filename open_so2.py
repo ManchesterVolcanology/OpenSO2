@@ -23,6 +23,7 @@ from openso2.station_com import Station
 from openso2.analyse_scan import calc_scan_flux, calc_plume_height, get_wind_speed, read_scan_so2
 from openso2.julian_time import hms_to_julian
 from openso2.gui_funcs import update_graph, make_input
+from openso2.station_status import get_station_status
 
 # Define some fonts to use in the program
 NORM_FONT = ('Verdana', 8)
@@ -62,7 +63,7 @@ class mygui(tk.Tk):
         # Create dictionary of station objects
         self.stat_com = {}
         for station in self.station_info.keys():
-            self.stat_com[station] = Station(self.station_info[station])
+            self.stat_com[station] = Station(self.station_info[station], station)
 
         # Create dicionaries to hold the flux results and plume height and speed
         self.times   = {}
@@ -206,7 +207,7 @@ class mygui(tk.Tk):
 
         for station in self.station_info.keys():
 
-            # Ceate sub dictionary to hold the widjets for this staiton
+            # Ceate sub dictionary to hold the widjets for this station
             station_w = {}
 
             # Create a frame to hold the station status
@@ -222,21 +223,10 @@ class mygui(tk.Tk):
                        input_type = 'Label',
                        row = 0, column = 0)
 
-            # Create temperature indicator
-            station_w['temp'] = tk.DoubleVar(value = 0)
-            make_input(frame = s_frame,
-                       text = 'Temperature:',
-                       var = station_w['temp'],
-                       input_type = 'Label',
-                       row = 1, column = 0)
-
-            # Create a scanner position indicator
-            station_w['pos'] = tk.IntVar(value = 0)
-            make_input(frame = s_frame,
-                       text = 'Scanner Position:',
-                       var = station_w['pos'],
-                       input_type = 'Label',
-                       row = 2, column = 0)
+            # Create a button to update the status now
+            ttk.Button(s_frame, text = 'Get Status',
+                       command = lambda: get_station_status(self, station)
+                       ).grid(row = 0, column = 2)
 
             # Add the station widjets to the master dictionary
             self.station_widjets[station] = station_w
@@ -305,12 +295,12 @@ class mygui(tk.Tk):
                 with open(flux_fpaths[station], 'w') as w:
                     w.write('Time,Plume Height (m),Wind Speed (ms-1),Flux (t/day)\n')
 
-        # Pull station data and update
-        ##### Not yet implemented #####
+            # Pull station data and update
+            get_station_status(self, station)
 
         # If the stations are operational sync the so2 files. If sleeping sync spectra
         jul_time = hms_to_julian(timestamp)
-        if jul_time > 8 and jul_time < 16:
+        if jul_time > 12 and jul_time < 20:
             sync_mode = '/so2/'
         else:
             sync_mode = '/spectra/'
@@ -372,18 +362,7 @@ class mygui(tk.Tk):
                                 ',' + str(plume_height) + ',' + str(flux) + '\n')
 
                 if len(new_fnames[s]) != 0:
-                    '''
-                    # Update the plots
-                    y_lim = [1.1 * (max(self.fluxes[s])),
-                             1.1 * (max(self.heights)),
-                             1.1 * (max(self.speeds))]
-                    data = np.array(([self.times[s],self.fluxes[s],'auto',[0,y_lim[0]]],
-                                     [self.wtimes,self.heights,'auto',[0,y_lim[1]]],
-                                     [self.wtimes,self.speeds,'auto',[0,y_lim[2]]]))
-                    lines = [self.flux_lines[s], self.height_line, self.wind_speed_line]
-                    axes  = [self.ax0, self.ax1, self.ax2]
-                    update_graph(lines, axes, self.canvas, data)
-                    '''
+
                     # Update the plots
                     y_lim = [1.1 * (max(self.fluxes[s])),
                              1.1 * (max(self.heights)),
