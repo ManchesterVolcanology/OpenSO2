@@ -1,0 +1,5 @@
+# ILS parameters for FLMS02929 (FWEM, k, a_w, a_k)
+0.72
+2.04
+-0.04
+-0.75
