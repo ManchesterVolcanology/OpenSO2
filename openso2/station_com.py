@@ -103,6 +103,7 @@ class Station:
                         n_files += 1
                         new_fnames.append(fname)
         except Exception as e:
+            print(f'Error syncing: {e}')
             logging.info('Error with station communication', exc_info = True)
             n_files, new_fnames = [], []
 
@@ -137,6 +138,10 @@ class Station:
         cnopts = pysftp.CnOpts()
         cnopts.hostkeys = None
 
+        # Make sure the log folder exists
+        if not os.path.exists('Station'):
+            os.makedirs('Station')
+
         try:
 
             # Open connection
@@ -147,7 +152,7 @@ class Station:
                          f'Station/{self.name}_status.txt')
 
 
-            with open(f'Station/{self.name}_statusstatus.txt', 'r') as r:
+            with open(f'Station/{self.name}_status.txt', 'r') as r:
 
                 time, status = r.readline().strip().split(' - ')
 

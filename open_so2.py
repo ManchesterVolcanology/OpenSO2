@@ -307,7 +307,7 @@ class mygui(tk.Tk):
 
         # If the stations are operational sync the so2 files. If sleeping sync spectra
         jul_time = hms_to_julian(timestamp)
-        if jul_time > 12 and jul_time < 20:
+        if jul_time > 8 and jul_time < 16:
             sync_mode = '/so2/'
         else:
             sync_mode = '/spectra/'
@@ -325,9 +325,6 @@ class mygui(tk.Tk):
             # Sync the files
             n_files, new_fnames[station] = self.stat_com[station].sync(local_fpath,
                                                                        remote_fpath)
-            print(local_fpath)
-            print(remote_fpath)
-            print(len(new_fnames[station]))
 
         # Update status indicator
         self.status.set('Standby')
