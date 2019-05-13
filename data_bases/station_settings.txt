@@ -12,3 +12,4 @@ coadds;10;<class 'int'>
 steps_to_start;3392;<class 'int'>
 step_type;double;<class 'str'>
 steps_per_spec;60;<class 'int'>
+spec_per_scan;104

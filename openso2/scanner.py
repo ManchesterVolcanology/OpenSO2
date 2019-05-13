@@ -212,7 +212,7 @@ def acquire_scan(Scanner, Spectrometer, common, settings):
     '''
 
     # Create array to hold scan data
-    scan_data = np.zeros((101, 2055))
+    scan_data = np.zeros((settings['specs_per_scan'], 2055))
 
     # Return the scanner position to home
     Scanner.find_home()
@@ -241,7 +241,7 @@ def acquire_scan(Scanner, Spectrometer, common, settings):
 
     # Begin stepping through the scan
     logging.info('Begin scanning')
-    for step_no in range(1, 101):
+    for step_no in range(1, settings['specs_per_scan']):
 
         # Acquire spectrum
         spec_int = np.zeros(len(dark))
