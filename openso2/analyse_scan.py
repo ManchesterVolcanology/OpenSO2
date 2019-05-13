@@ -226,7 +226,7 @@ def read_scan_so2(fpath):
     '''
 
     # Read in the scan so2 file
-    scan_data = np.load(fpath)
+    scan_data = np.loadtxt(fpath)
 
     # Unpack useful information
     scan_angles = scan_data[:,2]
