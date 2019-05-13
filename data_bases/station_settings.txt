@@ -1,0 +1,14 @@
+station_name;LOVE;<class 'str'>
+start_time;12;<class 'float'>
+stop_time;20;<class 'float'>
+model_pad;3;<class 'float'>
+model_res;0.01;<class 'float'>
+min_int_time;50;<class 'int'>
+max_int_time;5000;<class 'int'>
+int_time_step;50;<class 'int'>
+start_int_time;200;<class 'int'>
+target_int;50000;<class 'int'>
+coadds;10;<class 'int'>
+steps_to_start;3392;<class 'int'>
+step_type;double;<class 'str'>
+steps_per_spec;60;<class 'int'>
