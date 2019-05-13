@@ -59,9 +59,9 @@ def log_status(status):
         logger.warning('Failed to update status file', exc_info = True)
 
 # Create handler to log any exceptions
-def my_handler(type, value, tb):
+def my_handler(*exc_info):
     log_status('Error')
-    logger.exception(f'Uncaught exception: {value}', exc_info = True)
+    logger.exception(f'Uncaught exception!', exc_info = exc_info)
 
 sys.excepthook = my_handler
 

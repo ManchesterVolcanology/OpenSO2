@@ -228,7 +228,7 @@ def acquire_scan(Scanner, Spectrometer, common, settings):
 
     # Form the filename of the scan file
     fname = f'{y}{mo:02d}{d:02d}_{h:02d}{m:02d}{s:02d}_{settings["station_name"]}' + \
-            '_v_1_1_Block{common["scan_no"]}.npy'
+            f'_v_1_1_Block{common["scan_no"]}.npy'
 
     # Take the dark spectrum
     dark = Spectrometer.intensities()

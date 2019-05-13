@@ -146,9 +146,9 @@ def analyse_scan(**common):
         logging.info('Scan ' + str(common['scan_no']) + ' analysis complete')
 
         # Save the data
-        fname = common['scan_fpath'].split('/')[-1][:-4] + '_so2.txt'
+        fname = common['scan_fpath'].split('/')[-1][:-4] + '_so2.npy'
         fpath = common['fpath'] + 'so2/' + fname
-        np.savetxt(fpath, fit_data.astype('float32'))
+        np.save(fpath, fit_data.astype('float32'))
 
 #========================================================================================
 #==================================== Update Int Time ===================================
