@@ -146,9 +146,9 @@ def analyse_scan(**common):
         logging.info('Scan ' + str(common['scan_no']) + ' analysis complete')
 
         # Save the data
-        fname = common['scan_fpath'].split('/')[-1][:-4] + '_so2.txt'
+        fname = common['scan_fpath'].split('/')[-1][:-4] + '_so2.npy'
         fpath = common['fpath'] + 'so2/' + fname
-        np.savetxt(fpath, fit_data.astype('float32'))
+        np.save(fpath, fit_data.astype('float32'))
 
 #========================================================================================
 #==================================== Update Int Time ===================================
@@ -226,7 +226,7 @@ def read_scan_so2(fpath):
     '''
 
     # Read in the scan so2 file
-    scan_data = np.loadtxt(fpath)
+    scan_data = np.load(fpath)
 
     # Unpack useful information
     scan_angles = scan_data[:,2]
