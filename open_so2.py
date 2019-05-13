@@ -213,7 +213,7 @@ class mygui(tk.Tk):
             # Create a frame to hold the station status
             s_frame = tk.LabelFrame(station_page[station], text = 'Station Status',
                                     font = LARG_FONT)
-            s_frame.grid(row = 0, column = 0)
+            s_frame.grid(row = 0, column = 0, padx = 10, pady = 10)
 
             # Create status indicator
             station_w['status'] = tk.StringVar(value = 'Idle')

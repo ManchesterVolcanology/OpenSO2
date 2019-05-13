@@ -219,16 +219,16 @@ def acquire_scan(Scanner, Spectrometer, common, settings):
 
     # Get time
     t = datetime.datetime.now()
-    y = common['datestamp'][0:4]
-    mo = common['datestamp'][5:7]
-    d = common['datestamp'][8:10]
+    y = t.year
+    mo = t.month
+    d = t.day
     h = t.hour
     m = t.minute
     s = t.second
 
     # Form the filename of the scan file
-    fname = f'{y:02d}{mo:02d}{d:02d}_{h:02d}{m:02d}{s:02d}_' + settings['station_name']+\
-            '_v_1_1_Block' + str(common['scan_no']) + '.npy'
+    fname = f'{y}{mo:02d}{d:02d}_{h:02d}{m:02d}{s:02d}_{settings["station_name"]}' + \
+            '_v_1_1_Block{common["scan_no"]}.npy'
 
     # Take the dark spectrum
     dark = Spectrometer.intensities()

@@ -37,6 +37,8 @@ logging.basicConfig(filename=logname,
                     format = log_fmt,
                     level = logging.INFO)
 
+logger = logging.getLogger(__name__)
+
 #========================================================================================
 #=================================== Set up status log ==================================
 #========================================================================================
@@ -54,12 +56,12 @@ def log_status(status):
             w.write(f'{time_str} - {status}')
 
     except Exception as e:
-        logging.warning('Failed to update status file', exc_info = True)
+        logger.warning('Failed to update status file', exc_info = True)
 
 # Create handler to log any exceptions
 def my_handler(type, value, tb):
     log_status('Error')
-    logging.exception(f'Uncaught exception: {value}', exc_info = True)
+    logger.exception(f'Uncaught exception: {value}')
 
 sys.excepthook = my_handler
 
@@ -70,7 +72,7 @@ sys.excepthook = my_handler
 if __name__ == '__main__':
 
     log_status('Idle')
-    logging.info('Station awake')
+    logger.info('Station awake')
 
 #========================================================================================
 #=========================== Create com,on and settings dicts ===========================
@@ -160,6 +162,7 @@ if __name__ == '__main__':
 
     # If before scan time, wait
     while jul_t < settings['start_time']:
+        log_status('Idle')
         logging.info('Station standby')
         time.sleep(60)
 
