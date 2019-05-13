@@ -120,9 +120,13 @@ if __name__ == '__main__':
     model_grid, common['sol']      = np.loadtxt('data_bases/Ref/sol.txt',  unpack = True)
     model_grid, common['ring']     = np.loadtxt('data_bases/Ref/ring.txt', unpack = True)
 
-    # Get spectrometer flat spectrum and ILS
-    x,common['flat'] = np.loadtxt(f'data_bases/Ref/flat_{settings["Spectrometer"]}.txt',
-                                  unpack = True)
+    # Get spectrometer flat spectrum
+    x, flat = np.loadtxt(f'data_bases/Ref/flat_{settings["Spectrometer"]}.txt',
+                         unpack = True)
+    idx = np.where(np.logical_and(x > common['wave_start'], x < common['wave_stop']))
+    common['flat'] = flat[idx]
+
+    # Get spectrometer ILS
     common['ils'] = np.loadtxt(f'data_bases/Ref/ils_{settings["Spectrometer"]}.txt')
 
     # Set the model grid
