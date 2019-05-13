@@ -48,8 +48,8 @@ def read_scan(fpath):
 
     try:
 
-        #Read in the numpy file
-        data = np.load(fpath)
+        # Read in the numpy file
+        data = np.loadtxt(fpath)
 
         # Create empty arrays to hold the spectra
         w, h = data.shape

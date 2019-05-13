@@ -325,6 +325,9 @@ class mygui(tk.Tk):
             # Sync the files
             n_files, new_fnames[station] = self.stat_com[station].sync(local_fpath,
                                                                        remote_fpath)
+            print(local_fpath)
+            print(remote_fpath)
+            print(len(new_fnames[station]))
 
         # Update status indicator
         self.status.set('Standby')
