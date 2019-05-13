@@ -61,7 +61,7 @@ def log_status(status):
 # Create handler to log any exceptions
 def my_handler(type, value, tb):
     log_status('Error')
-    logger.exception(f'Uncaught exception: {value}')
+    logger.exception(f'Uncaught exception: {value}', exc_info = True)
 
 sys.excepthook = my_handler
 
@@ -113,12 +113,28 @@ if __name__ == '__main__':
 #================================= Read in ref spectra ==================================
 #========================================================================================
 
+    # Set the fit window
+    common['wave_start'] = 310
+    common['wave_stop']  = 320
+
     # Read in reference spectra
-    model_grid, common['so2_xsec'] = np.loadtxt('data_bases/Ref/so2.txt',  unpack = True)
-    model_grid, common['o3_xsec']  = np.loadtxt('data_bases/Ref/o3.txt',   unpack = True)
-    model_grid, common['no2_xsec'] = np.loadtxt('data_bases/Ref/no2.txt',  unpack = True)
-    model_grid, common['sol']      = np.loadtxt('data_bases/Ref/sol.txt',  unpack = True)
-    model_grid, common['ring']     = np.loadtxt('data_bases/Ref/ring.txt', unpack = True)
+    grid, so2_xsec = np.loadtxt('data_bases/Ref/so2.txt',  unpack = True)
+    grid, o3_xsec  = np.loadtxt('data_bases/Ref/o3.txt',   unpack = True)
+    grid, no2_xsec = np.loadtxt('data_bases/Ref/no2.txt',  unpack = True)
+    grid, sol      = np.loadtxt('data_bases/Ref/sol.txt',  unpack = True)
+    grid, ring     = np.loadtxt('data_bases/Ref/ring.txt', unpack = True)
+
+    # Extract the fit window
+    fit_idx = np.where(np.logical_and(grid > common['wave_start'] - 2,
+                                      grid < common['wave_stop'] + 2))
+
+    # Set the model grid
+    common['model_grid'] = grid[fit_idx]
+    common['so2_xsec']   = so2_xsec[fit_idx]
+    common['o3_xsec']    = o3_xsec[fit_idx]
+    common['no2_xsec']   = no2_xsec[fit_idx]
+    common['sol']        = sol[fit_idx]
+    common['ring']       = ring[fit_idx]
 
     # Get spectrometer flat spectrum
     x, flat = np.loadtxt(f'data_bases/Ref/flat_{settings["Spectrometer"]}.txt',
@@ -128,14 +144,6 @@ if __name__ == '__main__':
 
     # Get spectrometer ILS
     common['ils'] = np.loadtxt(f'data_bases/Ref/ils_{settings["Spectrometer"]}.txt')
-
-    # Set the model grid
-    common['model_grid'] = model_grid
-    common['wave_start'] = 310
-    common['wave_stop']  = 320
-
-    # Set the order of the background poly
-    #common['poly_n'] = 3
 
     # Set first guess for parameters
     common['params'] = [1.0, 1.0, 1.0, 1.0, -0.2, 0.05, 1.0, 1.0e16, 1.0e17, 1.0e19]
