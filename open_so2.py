@@ -223,10 +223,17 @@ class mygui(tk.Tk):
                        input_type = 'Label',
                        row = 0, column = 0)
 
+            station_w['status_time'] = tk.StringVar(value = '-')
+            make_input(frame = s_frame,
+                       text = 'Status Time:',
+                       var = station_w['status_time'],
+                       input_type = 'Label',
+                       row = 1, column = 0)
+
             # Create a button to update the status now
             ttk.Button(s_frame, text = 'Get Status',
                        command = lambda: get_station_status(self, station)
-                       ).grid(row = 0, column = 2)
+                       ).grid(row = 2, column = 1)
 
             # Add the station widjets to the master dictionary
             self.station_widjets[station] = station_w
