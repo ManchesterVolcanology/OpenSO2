@@ -327,7 +327,7 @@ def calc_scan_flux(fpath, windspeed = 10, height = 1000, plume_type = 'flat'):
 #================================== calc_plume_height ===================================
 #========================================================================================
 
-def calc_plume_height(station, fpath):
+def calc_plume_height(gui, station, scan_time):
 
     '''
     Function to calculate the plume height from two station scans
@@ -344,13 +344,24 @@ def calc_plume_height(station, fpath):
         The height of the plume in m a.s.l.
     '''
 
-    return 1000.0
+    # Check how the plume height is calculated
+    how_calc_height = gui.how_calc_height.get()
+
+    # Fixed Plume height
+    if how_calc_height == 'Fix':
+        plume_height = gui.plume_height.get()
+
+    # Calculate (NOT YET IMPLEMENTED)
+    if how_calc_height == 'Calc':
+        plume_height = 1000.0
+
+    return plume_height
 
 #========================================================================================
 #=================================== get_wind_speed =====================================
 #========================================================================================
 
-def get_wind_speed():
+def get_wind(gui, scan_time):
 
     '''
     Function to get the wind speed.
@@ -366,7 +377,20 @@ def get_wind_speed():
         The latest windspeed in m/s
     '''
 
-    return 10.0
+    # Check how the wind speed is calculated
+    how_calc_wind = gui.how_calc_wind.get()
+
+    # Fixed wind speed
+    if how_calc_wind == 'Fix':
+        wind_speed = gui.wind_speed.get()
+        wind_dir   = gui.wind_dir.get()
+
+    # Pull wid=nd data from anenometer (NOT YET IMPLEMENTED)
+    if how_calc_wind == 'Pull':
+        wind_speed = 1000
+        wind_dir   = 0
+
+    return wind_speed, wind_dir
 
 #========================================================================================
 #================================== get_spec_details ====================================

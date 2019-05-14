@@ -22,7 +22,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 
 from openso2.program_setup import get_station_info, update_resfp
 from openso2.station_com import Station, sync_station
-from openso2.analyse_scan import calc_scan_flux, calc_plume_height, get_wind_speed, read_scan_so2
+from openso2.analyse_scan import calc_scan_flux, calc_plume_height, get_wind, read_scan_so2
 from openso2.julian_time import hms_to_julian
 from openso2.gui_funcs import update_graph, make_input
 from openso2.station_status import get_station_status
@@ -219,27 +219,50 @@ class mygui(tk.Tk):
         make_input(frame = flux_frame,
                    text = 'Plume Height (m):',
                    var = self.plume_height,
-                   input_type = 'Entry',
+                   input_type = 'Spinbox',
                    row = 0, column = 0,
-                   width = 10)
+                   width = 10,
+                   vals = [0, 5000], increment = 100)
+
+        # Select how the plume height is calculated
+        self.how_calc_height = tk.StringVar(value = 'Fix')
+        make_input(frame = flux_frame,
+                   text = None,
+                   var = self.how_calc_height,
+                   input_type = 'OptionMenu',
+                   row = 0, column = 2,
+                   width = 5,
+                   options = [self.how_calc_height.get(), 'Fix', 'Calc'])
 
         # Create control for the wind speed
         self.wind_speed = tk.IntVar(value = 10)
         make_input(frame = flux_frame,
                    text = 'Wind Speed (m/s):',
                    var = self.wind_speed,
-                   input_type = 'Entry',
+                   input_type = 'Spinbox',
                    row = 1, column = 0,
-                   width = 10)
+                   width = 10,
+                   vals = [0, 30], increment = 0.1)
+
+        # Select how the wind speed is set
+        self.how_calc_wind = tk.StringVar(value = 'Fix')
+        make_input(frame = flux_frame,
+                   text = None,
+                   var = self.how_calc_wind,
+                   input_type = 'OptionMenu',
+                   row = 1, column = 2,
+                   width = 5,
+                   options = [self.how_calc_wind.get(), 'Fix', 'Pull'])
 
         # Create control for the wind direction
         self.wind_dir = tk.IntVar(value = 0)
         make_input(frame = flux_frame,
                    text = 'Wind Bearing (deg):',
                    var = self.wind_dir,
-                   input_type = 'Entry',
+                   input_type = 'Spinbox',
                    row = 2, column = 0,
-                   width = 10)
+                   width = 10,
+                   vals = [0, 360], increment = 5)
 
 #========================================================================================
 #========================== Add widjets to the station pages ============================
@@ -437,10 +460,10 @@ class mygui(tk.Tk):
                         scan_angles, so2_cd = read_scan_so2(fpath)
 
                         # Get the wind speed
-                        wind_speed = get_wind_speed()
+                        wind_dir, wind_speed = get_wind(self, scan_time)
 
                         # Calculate the new plume height
-                        plume_height = calc_plume_height(s, fname)
+                        plume_height = calc_plume_height(self, s, scan_time)
 
                         # Calculate the flux from the scan
                         flux = calc_scan_flux(fpath, wind_speed, plume_height, 'arc')
