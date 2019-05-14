@@ -352,7 +352,9 @@ class mygui(tk.Tk):
                 # Put the results in the dict
                 sync_dict[name] = [status_time, status_msg, synced_fnames]
 
-                print(f'Station {name} synced')
+                # Update the status
+                self.station_widjets[name]['status_time'].set(status_time[:-7])
+                self.station_widjets[name]['status'].set(status_msg)
 
             # Pull the loop speed from the GUI
             try:
