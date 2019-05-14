@@ -9,6 +9,7 @@ import os
 import pysftp
 import glob
 import logging
+from paramiko.ssh_exception import SSHException
 
 class Station:
 
@@ -63,9 +64,6 @@ class Station:
 
         OUTPUTS
         -------
-        n_files, int
-            The number of files moved
-
         new_fnames, list
             List of synced file name strings
         '''
@@ -87,9 +85,6 @@ class Station:
                 # Get the file names in the remote directory
                 remote_files = sftp.listdir(remote_dir)
 
-                # Create file counter
-                n_files = 0
-
                 # Iterate over them and copy any that are missing in the host directory
                 for fname in remote_files:
 
@@ -99,15 +94,20 @@ class Station:
                         # Copy the file across
                         sftp.get(remote_dir + fname, local_dir + fname)
 
-                        # Add to the counter and file list
-                        n_files += 1
+                        # Add file list
                         new_fnames.append(fname)
-        except Exception as e:
+
+                        # Set error message as false
+                        err = [False, '']
+
+        # Handle the error is the connection is refused
+        except SSHException as e:
             print(f'Error syncing: {e}')
             logging.info('Error with station communication', exc_info = True)
-            n_files, new_fnames = [], []
+            new_fnames = []
+            err = [True, e]
 
-        return n_files, new_fnames
+        return new_fnames, err
 
 #========================================================================================
 #===================================== Pull Status ======================================
@@ -151,19 +151,72 @@ class Station:
                 sftp.get('/home/pi/open_so2/Station/status.txt',
                          f'Station/{self.name}_status.txt')
 
-
+            # Read the status file
             with open(f'Station/{self.name}_status.txt', 'r') as r:
-
                 time, status = r.readline().strip().split(' - ')
 
-        except Exception as e:
+            # Successful read
+            err = [False, '']
+
+        # If connection fails, report
+        except SSHException as e:
             time, status = '', 'N/C'
+            err = [True, e]
 
-        return time, status
+        return time, status, err
 
+#========================================================================================
+#===================================== Sync Station =====================================
+#========================================================================================
 
+def sync_station(station, local_dir, remote_dir, queue):
 
+    '''
+    Function to sync the status and files of a station
 
+    INPUTS
+    ------
+    station, Station object
+        The station object which will be synced
+
+    local_dir, str
+        File path to the local directory to be synced
+
+    remote_dir, str
+        File path to the remote directory to be synced
+
+    queue, multiprocessing Queue
+        The queue in which to put the outputs
+
+    OUTPUTS
+    -------
+    name, str
+        Name of the station so it can be identified in the queue
+
+    status_time, str
+        The timestamp of the last status update
+
+    status_msg, str
+        The status of the station
+
+    synced_fnames, list
+        Contains the synced data file names
+    '''
+
+    # Check station name
+    name = station.name
+
+    # Get the station status
+    status_time, status_msg, stat_err = station.pull_status()
+
+    # If the connection was succesful then sync files
+    if stat_err[0] == False:
+        synced_fnames, sync_err = station.sync(local_dir, remote_dir)
+    else:
+        synced_fnames = []
+
+    # Place the results as a list in the queue
+    queue.put([name, status_time, status_msg, synced_fnames])
 
 
 

@@ -14,12 +14,13 @@ import traceback
 import datetime as dt
 import tkinter.scrolledtext as tkst
 import tkinter.messagebox as tkMessageBox
+from multiprocessing import Process, Queue
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
 from openso2.program_setup import get_station_info, update_resfp
-from openso2.station_com import Station
+from openso2.station_com import Station, sync_station
 from openso2.analyse_scan import calc_scan_flux, calc_plume_height, get_wind_speed, read_scan_so2
 from openso2.julian_time import hms_to_julian
 from openso2.gui_funcs import update_graph, make_input
@@ -216,7 +217,7 @@ class mygui(tk.Tk):
             s_frame.grid(row = 0, column = 0, padx = 10, pady = 10)
 
             # Create status indicator
-            station_w['status'] = tk.StringVar(value = 'Idle')
+            station_w['status'] = tk.StringVar(value = '-')
             make_input(frame = s_frame,
                        text = 'Status:',
                        var = station_w['status'],
@@ -243,13 +244,13 @@ class mygui(tk.Tk):
 #========================================================================================
 
         # Begin the control loop
-        self.after(1000, self.control_loop)
+        self.after(1000, self.begin_sync)
 
 #========================================================================================
 #===================================== Control Loop =====================================
 #========================================================================================
 
-    def control_loop(self):
+    def begin_sync(self):
 
         # Check the date and time
         timestamp = dt.datetime.now()
@@ -276,125 +277,151 @@ class mygui(tk.Tk):
                 update_graph(lines, axes, self.canvas, data)
 
         # Create dictinary to hold the file paths
-        m_fpath     = {}
-        so2_fpaths  = {}
-        spec_fpaths = {}
-        flux_fpaths = {}
+        self.so2_fpaths  = {}
+        self.spec_fpaths = {}
+        self.flux_fpaths = {}
 
         # Check that the required results folders and files exist
         for station in self.station_info.keys():
 
             # Build master filepath and add to dictionaries
-            m_fpath[station] = self.res_fpath.get() + today_date + '/' + station + '/'
-            so2_fpaths[station]  = m_fpath[station] + '/so2/'
-            spec_fpaths[station] = m_fpath[station] + '/spectra/'
-            flux_fpaths[station] = m_fpath[station] + today_date + '_' + station + \
-                                   '_fluxes.csv'
+            m_fpath = self.res_fpath.get() + today_date + '/' + station + '/'
+            self.so2_fpaths[station]  = m_fpath + '/so2/'
+            self.spec_fpaths[station] = m_fpath + '/spectra/'
+            self.flux_fpaths[station] = f'{m_fpath}{today_date}_{station}_fluxes.csv'
 
             # Create the folder
-            os.makedirs(so2_fpaths[station],  exist_ok = True)
-            os.makedirs(spec_fpaths[station], exist_ok = True)
+            os.makedirs(self.so2_fpaths[station],  exist_ok = True)
+            os.makedirs(self.spec_fpaths[station], exist_ok = True)
 
             # Create the results file if it doesn't exist
-            if not Path(flux_fpaths[station]).is_file():
+            if not Path(self.flux_fpaths[station]).is_file():
 
                 # Create the file and write the header row
-                with open(flux_fpaths[station], 'w') as w:
+                with open(self.flux_fpaths[station], 'w') as w:
                     w.write('Time,Plume Height (m),Wind Speed (ms-1),Flux (t/day)\n')
 
-            # Pull station data and update
-            get_station_status(self, station)
-
         # If the stations are operational sync the so2 files. If sleeping sync spectra
+        # Stations should be operational from 08:00 - 16:00 (local time)
         jul_time = hms_to_julian(timestamp)
-        if jul_time > 8 and jul_time < 16:
-            sync_mode = '/so2/'
+        if jul_time > 8 and jul_time < 16.2:
+            self.sync_mode = '/so2/'
         else:
-            sync_mode = '/spectra/'
+            self.sync_mode = '/spectra/'
+
+        # Build a queue to hold the results
+        self.q = Queue()
 
         # Sync the home folders with remotes
         self.status.set('Syncing')
         self.update()
-        new_fnames = {}
+
         for station in self.station_info.keys():
 
             # Generate local and remote file paths to sync
-            local_fpath = m_fpath[station] + sync_mode
-            remote_fpath = '/home/pi/open_so2/Results/' + today_date + sync_mode
+            if self.sync_mode == '/so2/':
+                local_dir = self.so2_fpaths[station]
+            if self.sync_mode == '/spectra/':
+                local_dir = self.spec_fpaths[station]
+            remote_dir = '/home/pi/open_so2/Results/' + today_date + self.sync_mode
 
-            # Sync the files
-            n_files, new_fnames[station] = self.stat_com[station].sync(local_fpath,
-                                                                       remote_fpath)
+            # Launch a process to sync the status and data
+            p = Process(target = sync_station, args = (self.stat_com[station], local_dir,
+                                                       remote_dir, self.q))
+            p.start()
 
-        # Update status indicator
-        self.status.set('Standby')
-        self.update()
+        # Begin the function to check on the process progress
+        self.after(500, self.check_proc)
 
-        # If there are any new scans analysed then calculate the fluxes
-        if sync_mode == '/so2/':
+#========================================================================================
+#==================================== Check Process =====================================
+#========================================================================================
 
-            for s in self.station_info.keys():
+    def check_proc(self):
 
-                for fname in new_fnames[s]:
+        # Check the queue for results
+        if self.q.qsize() == len(self.station_info.keys()):
 
-                    # Build path to the latest SO2 data file
-                    fpath = self.res_fpath.get() + today_date + '/' + s + '/SO2/' + fname
+            # Make results dictionary
+            sync_dict = {}
 
-                    # Extract the time from the filename
-                    scan_timestamp = dt.datetime.strptime(fname.split('_')[1], '%H%M%S')
-                    scan_time = hms_to_julian(scan_timestamp)
+            # Pull the data for each station from the queue
+            for n in range(len(self.station_info.keys())):
+                name, status_time, status_msg, synced_fnames = self.q.get()
 
-                    # Get the scan data
-                    scan_angles, so2_cd = read_scan_so2(fpath)
+                # Put the results in the dict
+                sync_dict[name] = [status_time, status_msg, synced_fnames]
 
-                    # Get the wind speed
-                    wind_speed = get_wind_speed()
+                print(f'Station {name} synced')
 
-                    # Calculate the new plume height
-                    plume_height = calc_plume_height(s, fname)
+            # Pull the loop speed from the GUI
+            try:
+                loop_delay = int(self.loop_speed.get())
+            except ValueError:
+                loop_delay = 60
 
-                    # Calculate the flux from the scan
-                    flux = calc_scan_flux(fpath, wind_speed, plume_height, 'arc')
+            # Update status indicator
+            self.status.set('Standby')
+            self.update()
 
-                    # Add to the results arrays
-                    self.times[s].append(scan_time)
-                    self.fluxes[s].append(flux)
-                    self.wtimes.append(scan_time)
-                    self.heights.append(plume_height)
-                    self.speeds.append(wind_speed)
+            # If there are any new scans analysed then calculate the fluxes
+            if self.sync_mode == '/so2/':
 
-                    # Update the results file
-                    with open(flux_fpaths[s], 'a') as a:
-                        a.write(str(scan_timestamp.time()) + ',' + str(wind_speed) + \
-                                ',' + str(plume_height) + ',' + str(flux) + '\n')
+                for s in self.station_info.keys():
 
-                if len(new_fnames[s]) != 0:
+                    # Get new scan file names
+                    new_fnames = sync_dict[s][2]
 
-                    # Update the plots
-                    y_lim = [1.1 * (max(self.fluxes[s])),
-                             1.1 * (max(self.heights)),
-                             1.1 * (max(self.speeds))]
-                    data = np.array(([self.times[s],self.fluxes[s],'auto',[0,y_lim[0]]],
-                                     [scan_angles,  so2_cd,        'auto', 'auto'     ]))
-                    lines = [self.flux_lines[s], self.cd_line]
-                    axes  = [self.ax0, self.ax1]
-                    update_graph(lines, axes, self.canvas, data)
+                    for fname in new_fnames:
 
-        # Update the status colour
-        if self.status_col == 'red':
-            self.status_e.config(fg = 'green')
-            self.status_col = 'green'
+                        # Build path to the latest SO2 data file
+                        fpath = self.so2_fpaths[s] + fname
+
+                        # Extract the time from the filename
+                        scan_timestamp = dt.datetime.strptime(fname.split('_')[1], '%H%M%S')
+                        scan_time = hms_to_julian(scan_timestamp)
+
+                        # Get the scan data
+                        scan_angles, so2_cd = read_scan_so2(fpath)
+
+                        # Get the wind speed
+                        wind_speed = get_wind_speed()
+
+                        # Calculate the new plume height
+                        plume_height = calc_plume_height(s, fname)
+
+                        # Calculate the flux from the scan
+                        flux = calc_scan_flux(fpath, wind_speed, plume_height, 'arc')
+
+                        # Add to the results arrays
+                        self.times[s].append(scan_time)
+                        self.fluxes[s].append(flux)
+                        self.wtimes.append(scan_time)
+                        self.heights.append(plume_height)
+                        self.speeds.append(wind_speed)
+
+                        # Update the results file
+                        with open(self.flux_fpaths[s], 'a') as a:
+                            a.write(str(scan_timestamp.time()) + ',' + str(wind_speed) + \
+                                    ',' + str(plume_height) + ',' + str(flux) + '\n')
+
+                    if len(new_fnames) != 0:
+
+                        # Update the plots
+                        y_lim = [1.1 * (max(self.fluxes[s])),
+                                 1.1 * (max(self.heights)),
+                                 1.1 * (max(self.speeds))]
+                        data = np.array(([self.times[s],self.fluxes[s],'auto',[0,y_lim[0]]],
+                                         [scan_angles,  so2_cd,        'auto', 'auto'     ]))
+                        lines = [self.flux_lines[s], self.cd_line]
+                        axes  = [self.ax0, self.ax1]
+                        update_graph(lines, axes, self.canvas, data)
+
+            self.after(loop_delay * 1000, self.begin_sync)
+
         else:
-            self.status_e.config(fg = 'red')
-            self.status_col = 'red'
-
-        # Pull the loop speed from the GUI
-        try:
-            loop_delay = int(self.loop_speed.get())
-        except ValueError:
-            loop_delay = 60
-
-        self.after(loop_delay * 1000, self.control_loop)
+            # Not finished yet, wait another second
+            self.after(1000, self.check_proc)
 
 #========================================================================================
 #==================================== GUI Operations ====================================
