@@ -175,7 +175,7 @@ if __name__ == '__main__':
     # If before scan time, wait
     while jul_t < settings['start_time']:
         log_status('Idle')
-        logging.info('Station standby')
+        logging.info('Station on standby')
         time.sleep(60)
 
         # Update time
@@ -238,5 +238,5 @@ if __name__ == '__main__':
         p.join()
 
     # Change the station status
-    log_status('Idle')
+    log_status('Asleep')
     logging.info('Station going to sleep')
