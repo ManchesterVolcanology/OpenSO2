@@ -97,8 +97,8 @@ class Station:
                         # Add file list
                         new_fnames.append(fname)
 
-                        # Set error message as false
-                        err = [False, '']
+            # Set error message as false
+            err = [False, '']
 
         # Handle the error is the connection is refused
         except SSHException as e:
