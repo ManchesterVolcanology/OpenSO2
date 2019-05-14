@@ -160,7 +160,7 @@ class Station:
 
         # If connection fails, report
         except SSHException as e:
-            time, status = '', 'N/C'
+            time, status = '-', 'N/C'
             err = [True, e]
 
         return time, status, err
@@ -212,11 +212,13 @@ def sync_station(station, local_dir, remote_dir, queue):
     # If the connection was succesful then sync files
     if stat_err[0] == False:
         synced_fnames, sync_err = station.sync(local_dir, remote_dir)
+        err = [False, '']
     else:
         synced_fnames = []
+        err = [True, 'Connection not established']
 
     # Place the results as a list in the queue
-    queue.put([name, status_time, status_msg, synced_fnames])
+    queue.put([name, status_time, status_msg, synced_fnames, err])
 
 
 

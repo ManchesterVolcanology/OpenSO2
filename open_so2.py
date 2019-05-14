@@ -8,6 +8,7 @@ Created on Fri Jan 25 13:02:09 2019
 import os
 from pathlib import Path
 import numpy as np
+import logging
 from tkinter import ttk
 import tkinter as tk
 import traceback
@@ -93,74 +94,32 @@ class mygui(tk.Tk):
             nb.add(station_page[station], text = station)
 
         # Add the notebook to the GUI
-        nb.grid(column=0, padx=10, pady=10, sticky = 'NW')
-
-        # Frame for status and control
-        stat_frame = tk.LabelFrame(overview_page, text = 'Control', font = LARG_FONT)
-        stat_frame.grid(row=0, column=0, padx=10, pady=10, sticky="NW")
+        nb.grid(column=0, padx=10, pady=5, sticky = 'NW')
 
         mygui.columnconfigure(index = 1, weight = 1, self = self)
         mygui.rowconfigure(index = 5, weight = 1, self = self)
 
-        # Create frame to hold graphs
-        graph_frame = ttk.Frame(overview_page, relief = 'groove')
-        graph_frame.grid(row=0, column=1, padx=10, pady=10, rowspan=10, sticky="NW")
-        graph_frame.columnconfigure(index = 0, weight = 1)
-        graph_frame.rowconfigure(index = 0, weight = 1)
-
 #========================================================================================
-#=============================== Add widjets to overview ================================
+#================================== Add global widgets ==================================
 #========================================================================================
-
-#===================================== Status Frame =====================================
-
-        # Create status indicator
-        self.status = tk.StringVar(stat_frame, value = 'Standby')
-        self.status_e = tk.Label(stat_frame, textvariable = self.status, fg='red')
-        self.status_e.grid(row=0, column=0, padx=5, pady=5, sticky="EW")
-        self.status_col = 'red'
-
-        # Ceate input for the results filepath
-        self.res_fpath = tk.StringVar(value = 'Results/')
-        res_fpath_ent = tk.Entry(stat_frame, font = NORM_FONT, width = 30,
-                                 text = self.res_fpath)
-        res_fpath_ent.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W',
-                           columnspan = 2)
-        res_fpath_b = ttk.Button(stat_frame, text = "Browse",
-                                 command = lambda: update_resfp(self))
-        res_fpath_b.grid(row = 1, column = 2, padx = 5, pady = 5, sticky = 'W')
-
-        # Create control for the control loop speed
-        self.loop_speed = tk.IntVar(value = 30)
-        make_input(frame = stat_frame,
-                   text = 'Sync Delay (s):',
-                   var = self.loop_speed,
-                   input_type = 'Spinbox',
-                   row = 2, column = 0,
-                   vals = (1, 600),
-                   width = 10)
-
-        # Create frame to hold text output
-        text_frame = ttk.Frame(stat_frame)
-        text_frame.grid(row=3, column=0, padx=10, pady=10, columnspan=5, sticky="NW")
-
-        # Build text box
-        self.text_box = tkst.ScrolledText(text_frame, width = 42, height = 8)
-        self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'W',
-                           columnspan = 2)
-        self.text_box.insert('1.0', 'Welcome to Open SO2! Written by Ben Esse\n\n')
 
 #===================================== Graph Frame ======================================
 
+        # Create frame to hold graphs
+        graph_frame = ttk.Frame(self, relief = 'groove')
+        graph_frame.grid(row=0, column=1, padx=10, pady=10, sticky="NW")
+        graph_frame.columnconfigure(index = 0, weight = 1)
+        graph_frame.rowconfigure(index = 0, weight = 1)
+
         # Create figure to hold the graphs
         plt.rcParams.update({'font.size': 8})
-        self.fig = plt.figure(figsize = (6,6))
-        gs = gridspec.GridSpec(3, 1, height_ratios = (2,1,1))
+        self.fig = plt.figure(figsize = (8, 5))
+        gs = gridspec.GridSpec(2, 2)
 
         # Create plot axes
-        self.ax0 = self.fig.add_subplot(gs[0])
-        self.ax1 = self.fig.add_subplot(gs[1])
-        self.ax2 = self.fig.add_subplot(gs[2])
+        self.ax0 = self.fig.add_subplot(gs[0,:])
+        self.ax1 = self.fig.add_subplot(gs[1,0])
+        self.ax2 = self.fig.add_subplot(gs[1,1])
 
         # Set axis labels
         self.ax0.set_xlabel('Time (decimal hours)', fontsize = 10)
@@ -175,8 +134,8 @@ class mygui(tk.Tk):
         for station in self.station_info.keys():
             self.flux_lines[station], = self.ax0.plot(0, 0, 'o-', label = station)
 
-        self.cd_line, = self.ax1.plot(0, 0, 'o-')
-        self.wind_speed_line = self.ax2.plot(0, 0, 'o-')
+        self.cd_line, = self.ax1.plot(0, 0)
+        self.wind_speed_line, = self.ax2.plot(0, 0)
 
         # Add a title
         self.date = str(dt.datetime.now().date())
@@ -198,6 +157,89 @@ class mygui(tk.Tk):
         toolbar_frame.grid(row=1,column=0, sticky = 'W', padx = 5, pady = 5)
         toolbar = NavigationToolbar2Tk(self.canvas, toolbar_frame)
         toolbar.update()
+
+#===================================== Text Output ======================================
+
+        # Create frame to hold text output
+        text_frame = ttk.Frame(self)
+        text_frame.grid(row=1, column=1, padx=10, pady=5, sticky="NE")
+
+        # Build text box
+        self.text_box = tkst.ScrolledText(text_frame, width = 100, height = 8)
+        self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'E',
+                           columnspan = 2)
+        self.text_box.insert('1.0', 'Welcome to Open SO2! Written by Ben Esse\n\n')
+
+#========================================================================================
+#=============================== Add widjets to overview ================================
+#========================================================================================
+
+#==================================== Sync Controls =====================================
+
+        # Create frame
+        sync_frame = tk.LabelFrame(overview_page, text = 'Sync Settings',
+                                   font = LARG_FONT)
+        sync_frame.grid(row=0, column=0, padx=10, pady=10, sticky="NW")
+
+        # Ceate input for the results filepath
+        self.res_fpath = tk.StringVar(value = 'Results/')
+        res_fpath_ent = tk.Entry(sync_frame, font = NORM_FONT, width = 30,
+                                 text = self.res_fpath)
+        res_fpath_ent.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W',
+                           columnspan = 2)
+        res_fpath_b = ttk.Button(sync_frame, text = "Browse",
+                                 command = lambda: update_resfp(self))
+        res_fpath_b.grid(row = 0, column = 2, padx = 5, pady = 5, sticky = 'W')
+
+        # Create control for the control loop speed
+        self.loop_speed = tk.IntVar(value = 30)
+        make_input(frame = sync_frame,
+                   text = 'Sync Delay (s):',
+                   var = self.loop_speed,
+                   input_type = 'Spinbox',
+                   row = 1, column = 0,
+                   vals = (1, 600),
+                   width = 10)
+
+        # Create status indicator
+        self.status = tk.StringVar(value = 'Standby')
+        self.status_e = tk.Label(sync_frame, textvariable = self.status, fg='red')
+        self.status_e.grid(row=1, column=2, padx=5, pady=5, sticky="EW")
+        self.status_col = 'red'
+
+#==================================== Flux Controls =====================================
+
+        # Create Frame
+        flux_frame = tk.LabelFrame(overview_page, text = 'Flux Settings',
+                                   font = LARG_FONT)
+        flux_frame.grid(row=1, column=0, padx=10, pady=10, sticky="NW")
+
+        # Create control for the plume height
+        self.plume_height = tk.IntVar(value = 1000)
+        make_input(frame = flux_frame,
+                   text = 'Plume Height (m):',
+                   var = self.plume_height,
+                   input_type = 'Entry',
+                   row = 0, column = 0,
+                   width = 10)
+
+        # Create control for the wind speed
+        self.wind_speed = tk.IntVar(value = 10)
+        make_input(frame = flux_frame,
+                   text = 'Wind Speed (m/s):',
+                   var = self.wind_speed,
+                   input_type = 'Entry',
+                   row = 1, column = 0,
+                   width = 10)
+
+        # Create control for the wind direction
+        self.wind_dir = tk.IntVar(value = 0)
+        make_input(frame = flux_frame,
+                   text = 'Wind Bearing (deg):',
+                   var = self.wind_dir,
+                   input_type = 'Entry',
+                   row = 2, column = 0,
+                   width = 10)
 
 #========================================================================================
 #========================== Add widjets to the station pages ============================
@@ -326,8 +368,9 @@ class mygui(tk.Tk):
             remote_dir = '/home/pi/open_so2/Results/' + today_date + self.sync_mode
 
             # Launch a process to sync the status and data
-            p = Process(target = sync_station, args = (self.stat_com[station], local_dir,
-                                                       remote_dir, self.q))
+            self.text_out(f'Syncing {station} station')
+            p = Process(target = sync_station,
+                        args = (self.stat_com[station], local_dir, remote_dir, self.q))
             p.start()
 
         # Begin the function to check on the process progress
@@ -347,14 +390,20 @@ class mygui(tk.Tk):
 
             # Pull the data for each station from the queue
             for n in range(len(self.station_info.keys())):
-                name, status_time, status_msg, synced_fnames = self.q.get()
+                name, status_time, status_msg, synced_fnames, err = self.q.get()
 
                 # Put the results in the dict
-                sync_dict[name] = [status_time, status_msg, synced_fnames]
+                sync_dict[name] = synced_fnames
 
                 # Update the status
                 self.station_widjets[name]['status_time'].set(status_time[:-7])
                 self.station_widjets[name]['status'].set(status_msg)
+
+                # Report sync results
+                if err[0] == True:
+                    self.text_out(f'{name} station: connection failed')
+                else:
+                    self.text_out(f'{name} station: {len(synced_fnames)} files synced')
 
             # Pull the loop speed from the GUI
             try:
@@ -372,7 +421,7 @@ class mygui(tk.Tk):
                 for s in self.station_info.keys():
 
                     # Get new scan file names
-                    new_fnames = sync_dict[s][2]
+                    new_fnames = sync_dict[s]
 
                     for fname in new_fnames:
 
@@ -380,7 +429,8 @@ class mygui(tk.Tk):
                         fpath = self.so2_fpaths[s] + fname
 
                         # Extract the time from the filename
-                        scan_timestamp = dt.datetime.strptime(fname.split('_')[1], '%H%M%S')
+                        scan_timestamp = dt.datetime.strptime(fname.split('_')[1],
+                                                              '%H%M%S')
                         scan_time = hms_to_julian(scan_timestamp)
 
                         # Get the scan data
@@ -456,6 +506,39 @@ class mygui(tk.Tk):
 
         if message == 'no':
             pass
+
+    # Function to print text to the output box
+    def text_out(self, text, add_t_stamp = True, add_line = False):
+
+        # Check if timestamp is required
+        if add_t_stamp == True:
+            time_stamp = str(dt.datetime.now().time())[:-7]
+            text = time_stamp + ' - ' + text
+
+        if add_line == True:
+            # Add new line return to text
+            text = text + '\n\n'
+        else:
+            text = text + '\n'
+
+        # Write text with a new line
+        self.text_box.insert(tk.END, text)
+
+        # Scroll if needed
+        self.text_box.see(tk.END)
+
+        # Write to notes file
+        try:
+            with open(self.notes_fname, 'a') as a:
+                a.write(text)
+
+        except AttributeError:
+            pass
+
+        logging.debug(text)
+
+        # Force gui to update
+        mygui.update(self)
 
 # Run the App!
 if __name__ == '__main__':
