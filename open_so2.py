@@ -255,7 +255,7 @@ class mygui(tk.Tk):
                    options = [self.how_calc_wind.get(), 'Fix', 'Pull'])
 
         # Create control for the wind direction
-        self.wind_dir = tk.IntVar(value = 0)
+        self.wind_dir = tk.IntVar(value = 90)
         make_input(frame = flux_frame,
                    text = 'Wind Bearing (deg):',
                    var = self.wind_dir,

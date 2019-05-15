@@ -81,7 +81,7 @@ def read_scan(fpath):
 #===================================== Analyse Scan =====================================
 #========================================================================================
 
-def analyse_scan(**common):
+def analyse_scan(save_results = True, **common):
 
     '''
     Function to analyse a scan block
@@ -91,18 +91,22 @@ def analyse_scan(**common):
     common, dict
         Common dictionary of parameters used by the program
 
+    save_results, bool (default True)
+        Flag whether or not to save the results. Turn False for post analysis.
+
     OUTPUTS
     -------
-    None
+    fit_data, numpy array
+        The results of the fit, formatted as dec_time, motor_pos, angle, so2 amt, so2 err
 
     Written by Ben Esse, January 2019
     '''
 
-    # Create empty array to hold the results
-    fit_data = np.zeros((104, 5))
-
     # Read in the scan data
     err, x, info_block, spec_block = read_scan(common['scan_fpath'])
+
+    # Create empty array to hold the results
+    fit_data = np.zeros((spec_block.shape[0] - 1, 5))
 
     # Logthe start of the scan
     logging.info('Start scan ' + str(common['scan_no']) + ' analysis')
@@ -118,7 +122,7 @@ def analyse_scan(**common):
         # Extract the dark spectrum
         common['dark'] = spec_block[0]
 
-        for n in range(1, len(spec_block)):
+        for n in range(1, spec_block.shape[0]):
 
             # Extract spectrum info
             info = info_block[n]
@@ -137,18 +141,21 @@ def analyse_scan(**common):
             popt, perr, fitted_flag = fit_spec(common, [x, y], grid)
 
             # Update fit parameters
-            if fitted_flag == True:
-                common['params'] = popt
+            #if fitted_flag == True:
+            #    common['params'] = popt
 
             # Add the fit results to the results array
-            fit_data[n-1] = [dec_time, motor_pos, angle, popt[6], perr[6]]
+            fit_data[n-1] = [dec_time, motor_pos, angle, popt[7], perr[7]]
 
         logging.info('Scan ' + str(common['scan_no']) + ' analysis complete')
 
-        # Save the data
-        fname = common['scan_fpath'].split('/')[-1][:-4] + '_so2.npy'
-        fpath = common['fpath'] + 'so2/' + fname
-        np.save(fpath, fit_data.astype('float32'))
+        if save_results == True:
+            # Save the data
+            fname = common['scan_fpath'].split('/')[-1][:-4] + '_so2.npy'
+            fpath = common['fpath'] + 'so2/' + fname
+            np.save(fpath, fit_data.astype('float32'))
+
+        return fit_data
 
 #========================================================================================
 #==================================== Update Int Time ===================================
