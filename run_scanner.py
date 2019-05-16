@@ -173,14 +173,18 @@ if __name__ == '__main__':
     jul_t = hms_to_julian(timestamp)
 
     # If before scan time, wait
-    while jul_t < settings['start_time']:
-        log_status('Idle')
-        logging.info('Station on standby')
-        time.sleep(60)
+    if jul_t < settings['start_time']:
+        logger.info('Station idle')
 
-        # Update time
-        timestamp = datetime.datetime.now()
-        jul_t = hms_to_julian(timestamp)
+        # Check time every 10s
+        while jul_t < settings['start_time']:
+            log_status('Idle')
+            logging.debug('Station on standby')
+            time.sleep(10)
+
+            # Update time
+            timestamp = datetime.datetime.now()
+            jul_t = hms_to_julian(timestamp)
 
     # Connect to the scanner
     scanner = Scanner(step_type = settings['step_type'])
@@ -188,14 +192,14 @@ if __name__ == '__main__':
     # Begin loop
     while jul_t < settings['stop_time']:
 
+        # Log status change and scan number
         log_status('Active')
-        logging.info('Station active')
-
         logging.info('Begin scan ' + str(common['scan_no']))
 
         # Scan!
         common['scan_fpath'] = acquire_scan(scanner, spec, common, settings)
 
+        # Log scan completion
         logging.info('Scan ' + str(common['scan_no']) + ' complete')
 
         # Update the spectrometer integration time
@@ -230,7 +234,7 @@ if __name__ == '__main__':
         timestamp = datetime.datetime.now()
         jul_t = hms_to_julian(timestamp)
 
-    # Release the scanner
+    # Release the scanner to conserve power
     scanner.motor.release()
 
     # Finish up any analysis that is still ongoing
