@@ -129,7 +129,7 @@ def analyse_scan(save_results = True, **common):
             n_aq, h, m, s, motor_pos, int_time, coadds = info
 
             # Convert motor position to angle
-            angle = float(motor_pos) / 33.25 - 102
+            angle = float(motor_pos) / common['steps_per_degree'] - common['home_offset']
 
             # Convert time to decimal hours
             dec_time = hms_to_julian(dt.time(int(h), int(m), int(s)))
