@@ -141,8 +141,8 @@ def analyse_scan(save_results = True, **common):
             popt, perr, fitted_flag = fit_spec(common, [x, y], grid)
 
             # Update fit parameters
-            #if fitted_flag == True:
-            #    common['params'] = popt
+            if fitted_flag == True:
+                common['params'] = popt
 
             # Add the fit results to the results array
             fit_data[n-1] = [dec_time, motor_pos, angle, popt[7], perr[7]]
@@ -150,6 +150,7 @@ def analyse_scan(save_results = True, **common):
         logging.info('Scan ' + str(common['scan_no']) + ' analysis complete')
 
         if save_results == True:
+
             # Save the data
             fname = common['scan_fpath'].split('/')[-1][:-4] + '_so2.npy'
             fpath = common['fpath'] + 'so2/' + fname
