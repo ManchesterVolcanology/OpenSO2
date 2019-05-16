@@ -9,6 +9,7 @@ import os
 import pysftp
 import glob
 import logging
+from datetime import datetime as dt
 from paramiko.ssh_exception import SSHException
 
 class Station:
@@ -132,15 +133,12 @@ class Station:
             Dictionary containing the status of the station
         '''
 
+        # Make sure the Station folder exists
         if not os.path.exists('Station'):
             os.makedirs('Station')
 
         cnopts = pysftp.CnOpts()
         cnopts.hostkeys = None
-
-        # Make sure the log folder exists
-        if not os.path.exists('Station'):
-            os.makedirs('Station')
 
         try:
 
@@ -164,6 +162,56 @@ class Station:
             err = [True, e]
 
         return time, status, err
+
+#========================================================================================
+#======================================= Pull Log =======================================
+#========================================================================================
+
+    def pull_log(self):
+
+        '''
+        Function to pull the log file from the station for analysis
+
+        NOTE THIS ASSUMES THE DATE ON THE PI IS CORRECT TO PULL THE CORRECT LOG FILE
+
+        INPUTS
+        ------
+        None
+
+        OUTPUTS
+        -------
+        last_log, str
+            The last log entry in the log file
+
+        err, tuple
+            Consists of the error flag (True is an error occured) and the error message
+        '''
+
+        # Make sure the Station folder exists
+        if not os.path.exists('Station'):
+            os.makedirs('Station')
+
+        cnopts = pysftp.CnOpts()
+        cnopts.hostkeys = None
+
+        try:
+
+            # Open connection
+            with pysftp.Connection(**self.cinfo, cnopts=cnopts) as sftp:
+
+                # Get the status file
+                sftp.get(f'/home/pi/open_so2/log/{dt.now().date()}.log',
+                         f'Station/{self.name}_log.txt')
+
+            # Successful read
+            err = [False, '']
+
+        # If connection fails, report
+        except SSHException as e:
+            err = [True, e]
+
+        return err
+
 
 #========================================================================================
 #===================================== Sync Station =====================================
@@ -208,6 +256,10 @@ def sync_station(station, local_dir, remote_dir, queue):
 
     # Get the station status
     status_time, status_msg, stat_err = station.pull_status()
+
+    # If the status is error, pull the log file
+    if status_msg == 'Error':
+        station.pull_log
 
     # If the connection was succesful then sync files
     if stat_err[0] == False:

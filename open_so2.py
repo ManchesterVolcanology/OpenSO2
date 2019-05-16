@@ -428,11 +428,15 @@ class mygui(tk.Tk):
                 else:
                     self.text_out(f'{name} station: {len(synced_fnames)} files synced')
 
-            # Pull the loop speed from the GUI
-            try:
-                loop_delay = int(self.loop_speed.get())
-            except ValueError:
-                loop_delay = 60
+                # If there is an error with the station report
+                if status_msg == 'Error':
+
+                    # Read the status file
+                    with open(f'Station/{name}_log.txt', 'r') as r:
+                        lines = r.readlines()
+                        last_log = lines[-1]
+
+                    self.text_out(f'{name} station: ERROR: {last_log}')
 
             # Update status indicator
             self.status.set('Standby')
@@ -492,6 +496,12 @@ class mygui(tk.Tk):
                         axes  = [self.ax0, self.ax1]
                         update_graph(lines, axes, self.canvas, data)
 
+            # Pull the loop speed from the GUI
+            try:
+                loop_delay = int(self.loop_speed.get())
+            except ValueError:
+                loop_delay = 60
+
             self.after(loop_delay * 1000, self.begin_sync)
 
         else:
@@ -501,6 +511,8 @@ class mygui(tk.Tk):
 #========================================================================================
 #==================================== GUI Operations ====================================
 #========================================================================================
+
+#============================== Report Callback Exception ===============================
 
     # Report exceptions in a new window
     def report_callback_exception(self, *args):
@@ -513,6 +525,8 @@ class mygui(tk.Tk):
         # Report error
         err = traceback.format_exception(*args)
         tkMessageBox.showerror('Exception', err)
+
+#================================= Program Exit Handler =================================
 
     # Close program on 'x' button
     def handler(self):
@@ -530,16 +544,40 @@ class mygui(tk.Tk):
         if message == 'no':
             pass
 
+#==================================== Textbox output ====================================
+
     # Function to print text to the output box
     def text_out(self, text, add_t_stamp = True, add_line = False):
 
         # Check if timestamp is required
         if add_t_stamp == True:
+
+            # Check the length. If too long wrap properly
+            if len(text) > 89:
+
+                # Split the text into lines
+                lines = []
+                rest_of_text = text
+
+                # Cut the text into the right length
+                while len(rest_of_text) > 89:
+                    lines.append(rest_of_text[:89])
+                    rest_of_text = rest_of_text[89:]
+
+                # Add the final line
+                lines.append(rest_of_text)
+
+                # Build the full text
+                text = ''
+                for line in lines:
+                    text += line + ' ' * 11
+
+            # Add the time stamp to the beginning
             time_stamp = str(dt.datetime.now().time())[:-7]
             text = time_stamp + ' - ' + text
 
-        if add_line == True:
-            # Add new line return to text
+        # Check if an extra line space is required
+        if add_line:
             text = text + '\n\n'
         else:
             text = text + '\n'
@@ -550,14 +588,7 @@ class mygui(tk.Tk):
         # Scroll if needed
         self.text_box.see(tk.END)
 
-        # Write to notes file
-        try:
-            with open(self.notes_fname, 'a') as a:
-                a.write(text)
-
-        except AttributeError:
-            pass
-
+        # Add to the log
         logging.debug(text)
 
         # Force gui to update
