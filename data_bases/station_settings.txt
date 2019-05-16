@@ -9,7 +9,9 @@ int_time_step;50;<class 'int'>
 start_int_time;200;<class 'int'>
 target_int;50000;<class 'int'>
 coadds;10;<class 'int'>
-steps_to_start;3392;<class 'int'>
+steps_to_start;3791;<class 'int'>
 step_type;double;<class 'str'>
-steps_per_spec;60;<class 'int'>
-spec_per_scan;104
+steps_per_spec;50;<class 'int'>
+specs_per_scan;104;<class 'int'>
+steps_per_degree;33.25;<class 'float'>
+home_offset;102;<class 'int'>
