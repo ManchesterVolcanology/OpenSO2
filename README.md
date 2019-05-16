@@ -83,3 +83,22 @@ sudo gpsd /dev/ttyUSB0 -F /var/run/gpsd.sock
 cd /home/pi/open_so2/
 sudo /home/pi/open_so2/./run_scanner.py
 ```
+
+## Home Station Software Setup
+
+### Installing
+The Open SO<sub>2</sub> scanners are designed to work as a network, with a central home station computing SO<sub>2</sub> fluxes in real time, given the geometry of the volcano and scanners as well as real time wind data.
+
+The home software is currently run as a python script (written in python 3.6). The easiest way to get python up and running is using Anaconda (https://www.anaconda.com/) which comes with most of the required libraries. The only extra library required is ```pysftp``` which handles transfering files via SFTP from the Pi to the home computer. This can be installed using conda:
+```
+conda install -c conda-forge pysftp
+```
+
+Now the home software can be launched from the command line.
+
+### Setting up Station Connection
+To allow the home software to talk to the stations via SSH it requires the IP address, user name and passwork for the station. The username and password can be configured on the Pi manually, and the IP address is determined by the network. This information is stored in the ```station_info.txt``` input file in the ```data_bases/``` directory. It has the following format:
+```
+[Station Name] ; [IP Address] ; [Username] ; [Password]
+```
+Note that the first (header) line of the file is ignored.
