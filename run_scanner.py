@@ -151,6 +151,10 @@ if __name__ == '__main__':
     # Set the station name
     common['station_name'] = settings['station_name']
 
+    # Set the station motor details and add to the common
+    common['steps_per_degree'] = settings['steps_per_degree']
+    common['home_offset'] = settings['home_offset']
+
     # Create loop counter
     common['scan_no'] = 0
 
