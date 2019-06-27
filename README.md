@@ -106,6 +106,11 @@ Now the home software can be launched from the command line.
 ### Setting up Station Connection
 To allow the home software to talk to the stations via SSH it requires the IP address, user name and password for the station. The username and password can be configured on the Pi manually, and the IP address is determined by the network. This information is stored in the ```station_info.txt``` input file in the ```data_bases/``` directory. It has the following format:
 ```
-[Station Name] ; [IP Address] ; [Username] ; [Password]
+Station Name     ;      Host      ; Username     ; Password
+[Station 1 Name] ; [IP Address 1] ; [Username 1] ; [Password 1]
+[Station 2 Name] ; [IP Address 2] ; [Username 2] ; [Password 2]
+.
+.
+.
 ```
 Note that the first (header) line of the file is ignored.
