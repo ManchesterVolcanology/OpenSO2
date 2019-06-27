@@ -25,7 +25,7 @@ The power to the Pi is controlled using the WittyPi2 HAT. This controls when the
 wget http://www.uugear.com/repo/WittyPi2/installWittyPi.sh
 sudo sh installWittyPi.sh
 ```
-This script goes through several steps to ensure the WittyPi2 board will operate correctly. Note it is not necessary to install Qt for the GUI. Once it is installed a correct script to tell the board when to power on and off is required. In the wittyPi folder create a text document called ```schedule.wpi``` containing the following text:
+This script goes through several steps to ensure the WittyPi2 board will operate correctly. Note it is not necessary to install Qt for the GUI. Once it is installed a correct script to tell the board when to power on and off is required. In the ```/home/pi/wittyPi``` folder create a text document called ```schedule.wpi``` containing the following text:
 ```
 BEGIN 2018-01-01 06:00:00
 END   2050-01-01 23:59:59
