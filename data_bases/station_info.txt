@@ -1,2 +1,1 @@
 Station Name ;      Host     ; username ; password
-LOVE         ; 172.17.104.13 ; pi       ; soufriere
