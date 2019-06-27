@@ -1,1 +1,1 @@
-Station Name ;      Host     ; username ; password
+Station Name ;      Host     ; Username ; Password
