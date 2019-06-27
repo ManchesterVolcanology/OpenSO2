@@ -86,6 +86,11 @@ cd /home/pi/open_so2/
 sudo /home/pi/open_so2/./run_scanner.py
 ```
 
+### Wiring
+This image shows the wiring of the control boards for the Open SO<sub>2</sub> scanner.
+
+![alt text](https://github.com/benjaminesse/open_so2/blob/master/docs/controller_wiring.png "Controller Wiring")
+
 ## Home Station Software Setup
 
 ### Installing
