@@ -35,17 +35,55 @@
 <h1>Station Setup<a class="headerlink" href="#station-setup" title="Permalink to this headline">¶</a></h1>
 <p>The station has several core components:</p>
 <ul class="simple">
-<li><p>The control computer.</p></li>
-<li><p>The spectrometer (and associated optics).</p></li>
-<li><p>The motor.</p></li>
-<li><p>GPS.</p></li>
-<li><p>Power control.</p></li>
-<li><p>Communication.</p></li>
+<li><p>The control computer</p></li>
+<li><p>The spectrometer (and associated optics)</p></li>
+<li><p>Power control</p></li>
+<li><p>The motor</p></li>
+<li><p>GPS (for time keeping)</p></li>
+<li><p>Communication</p></li>
 </ul>
+<p>This section will describe the setup and operation of each of these components in the Open SO<sub>2</sub> scanner.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The details below refer to specific components as these are the components with which the Open SO<sub>2</sub> scanner was developed. These are not the only solutions available, so the station software is designed to be modular so that the specific components used can be changed with relative ease.</p>
+</div>
+<div class="section" id="the-control-computer">
+<h2>The Control Computer<a class="headerlink" href="#the-control-computer" title="Permalink to this headline">¶</a></h2>
+<p>The Open SO<sub>2</sub> software has been designed to work on a Raspberry Pi single board computer (specifically the RPI 3B+). This controls the different components and analyses the collected data in real time. Beyond the additions detailed here a small heatsink was added to the Rasberry Pi in order to assist with the termal regulation of the CPU.</p>
+</div>
 <div class="section" id="spectrometer">
 <h2>Spectrometer<a class="headerlink" href="#spectrometer" title="Permalink to this headline">¶</a></h2>
 <p>The Open SO<sub>2</sub> station is designed to work with an Ocean Optics USB spectrometer. The spectrometer is controlled through a Python library called Python Seabreeze, which is maintained on GitHub <a class="reference external" href="https://github.com/ap--/python-seabreeze">here</a> .</p>
 <p>The spectrometer is connected to the Raspberry Pi by a USB cable which provides power and control.</p>
+</div>
+<div class="section" id="power-control">
+<h2>Power Control<a class="headerlink" href="#power-control" title="Permalink to this headline">¶</a></h2>
+<p>To reduce power consumption the station enters a “low power” mode when not collecting data and turns off completely overnight. The control of the power is achieved using the <a class="reference external" href="http://www.uugear.com/product/wittypi2/">WittyPi2 board</a> which incorporates an RTC to ensure that the time does not drift while the station is powered down.</p>
+<p>To install the required software use the following commands from the home directory:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">wget</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">www</span><span class="o">.</span><span class="n">uugear</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">repo</span><span class="o">/</span><span class="n">WittyPi2</span><span class="o">/</span><span class="n">installWittyPi</span><span class="o">.</span><span class="n">sh</span>
+<span class="n">sudo</span> <span class="n">sh</span> <span class="n">installWittyPi</span><span class="o">.</span><span class="n">sh</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>It is strongly suggested that this is done before mounting the WittyPi2 board</p>
+</div>
+<p>This script goes through several steps to ensure the WittyPi2 board will operate correctly. Note it is not necessary to install Qt for the GUI. Once it is installed a correct script to tell the board when to power on and off is required. In the <code class="docutils literal notranslate"><span class="pre">/home/pi/wittyPi</span></code> folder create a text document called <code class="docutils literal notranslate"><span class="pre">schedule.wpi</span></code> containing the following text:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">BEGIN</span> <span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">01</span> <span class="mi">06</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span>
+<span class="n">END</span>   <span class="mi">2050</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">01</span> <span class="mi">23</span><span class="p">:</span><span class="mi">59</span><span class="p">:</span><span class="mi">59</span>
+<span class="n">ON</span>    <span class="mi">12</span><span class="n">H</span>
+<span class="n">OFF</span>   <span class="mi">12</span><span class="n">H</span>
+</pre></div>
+</div>
+<p>This script tells the wittyPi board to turn the Pi on from 6:00 to 18:00 everyday. This time is UTC, so the BEGIN time will require adjusting for the local time zone. The script is then activated by running:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="o">./</span><span class="n">run_script</span><span class="o">.</span><span class="n">sh</span>
+</pre></div>
+</div>
+<p>This will summerise the timing details so they can be checked.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>There is an issue with using the WittyPi software when using Raspian with NOOBS. Details on how to work around this can be found in the WittyPi2 user manual.</p>
+</div>
 </div>
 <div class="section" id="stepper-motor">
 <h2>Stepper Motor<a class="headerlink" href="#stepper-motor" title="Permalink to this headline">¶</a></h2>
@@ -63,6 +101,56 @@
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">adafruit</span><span class="o">-</span><span class="n">circuitpython</span><span class="o">-</span><span class="n">motorkit</span>
 </pre></div>
 </div>
+<p>The motor control should now work.</p>
+<p>To ensure that the angular accuracy of the stepper motor does not drift with time a microswitch is used to “home” the scanner head after each rotation. The type of switch used does not matter, but it should connect to one of the GPIO pins of the Raspberry Pi (accessible on the Motor-HAT). The default is pin 21.</p>
+</div>
+<div class="section" id="gps">
+<h2>GPS<a class="headerlink" href="#gps" title="Permalink to this headline">¶</a></h2>
+<p>To obtain the GPS information requires the GPS module in python as well as GSPD to talk to the GPS device. To install these run:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">install</span> <span class="n">gpsd</span> <span class="n">gpsd</span><span class="o">-</span><span class="n">clients</span>
+<span class="n">pip</span> <span class="n">install</span> <span class="n">gps</span>
+</pre></div>
+</div>
+<p>Open SO<sub>2</sub> also changes the RTC time of the wittyPi board to make sure that the board time matches the system time of the Pi when connected to the GPS. This requires the <code class="docutils literal notranslate"><span class="pre">system_to_rtc.sh</span></code> file to be placed in the wittyPi folder. Make sure it is executeable with <code class="docutils literal notranslate"><span class="pre">chmod</span> <span class="pre">+x</span> <span class="pre">system_to_rtc.sh</span></code></p>
+<p>You should also check that the time zone for the Pi is set to UTC by running:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">dpkg</span><span class="o">-</span><span class="n">reconfigure</span> <span class="n">tzdata</span>
+</pre></div>
+</div>
+<p>selecting <code class="docutils literal notranslate"><span class="pre">None</span> <span class="pre">of</span> <span class="pre">the</span> <span class="pre">above</span></code> and setting the TimeZone to UTC.</p>
+</div>
+<div class="section" id="communication">
+<h2>Communication<a class="headerlink" href="#communication" title="Permalink to this headline">¶</a></h2>
+<p>The Open SO<sub>2</sub> software requires a local network connection between the stations and the home computer. This is achieved through an ethernet connection on the Raspberry Pi computer.</p>
+</div>
+<div class="section" id="wiring">
+<h2>Wiring<a class="headerlink" href="#wiring" title="Permalink to this headline">¶</a></h2>
+<p>The figure below shows how the various components of the Open SO<sub>2</sub> scanner are connected. Note that the boards are stacked on top of each other.</p>
+<div class="figure align-center" id="id1">
+<a class="reference internal image-reference" href="../_images/controller_wiring.png"><img alt="Station Wiring" src="../_images/controller_wiring.png" style="width: 520.0px; height: 360.0px;" /></a>
+<p class="caption"><span class="caption-text">Basic wiring layout for the Open SO<sub>2</sub> scanner station.</span><a class="headerlink" href="#id1" title="Permalink to this image">¶</a></p>
+</div>
+</div>
+<div class="section" id="startup-script">
+<h2>Startup Script<a class="headerlink" href="#startup-script" title="Permalink to this headline">¶</a></h2>
+<p>A startup script is needed to tell the Raspberry Pi to run the station software when it boots. Firstly make sure that the script <code class="docutils literal notranslate"><span class="pre">run_scanner.py</span></code> is executable by navigating to the <code class="docutils literal notranslate"><span class="pre">open_so2/</span></code> folder and running:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">chmod</span> <span class="o">+</span><span class="n">x</span> <span class="n">run_scanner</span><span class="o">.</span><span class="n">py</span>
+</pre></div>
+</div>
+<p>Now to run it on startup add the following lines to the startup script <code class="docutils literal notranslate"><span class="pre">/etc/rc.local</span></code> above the <code class="docutils literal notranslate"><span class="pre">exit</span> <span class="pre">0</span></code> line:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">systemctl</span> <span class="n">stop</span> <span class="n">gpsd</span><span class="o">.</span><span class="n">socket</span>
+<span class="n">sudo</span> <span class="n">systemctl</span> <span class="n">disable</span> <span class="n">gpsd</span><span class="o">.</span><span class="n">socket</span>
+<span class="n">sudo</span> <span class="n">gpsd</span> <span class="o">/</span><span class="n">dev</span><span class="o">/</span><span class="n">ttyUSB0</span> <span class="o">-</span><span class="n">F</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">run</span><span class="o">/</span><span class="n">gpsd</span><span class="o">.</span><span class="n">sock</span>
+
+<span class="n">cd</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">pi</span><span class="o">/</span><span class="n">open_so2</span><span class="o">/</span>
+<span class="n">sudo</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">pi</span><span class="o">/</span><span class="n">open_so2</span><span class="o">/./</span><span class="n">run_scanner</span><span class="o">.</span><span class="n">py</span>
+</pre></div>
+</div>
+<p>This script does two things:</p>
+<ol class="arabic simple">
+<li><p>Starts the GPS running</p></li>
+<li><p>Launches the station software</p></li>
+</ol>
+<p>To test reboot the Raspberry Pi and the software should create a log file for that day.</p>
 </div>
 </div>
 
@@ -87,8 +175,14 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Home Computer Software</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Station Setup</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#the-control-computer">The Control Computer</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#spectrometer">Spectrometer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#power-control">Power Control</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#stepper-motor">Stepper Motor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#gps">GPS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#communication">Communication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#wiring">Wiring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#startup-script">Startup Script</a></li>
 </ul>
 </li>
 </ul>

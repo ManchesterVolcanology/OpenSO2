@@ -1,5 +1,5 @@
-Home Computer Software
-======================
+Home Computer Setup
+===================
 
 The Open |SO2| scanners are designed to work as a network, with a central home station computing SO2 fluxes in real time, given the geometry of the volcano and scanners as well as real time wind data.
 
