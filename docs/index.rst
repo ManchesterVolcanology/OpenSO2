@@ -1,20 +1,28 @@
-.. Open SO2 documentation master file, created by
-   sphinx-quickstart on Mon Sep 30 12:28:40 2019.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+.. Open SO2 documentation master file
 
-Welcome to Open SO2's documentation!
-====================================
+Open |SO2| documentation
+###############################
+
+About Open |SO2|
+=======================
+Open |SO2| is open source software for controlling a scanning UV spectrometer to calculate volcanic |SO2| fluxes.
+
+There are two main components: the home computer software and the scanner station software. The stations are controlled by a Raspberry Pi computer and complete scans of the plume, analysing the spectra in real time. These scans are then collected by the home computer via sFTP and used to calculate the flux, given a wind speed, plume height and plume direction (either calculated from two scans or set manually).
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
+   usage/installation
+   usage/raspi-setup
 
 
-Indices and tables
+Guide
 ==================
 
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+
+.. |SO2| replace:: SO\ :sub:`2`
