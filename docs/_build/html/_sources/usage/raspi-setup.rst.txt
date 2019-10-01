@@ -9,3 +9,29 @@ The station has several core components:
 * GPS.
 * Power control.
 * Communication.
+
+Spectrometer
+^^^^^^^^^^^^
+The Open |SO2| station is designed to work with an Ocean Optics USB spectrometer. The spectrometer is controlled through a Python library called Python Seabreeze, which is maintained on GitHub `here <https://github.com/ap--/python-seabreeze>`_ .
+
+The spectrometer is connected to the Raspberry Pi by a USB cable which provides power and control.
+
+Stepper Motor
+^^^^^^^^^^^^^
+The scanner head is rotated using a stepper motor controlled by the Raspberry Pi. The motor requires a separate control board to operate with a separate power supply. 
+
+The Open |SO2| scanner uses a board called the `Adafruit Motor HAT. <https://www.adafruit.com/product/2348>`_ to control the stepper motor. Details can be found in the Adafruit documentation. To operate the HAT Adafruit Blinka must first be installed::
+	
+	pip install -upgrade setuptools
+	
+Next enable I2C and SPI and reboot. Then run the following commands::
+
+	pip install RPI.GPIO
+	pip install adafruit-blinka
+	
+Then install the circuit python library for motor control::
+
+	pip install adafruit-circuitpython-motorkit
+
+.. Substitutions
+.. |SO2| replace:: SO\ :sub:`2`

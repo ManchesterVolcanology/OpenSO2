@@ -42,6 +42,28 @@
 <li><p>Power control.</p></li>
 <li><p>Communication.</p></li>
 </ul>
+<div class="section" id="spectrometer">
+<h2>Spectrometer<a class="headerlink" href="#spectrometer" title="Permalink to this headline">¶</a></h2>
+<p>The Open SO<sub>2</sub> station is designed to work with an Ocean Optics USB spectrometer. The spectrometer is controlled through a Python library called Python Seabreeze, which is maintained on GitHub <a class="reference external" href="https://github.com/ap--/python-seabreeze">here</a> .</p>
+<p>The spectrometer is connected to the Raspberry Pi by a USB cable which provides power and control.</p>
+</div>
+<div class="section" id="stepper-motor">
+<h2>Stepper Motor<a class="headerlink" href="#stepper-motor" title="Permalink to this headline">¶</a></h2>
+<p>The scanner head is rotated using a stepper motor controlled by the Raspberry Pi. The motor requires a separate control board to operate with a separate power supply.</p>
+<p>The Open SO<sub>2</sub> scanner uses a board called the <a class="reference external" href="https://www.adafruit.com/product/2348">Adafruit Motor HAT.</a> to control the stepper motor. Details can be found in the Adafruit documentation. To operate the HAT Adafruit Blinka must first be installed:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="o">-</span><span class="n">upgrade</span> <span class="n">setuptools</span>
+</pre></div>
+</div>
+<p>Next enable I2C and SPI and reboot. Then run the following commands:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">RPI</span><span class="o">.</span><span class="n">GPIO</span>
+<span class="n">pip</span> <span class="n">install</span> <span class="n">adafruit</span><span class="o">-</span><span class="n">blinka</span>
+</pre></div>
+</div>
+<p>Then install the circuit python library for motor control:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">adafruit</span><span class="o">-</span><span class="n">circuitpython</span><span class="o">-</span><span class="n">motorkit</span>
+</pre></div>
+</div>
+</div>
 </div>
 
 
@@ -64,7 +86,11 @@
 <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Home Computer Software</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Station Setup</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Station Setup</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#spectrometer">Spectrometer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#stepper-motor">Stepper Motor</a></li>
+</ul>
+</li>
 </ul>
 
 <div class="relations">
