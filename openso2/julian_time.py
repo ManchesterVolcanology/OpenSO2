@@ -19,7 +19,7 @@ def hms_to_julian(times, str_format = None, out_format = 'decimal hours'):
     
     INPUTS
     ------
-    times, array
+    times, array, datetime.datetime or str
         Origional time objects
         
     str_format, str (optional)

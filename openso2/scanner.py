@@ -28,7 +28,7 @@ class Scanner:
 
     steptype, str
         Stepping type. Must be one of:
-            - single;     single step (lowest power)
+            - single;     single step (lowest power, default)
             - double;     double step (more power but stronger)
             - interleave; finer control, has double the steps of single
             - micro;      slower but with much higher precision (8x)
@@ -185,23 +185,22 @@ class Scanner:
 def acquire_scan(Scanner, Spectrometer, common, settings):
 
     '''
-    Function to perform a scan. Simultaneously analyses the spectra from the previous
-    scan while aquiring the current one
+    Function to perform a scan.
 
     INPUTS
     ------
-    GUI, tk.Tk object
-        Object for the main GUI of the control program
-
     Scanner, openso2 Scanner object
         Object to control the scanner head consisting of a stepper motor and a
         microswitch
 
-    GPS, openso2 GPS object
-        Object to control the GPS module for location and date/time information
-
     Spectrometer, Seabreeze.Spectrometer object
         Object to control the spectrometer
+        
+    common, dict
+        Dictionary of program variables
+        
+    settings, dict
+        Dictionary of the program settings
 
     OUPUTS
     ------
