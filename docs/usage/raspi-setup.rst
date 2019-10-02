@@ -95,7 +95,7 @@ Wiring
 ^^^^^^
 The figure below shows how the various components of the Open |SO2| scanner are connected. Note that the boards are stacked on top of each other.
 
-.. figure:: ../controller_wiring.png
+.. figure:: ../Figures/controller_wiring.png
    :scale: 50%
    :alt: Station Wiring
    :align: center
