@@ -3,7 +3,7 @@
 Open |SO2| documentation
 ###############################
 
-Welcome to the documentation for Open |SO2|!
+Welcome to the documentation for Open |SO2|! Writen and developed by Ben Esse.
 
 About Open |SO2|
 =======================
