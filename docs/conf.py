@@ -34,6 +34,8 @@ html_context = {
     "conf_py_path": "./",          # Path in the checkout to the docs root
 }
 
+master_doc = 'index'
+
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
