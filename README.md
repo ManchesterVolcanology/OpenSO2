@@ -1,5 +1,5 @@
 # Open SO<sub>2</sub>
-Open Source SO<sub>2</sub> flux software for volcano monitoring
+Open Source SO<sub>2</sub> flux software for volcano monitoring. See the full documentation [here](https://open-so2.readthedocs.io/en/latest/index.html).
 
 ## Raspberry Pi Setup Instructions
 The Open SO<sub>2</sub> scanner uses open source software written in Python to control commercially available components based on the Raspberry Pi to control UV scanning spectrometers for measuring volcanic SO<sub>2</sub> fluxes.
