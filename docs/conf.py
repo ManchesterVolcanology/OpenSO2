@@ -25,7 +25,7 @@ author = 'Ben Esse'
 release = '1.0.0'
 
 # -- Integration with GitHub -------------------------------------------------
-
+'''
 html_context = {
     "display_github": True,        # Integrate GitHub
     "github_user": "benjaminesse", # Username
@@ -33,6 +33,8 @@ html_context = {
     "github_version": "master",    # Version
     "conf_py_path": "./",          # Path in the checkout to the docs root
 }
+'''
+master_doc = 'index'
 
 # -- General configuration ---------------------------------------------------
 
