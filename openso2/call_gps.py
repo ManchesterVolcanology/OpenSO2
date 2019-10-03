@@ -16,12 +16,12 @@ def sync_gps_time():
     '''
     Function to sync the system time with GPS
     
-    INPUTS
-    ------
+    Parameters:
+        
     None
     
-    OUTPUTS
-    -------
+    Returns:
+        
     None
     '''
 

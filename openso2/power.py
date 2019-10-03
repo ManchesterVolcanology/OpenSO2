@@ -8,6 +8,22 @@ Created on Thu Feb 21 14:17:16 2019
 from openso2.julian_time import hms_to_julian, julian_to_hms
 
 def update_power_time(on_time, off_time):
+    
+    '''
+    Function to update the WittyPi2 board schedule file
+    
+    Paramters:
+        
+    on_time : float
+        Time to turn the station on in decimal hours
+        
+    off_time : float
+        Time to turn the station off in decimal hours
+        
+    Returns:
+        
+    None
+    '''
 
     # Find difference between the on and off times
     delta_t = julian_to_hms(hms_to_julian(off_time) - hms_to_julian(on_time))

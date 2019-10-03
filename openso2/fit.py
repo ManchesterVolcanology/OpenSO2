@@ -12,17 +12,17 @@ def make_poly(grid, coefs):
     '''
     Function to construct a polynolial given a list of coefficients
 
-    INPUTS
-    ------
-    grid, array
+    Parameters:
+        
+    grid : array
         X grid over which to calculate the polynomial
 
-    coefs, list
+    coefs : list
         Polynomial coefficents (of acesnding rank)
 
-    OUTPUTS
-    -------
-    poly, array
+    Returns:
+        
+    poly : array
         Resulting polynomial, calculated as poly = p0 + p1*grid + p2*grid^2 + ...
     '''
 
@@ -45,37 +45,37 @@ def fit_spec(common, spectrum, grid):
     spectrum background polynomial, ring effect, wavelength shift and stretch, and gas
     amounts for so2, no2, o3
 
-    INPUTS:
-    -------
-    common: dictionary
+    Parameters:
+        
+    common : dictionary
         Common dictionary of parameters and variables passed from the main program
         to subroutines
 
-    spectrum: 2D array
+    spectrum : 2D array
         Intensity data from the measured spectrum
 
-    grid: 1D array
+    grid : 1D array
         Measurement wavelength grid over which the fit occurs
 
-    q: queue (optional)
+    q : queue (optional)
         Queue to which to add the output if threaded (default = None)
 
-    OUTPUTS:
-    --------
-    fit_dict: dictionary
+    Returns:
+        
+    fit_dict : dictionary
         Dictionary of optimised parameters
 
-    err_dict: dictionary
+    err_dict : dictionary
         Dictionary of error in the optimised parameters
 
-    y: array
+    y : array
         Measured spectrum, corrected for dark, bias and flat response, in the fitting
         window
 
-    fit: array
+    fit : array
         Fitted spectrum
 
-    fitted_flag: bool
+    fitted_flag : bool
         Flag showing if the fit was successful or not
 
     '''
@@ -109,7 +109,7 @@ def fit_spec(common, spectrum, grid):
             fitted_flag = True
 
         # If fit fails, report and carry on
-        except (RuntimeError, ValueError, np.linalg.linalg.LinAlgError) as e:
+        except (RuntimeError, ValueError, np.linalg.linalg.LinAlgError):
 
             # Fill returned arrays with nans
             popt = np.full(len(common['params']), np.nan)
@@ -145,17 +145,17 @@ def ifit_fwd_model(grid, p0, p1, p2, p3, shift, stretch, ring_amt, so2_amt, no2_
     '''
     iFit forward model to fit measured UV sky spectra
 
-    INPUTS:
-    -------
-    grid, array
+    Parameters:
+        
+    grid : array
         Measurement wavelength grid
 
-    *args, list
+    *args : list
         Forward model state vector
 
-    OUTPUTS:
-    --------
-    fit, array
+    Returns:
+        
+    fit : array
         Fitted spectrum interpolated onto the spectrometer wavelength grid
     '''
 

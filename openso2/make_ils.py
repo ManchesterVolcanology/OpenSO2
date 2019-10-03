@@ -26,26 +26,26 @@ def make_ils(interval, FWEM, k = 2, a_w = 0, a_k = 0):
 
     See Beirle et al (2017) for more details: doi:10.5194/amt-10-581-2017
 
-    INPUTS
-    ------
-    interval, int
+    Paramters:
+        
+    interval : int
         The spacing of the wavelength grid on which the ILS is built
 
-    FWEM, float
+    FWEM : float
         The Full Width eth Maximum of the lineshape, defined as 2*w = FWEM
 
-    k, float
+    k : float
         Controls the shape of the lineshape (default = 2):
             - k < 2 -> sharp point and wide tails
             - k = 2 -> normal Gaussian
             - k > 2 -> flat top, approaches boxcar at k -> inf
 
-    a_w and a_k, float,
+    a_w and a_k : float
         Controls the asymetry of the lineshape
 
-    OUTPUTS
-    -------
-    ils, numpy array
+    Returns:
+        
+    ils : numpy array
         The calculated ILS function on a wavelength grid of the given spacing and 5 times
         the width of the supplied FWEM
     '''

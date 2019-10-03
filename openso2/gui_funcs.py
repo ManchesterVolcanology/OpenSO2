@@ -20,69 +20,68 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
     '''
     Function to build GUI inputs consisting of a label and an input.
 
-    INPUTS
-    ------
+    Parameters:
 
-    frame, tk.Frame or tk.LabelFrame
+    frame : tk.Frame or tk.LabelFrame
         Container in which to place the object
 
-    text, str
+    text : str
         Text to display in the label
 
-    var, tk variable
+    var : tk variable
         Variable to assosiate with the input
 
-    input_type, str
+    input_type : str
         Type of input to use. Must be one of Entry, Spinbox, OptionMenu, Checkbutton or
         Label
 
-    row, int
+    row : int
         Row number, will be the same for label and input
 
-    column, int
+    column : int
         Column number, the input will be column + 1
 
-    padx, int (optional)
+    padx : int (optional)
         X-padding to apply to the label and input. Default is 5
 
-    pady, int (optional)
+    pady : int (optional)
         Y-padding to apply to the label and input. Default is 5
 
-    command, func
+    command : func
         function to run on change to the input value
 
-    sticky, str or tuple of strings (optional)
+    sticky : str or tuple of strings (optional)
         Direction to stick the object (compass direction). If given as a tuple the first
         corresponds to the label and the second to the entry. Default is None
 
-    label_font, tuple (optional)
+    label_font : tuple (optional)
         Font tuple in the form (font, size) for the label. Default is ('Verdana', 8)
 
-    width, float (optional)
+    width : float (optional)
         Width of the entry. Default is None.
 
-    options, list (optional)
+    options : list (optional)
         List of options for an Option Menu. Default is None
 
-    vals, tuple or list (optional)
+    vals : tuple or list (optional)
         Sets the range of values for a spinbox. If two values are give it sets the limits
         (from, to)
 
-    increment, int (optional)
+    increment : int (optional)
         Value spacing for a spinbox. Default is 1
 
-    rowspan, int (optional)
+    rowspan : int (optional)
         Number of rows the entry will span. Default is None
 
-    columnspan, int (optional)
+    columnspan : int (optional)
         Number of columns the entry will span. Default is None
 
-    OUTPUTS
-    -------
-    label, tk.Label object
+    Returns:
+        
+    label : tk.Label object
         Input label object
 
-    entry, tk object
+    entry : tk object
         Input entry object, type depends on the input_type
     '''
 
@@ -161,22 +160,26 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
 def update_graph(lines, axes, canvas, new_data):
 
     '''
-    Function to update a figure
+    Function to update a matplotlib figure
 
-    INPUTS
-    ------
-    lines, list
+    Parameters:
+        
+    lines : list
         The plots to update
 
-    axes, list
+    axes : list
         Axes that correspond to the lines (must be same length and order as lines)
 
-    canvas, tkagg canvas object
+    canvas : tkagg canvas object
         Canvas that holds the axes
 
-    new_data, array
+    new_data : array
         New data to plot. Has the form [[x1, y1, x1lims, y1lims],
                                         [x2, y2, x2lims, y2lims],...]
+        
+    Returns:
+        
+    None
     '''
 
     # Unpack new data

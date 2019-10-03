@@ -17,21 +17,21 @@ def hms_to_julian(times, str_format = None, out_format = 'decimal hours'):
     '''
     Function to convert an array of datetime objects or strings to julian time
     
-    INPUTS
-    ------
-    times, array, datetime.datetime or str
+    Parameters:
+        
+    times : array, datetime.datetime or str
         Origional time objects
         
-    str_format, str (optional)
+    str_format : str (optional)
         Time format if converting from strings. Default is None
         
-    out_format, str (optional)
+    out_format : str (optional)
         Format of output. Must be either "decimal hours" or "decimal days". Default is 
         decimal hours
                    
-    OUTPUTS
-    -------
-    jul_time, array
+    Returns:
+        
+    jul_time : array
         Array of julian time values calculated form the input array
     '''
     
@@ -91,18 +91,18 @@ def julian_to_hms(time_arr, input_format = 'decimal hours'):
     '''
     Function to convert an array of Julian times into hh:mm:ss datetime objects
     
-    INPUTS
-    ------
-    time_arr, arrray
+    Parameters:
+        
+    time_arr : arrray
         Origional julan time values
         
-    input_format, str
+    input_format : str (optional)
         Describes the format of the input Julian time values. Either "decimal days" 
         (default) or "decimal hours"
                     
-    OUTPUTS
-    -------
-    time, array
+    Returns:
+        
+    time : array
         Datetime objects
     '''
 

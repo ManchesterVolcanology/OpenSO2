@@ -8,12 +8,15 @@ Created on Fri Nov 23 15:34:46 2018
 import numpy as np
 import logging
 import datetime
-import board
 import atexit
-import digitalio
-from adafruit_motorkit import MotorKit
-from adafruit_motor import stepper
 import time
+try:
+    import board
+    import digitalio
+    from adafruit_motorkit import MotorKit
+    from adafruit_motor import stepper
+except ImportError:
+    print('Failled to import Raspberry Pi modules')
 
 class Scanner:
 
@@ -21,25 +24,17 @@ class Scanner:
     Scanner class used to control the scanner head which consists of a stepper motor and
     a microswitch
 
-    PARAMETERS
-    ----------
-    uswitch_pin, int (optional)
+    Parameters:
+        
+    uswitch_pin : int (optional)
         The GPIO pin that connects to the microswitch. Default is 21
 
-    steptype, str
+    steptype : str
         Stepping type. Must be one of:
             - single;     single step (lowest power, default)
             - double;     double step (more power but stronger)
             - interleave; finer control, has double the steps of single
             - micro;      slower but with much higher precision (8x)
-
-    METHODS
-    -------
-    find_home
-        Function that rotates the scanner to the home position
-
-    step
-        Moves the scanner by a specified number of steps
     '''
 
     # Initialise
@@ -91,16 +86,12 @@ class Scanner:
         '''
         Function to rotate the scanner head to the home position
 
-        INPUTS
-        ------
-        motor, motor object
-            The object for the stepper motor
+        Parameters:
 
-        uswitch, micro switch object
-            The object for the micro switch
+        None
 
-        OUTPUTS
-        -------
+        Returns:
+
         None
         '''
 
@@ -131,19 +122,19 @@ class Scanner:
         '''
         Function to move the motor by a given number of steps
 
-        INPUTS
-        ------
-        motor, motor object
+        Parameters:
+
+        motor : motor object
             The object for the stepper motor
 
-        steps, int
+        steps : int
             Number of steps to move
 
-        direction, str
+        direction : str
             Stepping direction, either 'forward' or 'backward'
 
-        OUTPUTS
-        -------
+        Returns:
+
         None
         '''
 
@@ -187,24 +178,24 @@ def acquire_scan(Scanner, Spectrometer, common, settings):
     '''
     Function to perform a scan.
 
-    INPUTS
-    ------
-    Scanner, openso2 Scanner object
+    Parameters:
+
+    Scanner : openso2 Scanner object
         Object to control the scanner head consisting of a stepper motor and a
         microswitch
 
-    Spectrometer, Seabreeze.Spectrometer object
+    Spectrometer : Seabreeze.Spectrometer object
         Object to control the spectrometer
         
-    common, dict
+    common : dict
         Dictionary of program variables
         
-    settings, dict
+    settings : dict
         Dictionary of the program settings
 
-    OUPUTS
-    ------
-    fpath, str
+    Returns:
+
+    fpath : str
         File path to the saved scan
 
     Written by Ben Esse, January 2019

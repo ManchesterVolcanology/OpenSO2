@@ -18,25 +18,16 @@ class Station:
     Creates a Station object which is used by the home station to communicate with the
     scaning station
 
-    INPUTS
-    ------
-    cinfo, dict
+    Paramaters:
+
+    cinfo : dict
         Contains the connection parameters:
             - host: IP address of the remote server
             - username: Username for the remote server
             - password: Password for the remote server
 
-    name, str
+    name : str
         Name of the station. Default is "TEST"
-
-    METHODS
-    -------
-    sync(local_path, remote_path)
-        Function to sync a local folder with a remote one. Returns (n_files, fnames)
-
-    get_status
-        method to retrieve the contents of the station status . Returns a dictionary of
-        the station settings.
     '''
 
     def __init__(self, cinfo, name = 'TEST'):
@@ -55,17 +46,17 @@ class Station:
         '''
         Function to sync a local folder with a remote one.
 
-        INPUTS
-        ------
-        local_dir, str
+        Parameters:
+
+        local_dir : str
             File path to the local folder
 
-        remote_dir, str
+        remote_dir : str
             File path to the remote folder
 
-        OUTPUTS
-        -------
-        new_fnames, list
+        Returns:
+        
+        new_fnames : list
             List of synced file name strings
         '''
 
@@ -119,17 +110,17 @@ class Station:
         '''
         Function to pull the station status
 
-        INPUTS
-        ------
-        cinfo, dict
+        Parameters:
+        
+        cinfo : dict
             Contains the connection parameters:
                 - host: IP address of the remote server
                 - username: Username for the remote server
                 - password: Password for the remote server
 
-        OUTPUTS
-        -------
-        status, dict
+        Returns:
+        
+        status : dict
             Dictionary containing the status of the station
         '''
 
@@ -174,16 +165,16 @@ class Station:
 
         NOTE THIS ASSUMES THE DATE ON THE PI IS CORRECT TO PULL THE CORRECT LOG FILE
 
-        INPUTS
-        ------
+        Parameters:
+        
         None
 
-        OUTPUTS
-        -------
-        last_log, str
+        Returns:
+        
+        last_log : str
             The last log entry in the log file
 
-        err, tuple
+        err : tuple
             Consists of the error flag (True is an error occured) and the error message
         '''
 
@@ -222,32 +213,32 @@ def sync_station(station, local_dir, remote_dir, queue):
     '''
     Function to sync the status and files of a station
 
-    INPUTS
-    ------
-    station, Station object
+    Parameters:
+        
+    station : Station object
         The station object which will be synced
 
-    local_dir, str
+    local_dir : str
         File path to the local directory to be synced
 
-    remote_dir, str
+    remote_dir : str
         File path to the remote directory to be synced
 
-    queue, multiprocessing Queue
+    queue : multiprocessing Queue
         The queue in which to put the outputs
 
-    OUTPUTS
-    -------
-    name, str
+    Returns:
+        
+    name : str
         Name of the station so it can be identified in the queue
 
-    status_time, str
+    status_time : str
         The timestamp of the last status update
 
-    status_msg, str
+    status_msg : str
         The status of the station
 
-    synced_fnames, list
+    synced_fnames : list
         Contains the synced data file names
     '''
 

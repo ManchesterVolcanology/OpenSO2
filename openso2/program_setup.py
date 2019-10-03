@@ -16,17 +16,17 @@ def read_settings(fname, settings = None):
     '''
     Fuction to read in the settings file
 
-    INPUTS
-    ------
-    fname, str
+    Parameters:
+        
+    fname : str
         File path to settings file
 
-    settings, dict
+    settings : dict
         Dictionary of GUI settings. If None then one is created. Default is None.
 
-    OUTPUTS
-    -------
-    settings, dict (optional)
+    Returns:
+        
+    settings : dict (optional)
         Setting dictionary updated with setings from the file. If None a new dictionary
         is created
 
@@ -77,14 +77,14 @@ def get_station_info(fpath):
     '''
     Function to read in the station information and complile it into a dictionary
 
-    INPUTS
-    ------
-    fpath, str
+    Parameters:
+        
+    fpath : str
         File path to the station info text file
 
-    OUTPUTS
-    -------
-    station_info, dict
+    Returns:
+        
+    station_info : dict
         Dictionary of all the station information required by the main program. Each
         station is its own dictionary within station_info
 
@@ -126,13 +126,13 @@ def update_resfp(self):
     '''
     Function to change the results file location
 
-    INPUTS
-    ------
-    self,
+    Parameters:
+        
+    self : tk.Tk
         Program object containing parameters
 
-    OUTPUTS
-    -------
+    Returns:
+        
     None
     '''
 
@@ -151,13 +151,13 @@ def update_scanfp(self):
     '''
     Function to change the scans to analyse
 
-    INPUTS
-    ------
-    self,
+    Parameters:
+        
+    self : tk.Tk
         Program object containing parameters
 
-    OUTPUTS
-    -------
+    Returns:
+        
     None
     '''
 

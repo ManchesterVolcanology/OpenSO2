@@ -24,23 +24,23 @@ def read_scan(fpath):
     consists of 2053 floats. The first five hold the spectrum information followed by the
     spectrum. The infomation is arranged as: [spec_n, hour, minute, second, motor_pos]
 
-    INPUTS
-    ------
-    fpath, str
+    Parameters:
+        
+    fpath : str
         File path to the scan file
 
-    OUTPUTS
-    -------
-    err, bool
+    Returns:
+        
+    err : bool
         Error flag to check for a read error
 
-    wavelength, array
+    wavelength : array
         Wavelength grid of the spectrometer
 
-    info, array
+    info : array
         Acquisition info for each spectrum: [spec_n, hour, minute, second, motor_pos]
 
-    spec, array
+    spec : array
         Measured spectra
 
     Written by Ben Esse, January 2019
@@ -74,7 +74,7 @@ def read_scan(fpath):
 
         return 0, wavelength, info, spec
 
-    except Exception as e:
+    except Exception:
         return 1, 0, 0, 0
 
 #========================================================================================
@@ -86,17 +86,17 @@ def analyse_scan(save_results = True, **common):
     '''
     Function to analyse a scan block
 
-    INPUTS
-    ------
-    common, dict
+    Parameters:
+        
+    common : dict
         Common dictionary of parameters used by the program
 
-    save_results, bool (default True)
+    save_results : bool (default True)
         Flag whether or not to save the results. Turn False for post analysis.
 
-    OUTPUTS
-    -------
-    fit_data, numpy array
+    Returns:
+        
+    fit_data : numpy array
         The results of the fit, formatted as dec_time, motor_pos, angle, so2 amt, so2 err
 
     Written by Ben Esse, January 2019
@@ -168,17 +168,17 @@ def update_int_time(common, settings):
     Function to calculate a new integration time based on the intensity of the previous
     scan
 
-    INPUTS
-    ------
-    common, dict
+    Parameters:
+        
+    common : dict
         Common dictionary of parameters for the program
 
-    settings, dict
+    settings : dict
         Dictionary of station settings
 
-    OUTPUTS
-    -------
-    new_int_time, int
+    Returns:
+        
+    new_int_time : int
         New integration time for the next scan
     '''
 
@@ -219,17 +219,17 @@ def read_scan_so2(fpath):
     '''
     Function to read the so2 results file from a scan
 
-    INPUTS
-    ------
-    fpath, str
+    Parameters:
+        
+    fpath : str
         File path to the scan results file
 
-    OUTPUTS
-    -------
-    scan_angless, numpy array
+    Returns:
+        
+    scan_angles : numpy array
         Scan angles
 
-    so2_cd, numpy array
+    so2_cd s: numpy array
         SO2 column densities
     '''
 
@@ -252,18 +252,18 @@ def calc_scan_flux(fpath, windspeed = 10, height = 1000, plume_type = 'flat'):
     Function to calculate the SO2 flux from a scan. Either assumes all SO2 is at the same
     altitude or that it is contained within a cylindrical plume
 
-    INPUTS
-    ------
-    fpath, str
+    Parameters:
+        
+    fpath : str
         File path to the scan so2 file
 
-    windspeed, float (optional)
+    windspeed : float (optional)
         The wind speed used to calculate the flux in m/s (default is 10 m/s)
 
-    height, float (optional)
+    height : float (optional)
         The height of the plume in meters (default is 1000 m)
 
-    plume_type, str (optional)
+    plume_type : str (optional)
         The type of plume.
             - 'flat' assumes all so2 is at the same altitude in a flat blanket. Good for
               wide plumes
@@ -274,9 +274,9 @@ def calc_scan_flux(fpath, windspeed = 10, height = 1000, plume_type = 'flat'):
             - 'arc' puts the SO2 at a fixed distance from the scanner across the arc of
               the scan
 
-    OUTPUTS
-    -------
-    flux, float
+    Returns:
+        
+    flux : float
         The flux of SO2 passing through the scan in tonnes/day
     '''
 
@@ -338,17 +338,23 @@ def calc_scan_flux(fpath, windspeed = 10, height = 1000, plume_type = 'flat'):
 def calc_plume_height(gui, station, scan_time):
 
     '''
-    Function to calculate the plume height from two station scans
-    ***Currently returns 1000 m as not confired***
+    Function to return the plume height. Either pulls it from the main GUI or calculates 
+    it from two scans
 
-    INPUTS
-    ------
-    station, str
+    Parameters:
+        
+    gui : tk.Tk
+        The main GUI object
+        
+    station : str
         Station name for which the scan is being
 
-    OUTPUTS
-    -------
-    plume_height, float
+    scan_time : float
+        The time of the scan in decimal hours UTC
+
+    Returns:
+        
+    plume_height : float
         The height of the plume in m a.s.l.
     '''
 
@@ -375,14 +381,21 @@ def get_wind(gui, scan_time):
     Function to get the wind speed.
     ***Currently just returns 10 m/s as not configured***
 
-    INPUTS
-    ------
-    None
+    Parameters:
+        
+    gui : tk.Tk
+        The main GUI object
 
-    OUTPUTS
-    -------
-    wind_speed, float
-        The latest windspeed in m/s
+    scan_time : float
+        The time of the scan in decimal hours UTC
+
+    Returns:
+        
+    wind_speed : float
+        The latest wind speed in m/s
+        
+    wind_dir : float
+        The latest wind bearing in degrees
     '''
 
     # Check how the wind speed is calculated
@@ -409,23 +422,23 @@ def get_spec_details(fpath):
     '''
     Function to get spectrometer details given the FLAME network station name
 
-    INPUTS
-    ------
-    fpath, str
+    Parameters:
+        
+    fpath : str
         Filename of the spectra block, containing the station name
 
-    OUTPUTS
-    -------
-    scanner, str
+    Returns:
+        
+    scanner : str
         Scanner station name
 
-    spec_name, str
+    spec_name : str
         Spectrometer serial number
 
-    intercept, float
+    intercept : float
         Intercept
 
-    c1, c2, c3, floats
+    c1, c2, c3 : floats
         Calibration coeficents
 
     Written by Ben Esse, June 2018
