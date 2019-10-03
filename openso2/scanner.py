@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Nov 23 15:34:46 2018
-
-@author: mqbpwbe2
+Module to control the scanner head.
 """
 
 import numpy as np

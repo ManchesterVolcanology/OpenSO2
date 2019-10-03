@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jan 23 11:45:25 2019
-
-@author: mqbpwbe2
+Test module for simulating scan analysis.
 """
 
 import numpy as np

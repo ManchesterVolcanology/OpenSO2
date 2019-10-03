@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Feb 18 10:59:03 2019
-
-@author: mqbpwbe2
+Module to retrieve the station status
 """
 
 #========================================================================================

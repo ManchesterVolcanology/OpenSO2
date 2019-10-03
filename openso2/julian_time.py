@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jul 12 09:36:21 2018
-
-@author: mqbpwbe2
+Module to convert traditional time stamps to Julian time (decimal hours or days) and back
 """
 
 import numpy as np

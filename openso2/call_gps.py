@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Nov 21 14:44:50 2018
-
-@author: mqbpwbe2
+Contains functions to connect and talk to a GPS antenna for exact positioning and time
 """
 
-import gps
 import logging
+import subprocess
 from multiprocessing import Process, Queue
 
-import subprocess
+try:
+    import gps
+except ImportError:
+    print('GPS module missing!')
 
 def sync_gps_time():
 

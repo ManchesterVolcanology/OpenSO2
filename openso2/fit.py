@@ -1,3 +1,7 @@
+"""
+Contains functions to fit UV spectra to retrieve volcanic SO2 slant column densities.
+"""
+
 import numpy as np
 import logging
 from scipy.interpolate import griddata

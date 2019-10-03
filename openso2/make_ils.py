@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed May 10 14:16:04 2017
-
-@author: mqbpwbe2
+Module to generate spectrometer instrument line shapes (ILS).
 """
 
 import numpy as np

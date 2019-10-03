@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jan 24 15:13:52 2019
-
-@author: mqbpwbe2
+Module to control communication between the home computer and the scanning stations.
 """
 
 import os

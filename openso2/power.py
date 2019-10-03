@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Feb 21 14:17:16 2019
-
-@author: mqbpwbe2
+Module to control the power settings of the Raspberry Pi.
 """
 
 from openso2.julian_time import hms_to_julian, julian_to_hms

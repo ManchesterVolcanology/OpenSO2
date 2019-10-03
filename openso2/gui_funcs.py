@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Feb  1 16:32:10 2019
-
-@author: mqbpwbe2
+Contains functions to help build the GUI interface.
 """
 
 from tkinter import ttk

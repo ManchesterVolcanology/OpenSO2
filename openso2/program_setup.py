@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Jun 29 10:43:17 2018
-
-@author: mqbpwbe2
+Module to read in settings files to initiate the main program.
 """
 
 from tkinter import filedialog as fd
