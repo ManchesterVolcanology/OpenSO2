@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Jan 25 13:02:09 2019
+The main program to create the Open SO2 GUI.
 
-@author: mqbpwbe2
+Written by Ben Esse
 """
 
 import os
