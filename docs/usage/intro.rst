@@ -15,7 +15,7 @@ If you would like to be involved in the project please contact Ben Esse (benjami
 Installation
 ============
 
-To install Open |SO2| simply clone the `git repositry <https://github.com/benjaminesse/open_so2>`_.
+To install Open |SO2| simply clone the `git repositry <https://github.com/benjaminesse/open_so2>`_. This contains both the home computer and scanner station software 
 
 .. Substitutions
 .. |SO2| replace:: SO\ :sub:`2`
