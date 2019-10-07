@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Module to control communication between the home computer and the scanning stations.
+Module to control communication between the home computer and the scanning 
+stations.
 """
 
 import os
@@ -13,10 +14,10 @@ from paramiko.ssh_exception import SSHException
 class Station:
 
     '''
-    Creates a Station object which is used by the home station to communicate with the
-    scaning station
+    Creates a Station object which is used by the home station to communicate 
+    with the scaning station
 
-    Paramaters:
+    **Parameters:**
 
     cinfo : dict
         Contains the connection parameters:
@@ -35,16 +36,16 @@ class Station:
         self.name = name
 
 
-#========================================================================================
-#===================================== Sync Folder ======================================
-#========================================================================================
+#==============================================================================
+#================================ Sync Folder =================================
+#==============================================================================
 
     def sync(self, local_dir, remote_dir):
 
         '''
         Function to sync a local folder with a remote one.
 
-        Parameters:
+        **Parameters:**
 
         local_dir : str
             File path to the local folder
@@ -52,7 +53,7 @@ class Station:
         remote_dir : str
             File path to the remote folder
 
-        Returns:
+        **Returns:**
         
         new_fnames : list
             List of synced file name strings
@@ -75,7 +76,8 @@ class Station:
                 # Get the file names in the remote directory
                 remote_files = sftp.listdir(remote_dir)
 
-                # Iterate over them and copy any that are missing in the host directory
+                # Iterate through and copy any that are missing in the host 
+                #  directory
                 for fname in remote_files:
 
                     # Check if in the local directory
@@ -99,16 +101,16 @@ class Station:
 
         return new_fnames, err
 
-#========================================================================================
-#===================================== Pull Status ======================================
-#========================================================================================
+#==============================================================================
+#================================ Pull Status =================================
+#==============================================================================
 
     def pull_status(self):
 
         '''
         Function to pull the station status
 
-        Parameters:
+        **Parameters:**
         
         cinfo : dict
             Contains the connection parameters:
@@ -116,7 +118,7 @@ class Station:
                 - username: Username for the remote server
                 - password: Password for the remote server
 
-        Returns:
+        **Returns:**
         
         status : dict
             Dictionary containing the status of the station
@@ -152,28 +154,30 @@ class Station:
 
         return time, status, err
 
-#========================================================================================
-#======================================= Pull Log =======================================
-#========================================================================================
+#==============================================================================
+#================================== Pull Log ==================================
+#==============================================================================
 
     def pull_log(self):
 
         '''
         Function to pull the log file from the station for analysis
 
-        NOTE THIS ASSUMES THE DATE ON THE PI IS CORRECT TO PULL THE CORRECT LOG FILE
+        NOTE THIS ASSUMES THE DATE ON THE PI IS CORRECT TO PULL THE CORRECT LOG
+        FILE
 
-        Parameters:
+        **Parameters:**
         
         None
 
-        Returns:
+        **Returns:**
         
         last_log : str
             The last log entry in the log file
 
         err : tuple
-            Consists of the error flag (True is an error occured) and the error message
+            Consists of the error flag (True is an error occured) and the error 
+            message
         '''
 
         # Make sure the Station folder exists
@@ -202,16 +206,16 @@ class Station:
         return err
 
 
-#========================================================================================
-#===================================== Sync Station =====================================
-#========================================================================================
+#==============================================================================
+#================================ Sync Station ================================
+#==============================================================================
 
 def sync_station(station, local_dir, remote_dir, queue):
 
     '''
     Function to sync the status and files of a station
 
-    Parameters:
+    **Parameters:**
         
     station : Station object
         The station object which will be synced
@@ -225,7 +229,7 @@ def sync_station(station, local_dir, remote_dir, queue):
     queue : multiprocessing Queue
         The queue in which to put the outputs
 
-    Returns:
+    **Returns:**
         
     name : str
         Name of the station so it can be identified in the queue

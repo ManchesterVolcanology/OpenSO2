@@ -36,9 +36,9 @@ class mygui(tk.Tk):
 
     def __init__(self, *args, **kwargs):
 
-#========================================================================================
-#================================= Build GUI Containers =================================
-#========================================================================================
+#==============================================================================
+#============================ Build GUI Containers ============================
+#==============================================================================
 
         # Create GUI in the backend
         tk.Tk.__init__(self, *args, **kwargs)
@@ -50,7 +50,7 @@ class mygui(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self.handler)
 
         # Button Style
-        ttk.Style().configure('TButton', width = 15, height = 20, relief="flat")
+        ttk.Style().configure('TButton', width=15, height=20, relief="flat")
 
         # Add a title and icon
         tk.Tk.wm_title(self, 'Open SO2 v1.0 - Home Station')
@@ -65,9 +65,10 @@ class mygui(tk.Tk):
         # Create dictionary of station objects
         self.stat_com = {}
         for station in self.station_info.keys():
-            self.stat_com[station] = Station(self.station_info[station], station)
+            self.stat_com[station] = Station(self.station_info[station], 
+                                             station)
 
-        # Create dicionaries to hold the flux results and plume height and speed
+        # Create dicionaries to hold the flux results, plume height and speed
         self.times   = {}
         self.fluxes  = {}
         self.wtimes  = []
@@ -99,11 +100,11 @@ class mygui(tk.Tk):
         mygui.columnconfigure(index = 1, weight = 1, self = self)
         mygui.rowconfigure(index = 5, weight = 1, self = self)
 
-#========================================================================================
-#================================== Add global widgets ==================================
-#========================================================================================
+#==============================================================================
+#============================= Add global widgets =============================
+#==============================================================================
 
-#===================================== Graph Frame ======================================
+#================================ Graph Frame =================================
 
         # Create frame to hold graphs
         graph_frame = ttk.Frame(self, relief = 'groove')
@@ -132,7 +133,8 @@ class mygui(tk.Tk):
         # Create lines for each station flux plot
         self.flux_lines = {}
         for station in self.station_info.keys():
-            self.flux_lines[station], = self.ax0.plot(0, 0, 'o-', label = station)
+            self.flux_lines[station], = self.ax0.plot(0, 0, 'o-', 
+                                                      label = station)
 
         self.cd_line, = self.ax1.plot(0, 0)
         self.wind_speed_line, = self.ax2.plot(0, 0)
@@ -158,7 +160,7 @@ class mygui(tk.Tk):
         toolbar = NavigationToolbar2Tk(self.canvas, toolbar_frame)
         toolbar.update()
 
-#===================================== Text Output ======================================
+#================================ Text Output =================================
 
         # Create frame to hold text output
         text_frame = ttk.Frame(self)
@@ -166,15 +168,16 @@ class mygui(tk.Tk):
 
         # Build text box
         self.text_box = tkst.ScrolledText(text_frame, width = 100, height = 8)
-        self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = 'E',
-                           columnspan = 2)
-        self.text_box.insert('1.0', 'Welcome to Open SO2! Written by Ben Esse\n\n')
+        self.text_box.grid(row = 1, column = 0, padx = 5, pady = 5, 
+                           sticky = 'E', columnspan = 2)
+        self.text_box.insert('1.0', 
+                             'Welcome to Open SO2! Written by Ben Esse\n\n')
 
-#========================================================================================
-#=============================== Add widjets to overview ================================
-#========================================================================================
+#==============================================================================
+#========================== Add widjets to overview ===========================
+#==============================================================================
 
-#==================================== Sync Controls =====================================
+#=============================== Sync Controls ================================
 
         # Create frame
         sync_frame = tk.LabelFrame(overview_page, text = 'Sync Settings',
@@ -185,8 +188,8 @@ class mygui(tk.Tk):
         self.res_fpath = tk.StringVar(value = 'Results/')
         res_fpath_ent = tk.Entry(sync_frame, font = NORM_FONT, width = 30,
                                  text = self.res_fpath)
-        res_fpath_ent.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = 'W',
-                           columnspan = 2)
+        res_fpath_ent.grid(row = 0, column = 0, padx = 5, pady = 5, 
+                           sticky = 'W', columnspan = 2)
         res_fpath_b = ttk.Button(sync_frame, text = "Browse",
                                  command = lambda: update_resfp(self))
         res_fpath_b.grid(row = 0, column = 2, padx = 5, pady = 5, sticky = 'W')
@@ -203,11 +206,12 @@ class mygui(tk.Tk):
 
         # Create status indicator
         self.status = tk.StringVar(value = 'Standby')
-        self.status_e = tk.Label(sync_frame, textvariable = self.status, fg='red')
+        self.status_e = tk.Label(sync_frame, textvariable = self.status, 
+                                 fg='red')
         self.status_e.grid(row=1, column=2, padx=5, pady=5, sticky="EW")
         self.status_col = 'red'
 
-#==================================== Flux Controls =====================================
+#=============================== Flux Controls ================================
 
         # Create Frame
         flux_frame = tk.LabelFrame(overview_page, text = 'Flux Settings',
@@ -264,9 +268,9 @@ class mygui(tk.Tk):
                    width = 10,
                    vals = [0, 360], increment = 5)
 
-#========================================================================================
-#========================== Add widjets to the station pages ============================
-#========================================================================================
+#==============================================================================
+#===================== Add widjets to the station pages =======================
+#==============================================================================
 
         # Create dictionaries to hold the corresponding widgets for each station
         self.station_widjets = {}
@@ -277,8 +281,8 @@ class mygui(tk.Tk):
             station_w = {}
 
             # Create a frame to hold the station status
-            s_frame = tk.LabelFrame(station_page[station], text = 'Station Status',
-                                    font = LARG_FONT)
+            s_frame = tk.LabelFrame(station_page[station], font = LARG_FONT,
+                                    text = 'Station Status')
             s_frame.grid(row = 0, column = 0, padx = 10, pady = 10)
 
             # Create status indicator
@@ -304,16 +308,16 @@ class mygui(tk.Tk):
             # Add the station widjets to the master dictionary
             self.station_widjets[station] = station_w
 
-#========================================================================================
-#=============================== Start the control loop =================================
-#========================================================================================
+#==============================================================================
+#========================== Start the control loop ============================
+#==============================================================================
 
         # Begin the control loop
         self.after(1000, self.begin_sync)
 
-#========================================================================================
-#===================================== Control Loop =====================================
-#========================================================================================
+#==============================================================================
+#================================ Control Loop ================================
+#==============================================================================
 
     def begin_sync(self):
 
@@ -336,7 +340,8 @@ class mygui(tk.Tk):
                 self.fluxes[s]  = []
 
                 # Clear the plots
-                data = np.array(([self.times[s], self.fluxes[s], 'auto', [0, 500]]))
+                data = np.array(([self.times[s], self.fluxes[s], 'auto', 
+                                  [0, 500]]))
                 lines = [self.flux_lines[s]]
                 axes  = [self.ax0]
                 update_graph(lines, axes, self.canvas, data)
@@ -366,7 +371,8 @@ class mygui(tk.Tk):
                 with open(self.flux_fpaths[station], 'w') as w:
                     w.write('Time,Plume Height (m),Wind Speed (ms-1),Flux (t/day)\n')
 
-        # If the stations are operational sync the so2 files. If sleeping sync spectra
+        # If the stations are operational sync the so2 files. If sleeping sync 
+        #  spectra.
         # Stations should be operational from 08:00 - 16:00 (local time)
         jul_time = hms_to_julian(timestamp)
         if jul_time > 8 and jul_time < 16.2:
@@ -388,20 +394,21 @@ class mygui(tk.Tk):
                 local_dir = self.so2_fpaths[station]
             if self.sync_mode == '/spectra/':
                 local_dir = self.spec_fpaths[station]
-            remote_dir = '/home/pi/open_so2/Results/' + today_date + self.sync_mode
+            remote_dir = f'/home/pi/open_so2/Results/{today_date}{self.sync_mode}'
 
             # Launch a process to sync the status and data
             self.text_out(f'Syncing {station} station')
             p = Process(target = sync_station,
-                        args = (self.stat_com[station], local_dir, remote_dir, self.q))
+                        args = (self.stat_com[station], local_dir, remote_dir, 
+                                self.q))
             p.start()
 
         # Begin the function to check on the process progress
         self.after(500, self.check_proc)
 
-#========================================================================================
-#==================================== Check Process =====================================
-#========================================================================================
+#==============================================================================
+#=============================== Check Process ================================
+#==============================================================================
 
     def check_proc(self):
 
@@ -470,7 +477,8 @@ class mygui(tk.Tk):
                         plume_height = calc_plume_height(self, s, scan_time)
 
                         # Calculate the flux from the scan
-                        flux = calc_scan_flux(fpath, wind_speed, plume_height, 'arc')
+                        flux = calc_scan_flux(fpath, wind_speed, plume_height, 
+                                              'arc')
 
                         # Add to the results arrays
                         self.times[s].append(scan_time)
@@ -508,11 +516,11 @@ class mygui(tk.Tk):
             # Not finished yet, wait another second
             self.after(1000, self.check_proc)
 
-#========================================================================================
-#==================================== GUI Operations ====================================
-#========================================================================================
+#==============================================================================
+#=============================== GUI Operations ===============================
+#==============================================================================
 
-#============================== Report Callback Exception ===============================
+#========================= Report Callback Exception ==========================
 
     # Report exceptions in a new window
     def report_callback_exception(self, *args):
@@ -526,7 +534,7 @@ class mygui(tk.Tk):
         err = traceback.format_exception(*args)
         tkMessageBox.showerror('Exception', err)
 
-#================================= Program Exit Handler =================================
+#============================ Program Exit Handler ============================
 
     # Close program on 'x' button
     def handler(self):
@@ -536,7 +544,7 @@ class mygui(tk.Tk):
 
         # Open exit dialouge
         text = 'Are you sure you want to quit?'
-        message = tkMessageBox.askquestion('Exit', message = text, type = 'yesno')
+        message = tkMessageBox.askquestion('Exit', message=text, type='yesno')
 
         if message == 'yes':
             self.quit()
@@ -544,7 +552,7 @@ class mygui(tk.Tk):
         if message == 'no':
             pass
 
-#==================================== Textbox output ====================================
+#=============================== Textbox output ===============================
 
     # Function to print text to the output box
     def text_out(self, text, add_t_stamp = True, add_line = False):

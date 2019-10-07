@@ -19,10 +19,10 @@ except ImportError:
 class Scanner:
 
     '''
-    Scanner class used to control the scanner head which consists of a stepper motor and
-    a microswitch
+    Scanner class used to control the scanner head which consists of a stepper 
+    motor and a microswitch
 
-    Parameters:
+    **Parameters:**
         
     uswitch_pin : int (optional)
         The GPIO pin that connects to the microswitch. Default is 21
@@ -75,20 +75,20 @@ class Scanner:
         # Define the type of stepping
         self.step_type = step_type
 
-#========================================================================================
-#======================================= Find Home ======================================
-#========================================================================================
+#==============================================================================
+#================================== Find Home =================================
+#==============================================================================
 
     def find_home(self):
 
         '''
         Function to rotate the scanner head to the home position
 
-        Parameters:
+        **Parameters:**
 
         None
 
-        Returns:
+        **Returns:**
 
         None
         '''
@@ -111,16 +111,16 @@ class Scanner:
         # Once home set the motor position to 0
         self.position = 0
 
-#========================================================================================
-#======================================= Move Motor =====================================
-#========================================================================================
+#==============================================================================
+#================================== Move Motor ================================
+#==============================================================================
 
     def step(self, steps = 1, direction = 'backward'):
 
         '''
         Function to move the motor by a given number of steps
 
-        Parameters:
+        **Parameters:**
 
         motor : motor object
             The object for the stepper motor
@@ -131,7 +131,7 @@ class Scanner:
         direction : str
             Stepping direction, either 'forward' or 'backward'
 
-        Returns:
+        **Returns:**
 
         None
         '''
@@ -167,16 +167,16 @@ class Scanner:
         except FileNotFoundError:
             pass
 
-#========================================================================================
-#===================================== Acuire Scan ======================================
-#========================================================================================
+#==============================================================================
+#================================ Acuire Scan =================================
+#==============================================================================
 
 def acquire_scan(Scanner, Spectrometer, common, settings):
 
     '''
     Function to perform a scan.
 
-    Parameters:
+    **Parameters:**
 
     Scanner : openso2 Scanner object
         Object to control the scanner head consisting of a stepper motor and a
@@ -191,7 +191,7 @@ def acquire_scan(Scanner, Spectrometer, common, settings):
     settings : dict
         Dictionary of the program settings
 
-    Returns:
+    **Returns:**
 
     fpath : str
         File path to the saved scan
@@ -215,12 +215,15 @@ def acquire_scan(Scanner, Spectrometer, common, settings):
     s = t.second
 
     # Form the filename of the scan file
-    fname = f'{y}{mo:02d}{d:02d}_{h:02d}{m:02d}{s:02d}_{settings["station_name"]}' + \
-            f'_v_1_1_Block{common["scan_no"]}.npy'
+    fname = f'{y}{mo:02d}{d:02d}_'                  # Date "yyyymmdd"
+    fname += f'{h:02d}{m:02d}{s:02d}_'              # Time HHMMSS
+    fname += f'{settings["station_name"]}'          # Station name
+    fname += f'_v_1_1_Block{common["scan_no"]}.npy' # Version and scan number
 
     # Take the dark spectrum
     dark = Spectrometer.intensities()
-    dark_data = np.array([0, h, m, s, Scanner.position, 1, common['spec_int_time']])
+    dark_data = np.array([0, h, m, s, Scanner.position, 1, 
+                         common['spec_int_time']])
     scan_data[0] = np.append(dark_data, dark)
 
     # Move scanner to start position

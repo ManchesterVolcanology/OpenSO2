@@ -15,9 +15,9 @@ from openso2.call_gps import sync_gps_time
 from openso2.program_setup import read_settings
 from openso2.julian_time import hms_to_julian
 
-#========================================================================================
-#==================================== Set up logging ====================================
-#========================================================================================
+#==============================================================================
+#=============================== Set up logging ===============================
+#==============================================================================
 
 # Get the date
 dt = datetime.datetime.now()
@@ -39,9 +39,9 @@ logging.basicConfig(filename=logname,
 
 logger = logging.getLogger(__name__)
 
-#========================================================================================
-#=================================== Set up status log ==================================
-#========================================================================================
+#==============================================================================
+#============================= Set up status log ==============================
+#==============================================================================
 
 def log_status(status):
 
@@ -55,7 +55,7 @@ def log_status(status):
             time_str = datetime.datetime.now()
             w.write(f'{time_str} - {status}')
 
-    except Exception as e:
+    except Exception:
         logger.warning('Failed to update status file', exc_info = True)
 
 # Create handler to log any exceptions
@@ -65,18 +65,18 @@ def my_handler(*exc_info):
 
 sys.excepthook = my_handler
 
-#========================================================================================
-#================================ Begin the main program ================================
-#========================================================================================
+#==============================================================================
+#=========================== Begin the main program ===========================
+#==============================================================================
 
 if __name__ == '__main__':
 
     log_status('Idle')
     logger.info('Station awake')
 
-#========================================================================================
-#=========================== Create common and settings dicts ===========================
-#========================================================================================
+#==============================================================================
+#====================== Create common and settings dicts ======================
+#==============================================================================
 
     # Create an empty dictionary to hold the comon parameters
     common = {'datestamp': datestamp}
@@ -84,16 +84,16 @@ if __name__ == '__main__':
     # Read in the station operation settings file
     settings = read_settings('data_bases/station_settings.txt')
 
-#========================================================================================
-#==================================== Sync GPS Time =====================================
-#========================================================================================
+#==============================================================================
+#=============================== Sync GPS Time ================================
+#==============================================================================
 
     # Sync time with the GPS
     sync_gps_time()
 
-#========================================================================================
-#============================= Connect to the spectrometer ==============================
-#========================================================================================
+#==============================================================================
+#======================== Connect to the spectrometer =========================
+#==============================================================================
 
     # Find connected spectrometers
     devices = sb.list_devices()
@@ -109,9 +109,9 @@ if __name__ == '__main__':
     settings['Spectrometer'] = str(spec.serial_number)
     logging.info('Spectrometer ' + settings['Spectrometer'] + ' Connected')
 
-#========================================================================================
-#================================= Read in ref spectra ==================================
-#========================================================================================
+#==============================================================================
+#============================ Read in ref spectra =============================
+#==============================================================================
 
     # Set the fit window
     common['wave_start'] = 310
@@ -139,14 +139,17 @@ if __name__ == '__main__':
     # Get spectrometer flat spectrum
     x, flat = np.loadtxt(f'data_bases/Ref/flat_{settings["Spectrometer"]}.txt',
                          unpack = True)
-    idx = np.where(np.logical_and(x > common['wave_start'], x < common['wave_stop']))
+    idx = np.where(np.logical_and(x > common['wave_start'], 
+                                  x < common['wave_stop']))
     common['flat'] = flat[idx]
 
     # Get spectrometer ILS
-    common['ils'] = np.loadtxt(f'data_bases/Ref/ils_{settings["Spectrometer"]}.txt')
+    ils_fpath = f'data_bases/Ref/ils_{settings["Spectrometer"]}.txt'
+    common['ils'] = np.loadtxt(ils_fpath)
 
     # Set first guess for parameters
-    common['params'] = [1.0, 1.0, 1.0, 1.0, -0.2, 0.05, 1.0, 1.0e16, 1.0e17, 1.0e19]
+    common['params'] = [1.0, 1.0, 1.0, 1.0, -0.2, 0.05, 1.0, 1.0e16, 1.0e17, 
+                        1.0e19]
 
     # Set the station name
     common['station_name'] = settings['station_name']
@@ -161,9 +164,9 @@ if __name__ == '__main__':
     # Create list to hold active processes
     processes = []
 
-#========================================================================================
-#=============================== Begin the scanning loop ================================
-#========================================================================================
+#==============================================================================
+#========================== Begin the scanning loop ===========================
+#==============================================================================
 
     # Create results folder
     common['fpath'] = 'Results/' + datestamp + '/'
@@ -213,8 +216,8 @@ if __name__ == '__main__':
         # Clear any finished processes from the processes list
         processes = [pro for pro in processes if pro.is_alive()]
 
-        # Check the number of processes. If there are more than two then don't start
-        # another to prevent too many processes running at once
+        # Check the number of processes. If there are more than two then don't 
+        #  start another to prevent too many processes running at once
         if len(processes) <= 2:
 
             # Create new process to handle fitting of the last scan
@@ -228,7 +231,8 @@ if __name__ == '__main__':
 
         else:
             # Log that the process was not started
-            msg = f"Too many processes running, scan {common['scan_no']} not analysed"
+            msg = f"Too many processes running, " + \
+                  f"scan {common['scan_no']} not analysed"
             logging.warning(msg)
 
         # Update the scan number

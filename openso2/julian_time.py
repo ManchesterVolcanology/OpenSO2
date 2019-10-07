@@ -1,21 +1,22 @@
 # -*- coding: utf-8 -*-
 """
-Module to convert traditional time stamps to Julian time (decimal hours or days) and back
+Module to convert traditional time stamps to Julian time (decimal hours or 
+days) and back
 """
 
 import numpy as np
 import datetime as dt
 
-#========================================================================================
-#==================================== hms_to_julian =====================================
-#========================================================================================
+#==============================================================================
+#=============================== hms_to_julian ================================
+#==============================================================================
 
 def hms_to_julian(times, str_format = None, out_format = 'decimal hours'):
     
     '''
     Function to convert an array of datetime objects or strings to julian time
     
-    Parameters:
+    **Parameters:**
         
     times : array, datetime.datetime or str
         Origional time objects
@@ -24,10 +25,10 @@ def hms_to_julian(times, str_format = None, out_format = 'decimal hours'):
         Time format if converting from strings. Default is None
         
     out_format : str (optional)
-        Format of output. Must be either "decimal hours" or "decimal days". Default is 
-        decimal hours
+        Format of output. Must be either "decimal hours" or "decimal days". 
+        Default is decimal hours
                    
-    Returns:
+    **Returns:**
         
     jul_time : array
         Array of julian time values calculated form the input array
@@ -35,8 +36,8 @@ def hms_to_julian(times, str_format = None, out_format = 'decimal hours'):
     
     # Check if output format is correct
     if out_format not in ['decimal days', 'decimal hours']:
-        msg = 'out_format value is not supported. Only supported values are:\n' + \
-              '    decimal days\n    decimal hours'
+        msg = 'out_format value is not supported. '  + \
+              'Only supported values are:\n    decimal days\n    decimal hours'
         raise ValueError(msg)
     
     # If single value, convert to list
@@ -80,25 +81,25 @@ def hms_to_julian(times, str_format = None, out_format = 'decimal hours'):
     else:
         return jul_time
             
-#========================================================================================
-#==================================== julian_to_hms =====================================
-#========================================================================================
+#==============================================================================
+#=============================== julian_to_hms ================================
+#==============================================================================
         
 def julian_to_hms(time_arr, input_format = 'decimal hours'):
 
     '''
     Function to convert an array of Julian times into hh:mm:ss datetime objects
     
-    Parameters:
+    **Parameters:**
         
     time_arr : arrray
         Origional julan time values
         
     input_format : str (optional)
-        Describes the format of the input Julian time values. Either "decimal days" 
-        (default) or "decimal hours"
+        Describes the format of the input Julian time values. Either "decimal 
+        days" (default) or "decimal hours"
                     
-    Returns:
+    **Returns:**
         
     time : array
         Datetime objects
@@ -106,8 +107,8 @@ def julian_to_hms(time_arr, input_format = 'decimal hours'):
 
     # Check if output format is correct
     if input_format not in ['decimal days', 'decimal hours']:
-        msg = 'input_format value is not supported. Only supported values are:\n' + \
-              '    decimal days\n    decimal hours'
+        msg = 'input_format value is not supported. '  + \
+              'Only supported values are:\n    decimal days\n    decimal hours'
         raise ValueError(msg) 
     
     # If single value, convert to list

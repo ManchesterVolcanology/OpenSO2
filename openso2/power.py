@@ -10,7 +10,7 @@ def update_power_time(on_time, off_time):
     '''
     Function to update the WittyPi2 board schedule file
     
-    Paramters:
+    **Paramters:**
         
     on_time : float
         Time to turn the station on in decimal hours
@@ -18,7 +18,7 @@ def update_power_time(on_time, off_time):
     off_time : float
         Time to turn the station off in decimal hours
         
-    Returns:
+    **Returns:**
         
     None
     '''

@@ -5,28 +5,27 @@ Module to read in settings files to initiate the main program.
 
 from tkinter import filedialog as fd
 
-#========================================================================================
-#====================================== read_setttings ==================================
-#========================================================================================
+#==============================================================================
+#================================= read_setttings =============================
+#==============================================================================
 
 def read_settings(fname, settings = None):
 
     '''
     Fuction to read in the settings file
-
-    Parameters:
+    
+    **Parameters:**
         
     fname : str
         File path to settings file
 
-    settings : dict
-        Dictionary of GUI settings. If None then one is created. Default is None.
+    settings : dict (optional)
+        Dictionary of GUI settings. If None then one is created.
 
-    Returns:
+    **Returns:**
         
     settings : dict (optional)
-        Setting dictionary updated with setings from the file. If None a new dictionary
-        is created
+        Setting dictionary created or updated with setings from the file. 
 
     Written by Ben Esse, January 2019
     '''
@@ -66,25 +65,26 @@ def read_settings(fname, settings = None):
 
     return settings
 
-#========================================================================================
-#=================================== Get Station Info ===================================
-#========================================================================================
+#==============================================================================
+#============================== Get Station Info ==============================
+#==============================================================================
 
 def get_station_info(fpath):
 
     '''
-    Function to read in the station information and complile it into a dictionary
+    Function to read in the station information and complile it into a 
+    dictionary
 
-    Parameters:
+    **Parameters:**
         
     fpath : str
         File path to the station info text file
 
-    Returns:
+    **Returns:**
         
     station_info : dict
-        Dictionary of all the station information required by the main program. Each
-        station is its own dictionary within station_info
+        Dictionary of all the station information required by the main program. 
+        Each station is its own dictionary within station_info
 
     Written by Ben Esse, January 2019
     '''
@@ -115,21 +115,21 @@ def get_station_info(fpath):
 
     return station_info
 
-#========================================================================================
-#================================ Update results folder =================================
-#========================================================================================
+#==============================================================================
+#=========================== Update results folder ============================
+#==============================================================================
 
 def update_resfp(self):
 
     '''
     Function to change the results file location
 
-    Parameters:
+    **Parameters:**
         
     self : tk.Tk
         Program object containing parameters
 
-    Returns:
+    **Returns:**
         
     None
     '''
@@ -140,21 +140,21 @@ def update_resfp(self):
     if fpath != '':
         self.res_fpath.set(fpath + '/')
 
-#========================================================================================
-#================================== Update scan files ===================================
-#========================================================================================
+#==============================================================================
+#============================= Update scan files ==============================
+#==============================================================================
 
 def update_scanfp(self):
 
     '''
     Function to change the scans to analyse
 
-    Parameters:
+    **Parameters:**
         
     self : tk.Tk
         Program object containing parameters
 
-    Returns:
+    **Returns:**
         
     None
     '''

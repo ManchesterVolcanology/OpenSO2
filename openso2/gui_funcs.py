@@ -6,19 +6,19 @@ Contains functions to help build the GUI interface.
 from tkinter import ttk
 import tkinter as tk
 
-#========================================================================================
-#====================================== Make Input ======================================
-#========================================================================================
+#==============================================================================
+#================================= Make Input =================================
+#==============================================================================
 
 def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
-               command = None, sticky = ['NSEW', None], label_font = ('Verdana', 8),
-               width = None, options = None, vals = [0, 10], increment = 1,
-               rowspan = None, columnspan = None):
+               command = None, sticky = ['NSEW', None], width = None,
+               options = None, vals = [0, 10], increment = 1, rowspan = None, 
+               columnspan = None, label_font = ('Verdana', 8)):
 
     '''
     Function to build GUI inputs consisting of a label and an input.
 
-    Parameters:
+    **Parameters:**
 
     frame : tk.Frame or tk.LabelFrame
         Container in which to place the object
@@ -30,8 +30,8 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
         Variable to assosiate with the input
 
     input_type : str
-        Type of input to use. Must be one of Entry, Spinbox, OptionMenu, Checkbutton or
-        Label
+        Type of input to use. Must be one of Entry, Spinbox, OptionMenu, 
+        Checkbutton or Label
 
     row : int
         Row number, will be the same for label and input
@@ -49,11 +49,9 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
         function to run on change to the input value
 
     sticky : str or tuple of strings (optional)
-        Direction to stick the object (compass direction). If given as a tuple the first
-        corresponds to the label and the second to the entry. Default is None
-
-    label_font : tuple (optional)
-        Font tuple in the form (font, size) for the label. Default is ('Verdana', 8)
+        Direction to stick the object (compass direction). If given as a tuple 
+        the first corresponds to the label and the second to the entry. Default 
+        is None
 
     width : float (optional)
         Width of the entry. Default is None.
@@ -62,8 +60,8 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
         List of options for an Option Menu. Default is None
 
     vals : tuple or list (optional)
-        Sets the range of values for a spinbox. If two values are give it sets the limits
-        (from, to)
+        Sets the range of values for a spinbox. If two values are give it sets 
+        the limits (from, to)
 
     increment : int (optional)
         Value spacing for a spinbox. Default is 1
@@ -74,7 +72,11 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
     columnspan : int (optional)
         Number of columns the entry will span. Default is None
 
-    Returns:
+    label_font : tuple (optional)
+        Font tuple in the form (font, size) for the label. Default is 
+        ('Verdana', 8)
+
+    **Returns:**
         
     label : tk.Label object
         Input label object
@@ -96,10 +98,12 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
 
     # Create the input label
     label = ttk.Label(frame, text = text, font = label_font)
-    label.grid(row=row, column=column, padx=padx, pady=pady, sticky=label_sticky)
+    label.grid(row=row, column=column, padx=padx, pady=pady,
+               sticky=label_sticky)
 
     # Check that the entry type is valid
-    if input_type not in ['Entry', 'Spinbox', 'OptionMenu', 'Label', 'Checkbutton']:
+    if input_type not in ['Entry', 'Spinbox', 'OptionMenu', 'Label', 
+                          'Checkbutton']:
         raise TypeError('Data entry type "' + input_type + '" not recognised')
 
 
@@ -109,8 +113,8 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
             validate = None
         else:
             validate = "focusout"
-        entry = ttk.Entry(frame, textvariable = var, width = width, validate = validate,
-                          validatecommand = command)
+        entry = ttk.Entry(frame, textvariable = var, width = width, 
+                          validate = validate, validatecommand = command)
 
 
     # Spinbox
@@ -118,12 +122,21 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
 
         # Check if range is from:to or a list
         if len(vals) == 2:
-            entry = tk.Spinbox(frame, textvariable = var, width = width, from_ = vals[0],
-                               to = vals[1], command = command, increment = increment)
+            entry = tk.Spinbox(frame,
+                               textvariable = var, 
+                               width = width, 
+                               from_ = vals[0],
+                               to = vals[1], 
+                               command = command, 
+                               increment = increment)
 
         else:
-            entry = tk.Spinbox(frame, textvariable = var, width = width, values = vals,
-                               command = command, increment = increment)
+            entry = tk.Spinbox(frame, 
+                               textvariable = var, 
+                               width = width, 
+                               values = vals,
+                               command = command, 
+                               increment = increment)
 
         # Set first value
         #entry.update(var.get())
@@ -146,27 +159,28 @@ def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
 
 
     # Add entry to the frame
-    entry.grid(row=row, column=column+1, padx=padx, pady=pady, sticky=entry_sticky,
-               rowspan=rowspan, columnspan=columnspan)
+    entry.grid(row=row, column=column+1, padx=padx, pady=pady, 
+               sticky=entry_sticky, rowspan=rowspan, columnspan=columnspan)
 
     return label, entry
 
-#========================================================================================
-#===================================== Update Graph =====================================
-#========================================================================================
+#==============================================================================
+#================================ Update Graph ================================
+#==============================================================================
 
 def update_graph(lines, axes, canvas, new_data):
 
     '''
     Function to update a matplotlib figure
 
-    Parameters:
+    **Parameters:**
         
     lines : list
         The plots to update
 
     axes : list
-        Axes that correspond to the lines (must be same length and order as lines)
+        Axes that correspond to the lines (must be same length and order as 
+        lines)
 
     canvas : tkagg canvas object
         Canvas that holds the axes
@@ -175,7 +189,7 @@ def update_graph(lines, axes, canvas, new_data):
         New data to plot. Has the form [[x1, y1, x1lims, y1lims],
                                         [x2, y2, x2lims, y2lims],...]
         
-    Returns:
+    **Returns:**
         
     None
     '''
@@ -207,8 +221,8 @@ def update_graph(lines, axes, canvas, new_data):
         try:
             # If auto, pad by 10% of range
             if xlims[i] == 'auto':
-                x_min = min(xdata[i]) - abs(max(xdata[i]) - min(xdata[i])) * 0.1
-                x_max = max(xdata[i]) + abs(max(xdata[i]) - min(xdata[i])) * 0.1
+                x_min = min(xdata[i]) - abs(max(xdata[i]) - min(xdata[i]))*0.1
+                x_max = max(xdata[i]) + abs(max(xdata[i]) - min(xdata[i]))*0.1
                 axes[i].set_xlim(x_min, x_max)
 
             # If false set as limits +/- 1
@@ -221,8 +235,8 @@ def update_graph(lines, axes, canvas, new_data):
 
             # Do same for y axis
             if ylims[i] == 'auto':
-                y_min = min(ydata[i]) - abs(max(ydata[i]) - min(ydata[i])) * 0.1
-                y_max = max(ydata[i]) + abs(max(ydata[i]) - min(ydata[i])) * 0.1
+                y_min = min(ydata[i]) - abs(max(ydata[i]) - min(ydata[i]))*0.1
+                y_max = max(ydata[i]) + abs(max(ydata[i]) - min(ydata[i]))*0.1
                 axes[i].set_ylim(y_min, y_max)
 
             elif ylims[i] == False:

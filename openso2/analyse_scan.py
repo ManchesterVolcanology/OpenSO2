@@ -3,31 +3,32 @@
 Contains functions to read and analyse raw scan files and processed SO2 files.
 """
 
+import logging
 import numpy as np
 import datetime as dt
-import logging
 from math import radians, cos, tan, pi
 
 from openso2.fit import fit_spec
 from openso2.julian_time import hms_to_julian
 
-#========================================================================================
-#====================================== Read Scan =======================================
-#========================================================================================
+#==============================================================================
+#================================= Read Scan ==================================
+#==============================================================================
 
 def read_scan(fpath):
 
     '''
-    Function to read in a scan file in the Open SO2 format. Each line in the array
-    consists of 2053 floats. The first five hold the spectrum information followed by the
-    spectrum. The infomation is arranged as: [spec_n, hour, minute, second, motor_pos]
+    Function to read in a scan file in the Open SO2 format. Each line in the 
+    array consists of 2053 floats. The first five hold the spectrum information 
+    followed by the spectrum. The infomation is arranged as: 
+        [spec_n, hour, minute, second, motor_pos]
 
-    Parameters:
+    **Parameters:**
         
     fpath : str
         File path to the scan file
 
-    Returns:
+    **Returns:**
         
     err : bool
         Error flag to check for a read error
@@ -36,7 +37,8 @@ def read_scan(fpath):
         Wavelength grid of the spectrometer
 
     info : array
-        Acquisition info for each spectrum: [spec_n, hour, minute, second, motor_pos]
+        Acquisition info for each spectrum: 
+            [spec_n, hour, minute, second, motor_pos]
 
     spec : array
         Measured spectra
@@ -75,16 +77,16 @@ def read_scan(fpath):
     except Exception:
         return 1, 0, 0, 0
 
-#========================================================================================
-#===================================== Analyse Scan =====================================
-#========================================================================================
+#==============================================================================
+#================================ Analyse Scan ================================
+#==============================================================================
 
 def analyse_scan(save_results = True, **common):
 
     '''
     Function to analyse a scan block
 
-    Parameters:
+    **Parameters:**
         
     common : dict
         Common dictionary of parameters used by the program
@@ -92,10 +94,11 @@ def analyse_scan(save_results = True, **common):
     save_results : bool (default True)
         Flag whether or not to save the results. Turn False for post analysis.
 
-    Returns:
+    **Returns:**
         
     fit_data : numpy array
-        The results of the fit, formatted as dec_time, motor_pos, angle, so2 amt, so2 err
+        The results of the fit, formatted as dec_time, motor_pos, angle, 
+        so2 amt, so2 err
 
     Written by Ben Esse, January 2019
     '''
@@ -127,7 +130,10 @@ def analyse_scan(save_results = True, **common):
             n_aq, h, m, s, motor_pos, int_time, coadds = info
 
             # Convert motor position to angle
-            angle = float(motor_pos) / common['steps_per_degree'] - common['home_offset']
+            angle = float(motor_pos) / common['steps_per_degree']
+            
+            # Subtract the home offset
+            angle -= common['home_offset']
 
             # Convert time to decimal hours
             dec_time = hms_to_julian(dt.time(int(h), int(m), int(s)))
@@ -156,17 +162,17 @@ def analyse_scan(save_results = True, **common):
 
         return fit_data
 
-#========================================================================================
-#==================================== Update Int Time ===================================
-#========================================================================================
+#==============================================================================
+#============================== Update Int Time ===============================
+#==============================================================================
 
 def update_int_time(common, settings):
 
     '''
-    Function to calculate a new integration time based on the intensity of the previous
-    scan
+    Function to calculate a new integration time based on the intensity of the 
+    previous scan
 
-    Parameters:
+    **Parameters:**
         
     common : dict
         Common dictionary of parameters for the program
@@ -174,7 +180,7 @@ def update_int_time(common, settings):
     settings : dict
         Dictionary of station settings
 
-    Returns:
+    **Returns:**
         
     new_int_time : int
         New integration time for the next scan
@@ -208,21 +214,21 @@ def update_int_time(common, settings):
     # Return the updated integration time
     return int(int_times[idx])
 
-#========================================================================================
-#==================================== Read Scan SO2 =====================================
-#========================================================================================
+#==============================================================================
+#=============================== Read Scan SO2 ================================
+#==============================================================================
 
 def read_scan_so2(fpath):
 
     '''
     Function to read the so2 results file from a scan
 
-    Parameters:
+    **Parameters:**
         
     fpath : str
         File path to the scan results file
 
-    Returns:
+    **Returns:**
         
     scan_angles : numpy array
         Scan angles
@@ -240,17 +246,17 @@ def read_scan_so2(fpath):
 
     return scan_angles, so2_cds
 
-#========================================================================================
-#==================================== Calc Scan Flux ====================================
-#========================================================================================
+#==============================================================================
+#=============================== Calc Scan Flux ===============================
+#==============================================================================
 
 def calc_scan_flux(fpath, windspeed = 10, height = 1000, plume_type = 'flat'):
 
     '''
-    Function to calculate the SO2 flux from a scan. Either assumes all SO2 is at the same
-    altitude or that it is contained within a cylindrical plume
+    Function to calculate the SO2 flux from a scan. Either assumes all SO2 is 
+    at the same altitude or that it is contained within a cylindrical plume
 
-    Parameters:
+    **Parameters:**
         
     fpath : str
         File path to the scan so2 file
@@ -262,17 +268,17 @@ def calc_scan_flux(fpath, windspeed = 10, height = 1000, plume_type = 'flat'):
         The height of the plume in meters (default is 1000 m)
 
     plume_type : str (optional)
-        The type of plume.
-            - 'flat' assumes all so2 is at the same altitude in a flat blanket. Good for
-              wide plumes
+        The type of plume. One of:
+            - 'flat' assumes all so2 is at the same altitude in a flat blanket. 
+              Good for wide plumes (default)
 
-            - 'cylinder' assumes the plume is cylindrical. Good for smaller plumes.
-              (not yet implemented)
+            - 'cylinder' assumes the plume is cylindrical. Good for smaller 
+               plumes. (not yet implemented)
 
-            - 'arc' puts the SO2 at a fixed distance from the scanner across the arc of
-              the scan
+            - 'arc' puts the SO2 at a fixed distance from the scanner across 
+              the arc of the scan
 
-    Returns:
+    **Returns:**
         
     flux : float
         The flux of SO2 passing through the scan in tonnes/day
@@ -280,8 +286,8 @@ def calc_scan_flux(fpath, windspeed = 10, height = 1000, plume_type = 'flat'):
 
     # Check that the plume type is possible
     if plume_type not in ['flat', 'cylinder', 'arc']:
-        raise Exception('Plume type not recognised. Must be one of "flat", "cylinder"' +\
-                        ' or "arc"')
+        raise Exception('Plume type not recognised. Must be one of "flat", ' +\
+                        '"cylinder" or "arc"')
 
     # Read in scan data
     angles, so2_amt = read_scan_so2(fpath)
@@ -297,8 +303,8 @@ def calc_scan_flux(fpath, windspeed = 10, height = 1000, plume_type = 'flat'):
         # Calculate the horizontal distance between the subsiquent scans
         dx = [height * (abs(tan(phi[n+1]) - tan(phi[n]))) for n in range(len(phi) - 1)]
 
-        # Multiply the average SO2 column density of each two subsiquent spectra by the
-        #  horizontal distance between them
+        # Multiply the average SO2 column density of each two subsiquent 
+        #  spectra by the horizontal distance between them
         arc_so2 = [x * (corr_so2[n+1] + corr_so2[n]) / 2 for n, x in enumerate(dx)]
 
     elif plume_type == 'arc':
@@ -310,7 +316,7 @@ def calc_scan_flux(fpath, windspeed = 10, height = 1000, plume_type = 'flat'):
         dx = np.multiply(dr, height)
 
         # Calculate the so2 mass in each spectrum
-        arc_so2 = [x * (so2_amt[n+1] + so2_amt[n]) / 2 for n, x in enumerate(dx)]
+        arc_so2 = [x/2 * (so2_amt[n+1] + so2_amt[n]) for n, x in enumerate(dx)]
 
     # Sum the so2 in the scan
     total_so2 = np.sum(arc_so2)
@@ -329,17 +335,17 @@ def calc_scan_flux(fpath, windspeed = 10, height = 1000, plume_type = 'flat'):
 
     return flux
 
-#========================================================================================
-#================================== calc_plume_height ===================================
-#========================================================================================
+#==============================================================================
+#============================= calc_plume_height ==============================
+#==============================================================================
 
 def calc_plume_height(gui, station, scan_time):
 
     '''
-    Function to return the plume height. Either pulls it from the main GUI or calculates 
-    it from two scans
+    Function to return the plume height. Either pulls it from the main GUI or
+    calculates it from two scans
 
-    Parameters:
+    **Parameters:**
         
     gui : tk.Tk
         The main GUI object
@@ -350,7 +356,7 @@ def calc_plume_height(gui, station, scan_time):
     scan_time : float
         The time of the scan in decimal hours UTC
 
-    Returns:
+    **Returns:**
         
     plume_height : float
         The height of the plume in m a.s.l.
@@ -369,9 +375,9 @@ def calc_plume_height(gui, station, scan_time):
 
     return plume_height
 
-#========================================================================================
-#=================================== get_wind_speed =====================================
-#========================================================================================
+#==============================================================================
+#=============================== get_wind_speed ===============================
+#==============================================================================
 
 def get_wind(gui, scan_time):
 
@@ -379,7 +385,7 @@ def get_wind(gui, scan_time):
     Function to get the wind speed.
     ***Currently just returns 10 m/s as not configured***
 
-    Parameters:
+    **Parameters:**
         
     gui : tk.Tk
         The main GUI object
@@ -387,7 +393,7 @@ def get_wind(gui, scan_time):
     scan_time : float
         The time of the scan in decimal hours UTC
 
-    Returns:
+    **Returns:**
         
     wind_speed : float
         The latest wind speed in m/s
@@ -411,21 +417,21 @@ def get_wind(gui, scan_time):
 
     return wind_speed, wind_dir
 
-#========================================================================================
-#================================== get_spec_details ====================================
-#========================================================================================
+#==============================================================================
+#============================== get_spec_details ==============================
+#==============================================================================
 
 def get_spec_details(fpath):
 
     '''
     Function to get spectrometer details given the FLAME network station name
 
-    Parameters:
+    **Parameters:**
         
     fpath : str
         Filename of the spectra block, containing the station name
 
-    Returns:
+    **Returns:**
         
     scanner : str
         Scanner station name

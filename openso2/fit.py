@@ -2,21 +2,21 @@
 Contains functions to fit UV spectra to retrieve volcanic SO2 slant column densities.
 """
 
-import numpy as np
 import logging
+import numpy as np
 from scipy.interpolate import griddata
 from scipy.optimize import curve_fit
 
-#========================================================================================
-#===================================== make_poly ========================================
-#========================================================================================
+#==============================================================================
+#================================= make_poly ==================================
+#==============================================================================
 
 def make_poly(grid, coefs):
 
     '''
     Function to construct a polynolial given a list of coefficients
 
-    Parameters:
+    **Parameters:**
         
     grid : array
         X grid over which to calculate the polynomial
@@ -24,10 +24,11 @@ def make_poly(grid, coefs):
     coefs : list
         Polynomial coefficents (of acesnding rank)
 
-    Returns:
+    **Returns:**
         
     poly : array
-        Resulting polynomial, calculated as poly = p0 + p1*grid + p2*grid^2 + ...
+        Resulting polynomial, calculated as:
+            poly = p0 + p1*grid + p2*grid^2 + ...
     '''
 
     poly = np.zeros(len(grid))
@@ -38,22 +39,22 @@ def make_poly(grid, coefs):
 
     return poly
 
-#========================================================================================
-#======================================== fit_spec ======================================
-#========================================================================================
+#==============================================================================
+#================================== fit_spec ==================================
+#==============================================================================
 
 def fit_spec(common, spectrum, grid):
 
     '''
-    Function to fit measured spectrum using a full forward model including a solar
-    spectrum background polynomial, ring effect, wavelength shift and stretch, and gas
-    amounts for so2, no2, o3
+    Function to fit measured spectrum using a full forward model including a 
+    solar spectrum background polynomial, ring effect, wavelength shift and
+    stretch, and gas amounts for so2, no2, o3
 
-    Parameters:
+    **Parameters:**
         
     common : dictionary
-        Common dictionary of parameters and variables passed from the main program
-        to subroutines
+        Common dictionary of parameters and variables passed from the main 
+        program to subroutines
 
     spectrum : 2D array
         Intensity data from the measured spectrum
@@ -64,7 +65,7 @@ def fit_spec(common, spectrum, grid):
     q : queue (optional)
         Queue to which to add the output if threaded (default = None)
 
-    Returns:
+    **Returns:**
         
     fit_dict : dictionary
         Dictionary of optimised parameters
@@ -73,8 +74,8 @@ def fit_spec(common, spectrum, grid):
         Dictionary of error in the optimised parameters
 
     y : array
-        Measured spectrum, corrected for dark, bias and flat response, in the fitting
-        window
+        Measured spectrum, corrected for dark, bias and flat response, in the 
+        fitting window
 
     fit : array
         Fitted spectrum
@@ -104,7 +105,10 @@ def fit_spec(common, spectrum, grid):
     if not np.any(y == 0) and max(y) > 3000:
         try:
             # Fit
-            popt, pcov = curve_fit(ifit_fwd_model, grid, y, p0 = common['params'])
+            popt, pcov = curve_fit(ifit_fwd_model, 
+                                   grid, 
+                                   y, 
+                                   p0 = common['params'])
 
             # Get fit errors
             perr = np.sqrt(np.diag(pcov))
@@ -140,16 +144,17 @@ def fit_spec(common, spectrum, grid):
     return popt, perr, fitted_flag
 
 
-#========================================================================================
-#======================================== ifit_fwd ======================================
-#========================================================================================
+#==============================================================================
+#================================== ifit_fwd ==================================
+#==============================================================================
 
-def ifit_fwd_model(grid, p0, p1, p2, p3, shift, stretch, ring_amt, so2_amt, no2_amt, o3_amt):
+def ifit_fwd_model(grid, p0, p1, p2, p3, shift, stretch, ring_amt, so2_amt,
+                   no2_amt, o3_amt):
 
     '''
     iFit forward model to fit measured UV sky spectra
 
-    Parameters:
+    **Parameters:**
         
     grid : array
         Measurement wavelength grid
@@ -157,13 +162,13 @@ def ifit_fwd_model(grid, p0, p1, p2, p3, shift, stretch, ring_amt, so2_amt, no2_
     *args : list
         Forward model state vector
 
-    Returns:
+    **Returns:**
         
     fit : array
         Fitted spectrum interpolated onto the spectrometer wavelength grid
     '''
 
-    # Construct background polynomial and add to the fraunhoffer reference spectrum
+    # Construct background polynomial and add to the fraunhoffer spectrum
     bg_poly = make_poly(com['model_grid'], [p0, p1, p2, p3])
     frs = np.multiply(com['sol'], bg_poly)
 

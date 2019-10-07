@@ -6,15 +6,15 @@ Module to generate spectrometer instrument line shapes (ILS).
 import numpy as np
 from scipy.special import gamma
 
-#========================================================================================
-#======================================== make_ils ======================================
-#========================================================================================
+#==============================================================================
+#=================================== make_ils =================================
+#==============================================================================
 
 def make_ils(interval, FWEM, k = 2, a_w = 0, a_k = 0):
 
     '''
-    Function to generate a synthetic instrument line shape based on a super gaussian
-    function:
+    Function to generate a synthetic instrument line shape based on a super 
+    gaussian function:
 
                      { exp(-| x / (w-a_w) | ^ (k-a_k)) for x <= 0
     G(x) = A(w, k) * {
@@ -24,7 +24,7 @@ def make_ils(interval, FWEM, k = 2, a_w = 0, a_k = 0):
 
     See Beirle et al (2017) for more details: doi:10.5194/amt-10-581-2017
 
-    Paramters:
+    **Paramters:**
         
     interval : int
         The spacing of the wavelength grid on which the ILS is built
@@ -41,11 +41,11 @@ def make_ils(interval, FWEM, k = 2, a_w = 0, a_k = 0):
     a_w and a_k : float
         Controls the asymetry of the lineshape
 
-    Returns:
+    **Returns:**
         
     ils : numpy array
-        The calculated ILS function on a wavelength grid of the given spacing and 5 times
-        the width of the supplied FWEM
+        The calculated ILS function on a wavelength grid of the given spacing 
+        and 5 times the width of the supplied FWEM
     '''
 
     # Create a grid 6 times that of the width
@@ -67,8 +67,10 @@ def make_ils(interval, FWEM, k = 2, a_w = 0, a_k = 0):
     pos_grid = grid[pos_idx]
 
     # Calculate the asymetric supergaussian function
-    neg_g = np.multiply(A, np.exp(-np.power(np.abs((neg_grid) / (w - a_w) ), k - a_k)))
-    pos_g = np.multiply(A, np.exp(-np.power(np.abs((pos_grid) / (w + a_w) ), k + a_k)))
+    neg_g = np.multiply(A, np.exp(-np.power(np.abs((neg_grid) / (w - a_w) ), 
+                                            k - a_k)))
+    pos_g = np.multiply(A, np.exp(-np.power(np.abs((pos_grid) / (w + a_w) ), 
+                                            k + a_k)))
 
     # Combine
     super_g = np.append(neg_g, pos_g)
