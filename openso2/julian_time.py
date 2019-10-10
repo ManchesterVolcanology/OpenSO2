@@ -85,7 +85,8 @@ def hms_to_julian(times, str_format = None, out_format = 'decimal hours'):
 #=============================== julian_to_hms ================================
 #==============================================================================
         
-def julian_to_hms(time_arr, input_format = 'decimal hours'):
+def julian_to_hms(time_arr, input_format = 'decimal hours', 
+                  output_format = 'datetime'):
 
     '''
     Function to convert an array of Julian times into hh:mm:ss datetime objects
@@ -98,6 +99,11 @@ def julian_to_hms(time_arr, input_format = 'decimal hours'):
     input_format : str (optional)
         Describes the format of the input Julian time values. Either "decimal 
         days" (default) or "decimal hours"
+        
+    output_format : str (optional)
+        Describes the format of the output:
+            - "datetime": Returns a datetime.datetime object (default)
+            - "hms":      Returns a string in the format of "HH:MM:SS"
                     
     **Returns:**
         
@@ -105,11 +111,15 @@ def julian_to_hms(time_arr, input_format = 'decimal hours'):
         Datetime objects
     '''
 
-    # Check if output format is correct
+    # Check if intput and output formats are correct
     if input_format not in ['decimal days', 'decimal hours']:
         msg = 'input_format value is not supported. '  + \
               'Only supported values are:\n    decimal days\n    decimal hours'
         raise ValueError(msg) 
+    if output_format not in ['datetime', 'hms']:
+        msg = 'output_format value is not supported. '  + \
+              'Only supported values are:\n    datetime\n    hms'
+        raise ValueError(msg)
     
     # If single value, convert to list
     if type(time_arr) not in [list, np.array]:
@@ -149,9 +159,16 @@ def julian_to_hms(time_arr, input_format = 'decimal hours'):
         u = int(usecs)
         
         # Combine to form a time object
-        time.append(dt.datetime(1900, 1, 1, h, m, s, u).time())
+        if output_format == 'datetime':
+            time.append(dt.datetime(1900, 1, 1, h, m, s, u).time())
+        if output_format == 'hms':
+            time.append(f'{h:02}:{m:02}:{s:02}')
     
     if single_flag:
         return time[0]
     else:
         return time
+            
+#==============================================================================
+#=============================== julian_to_str ================================
+#==============================================================================

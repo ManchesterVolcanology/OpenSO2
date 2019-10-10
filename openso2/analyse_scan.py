@@ -5,11 +5,11 @@ Contains functions to read and analyse raw scan files and processed SO2 files.
 
 import logging
 import numpy as np
+import pandas as pd
 import datetime as dt
 from math import radians, cos, tan, pi
 
 from openso2.fit import fit_spec
-from openso2.julian_time import hms_to_julian
 
 #==============================================================================
 #================================= Read Scan ==================================
@@ -96,21 +96,28 @@ def analyse_scan(save_results = True, **common):
 
     **Returns:**
         
-    fit_data : numpy array
-        The results of the fit, formatted as dec_time, motor_pos, angle, 
-        so2 amt, so2 err
+    fit_data : pandas.DataFrame
+        DataFrame containing the fit metadata and results
 
     Written by Ben Esse, January 2019
     '''
 
     # Read in the scan data
     err, x, info_block, spec_block = read_scan(common['scan_fpath'])
-
-    # Create empty array to hold the results
-    fit_data = np.zeros((spec_block.shape[0] - 1, 5))
+    
+    # Set the column names for the output file
+    columns = ['time', 'motor_pos', 'angle', 'int_time', 'coads', 'w_lo', 
+               'w_hi', 'spec_max_int', 'fit_max_int', 'fit_quality', 'p0', 
+               'p0_e', 'p1', 'p1_e', 'p2', 'p2_e', 'p3', 'p3_e', 'shift', 
+               'shift_e', 'stretch', 'stretch_e', 'ring', 'ring_e', 'so2', 
+               'so2_e', 'no2', 'no2_e', 'o3', 'o3_e']
+    
+    # Initialise the dataframe
+    df = pd.DataFrame(index = np.arange(spec_block.shape[0]-1),
+                      columns=columns)
 
     # Logthe start of the scan
-    logging.info('Start scan ' + str(common['scan_no']) + ' analysis')
+    logging.info(f'Start scan {common["scan_no"]} analysis')
 
     # Check for read error
     if err == 0:
@@ -136,31 +143,56 @@ def analyse_scan(save_results = True, **common):
             angle -= common['home_offset']
 
             # Convert time to decimal hours
-            dec_time = hms_to_julian(dt.time(int(h), int(m), int(s)))
+            start_time = dt.time(int(h), int(m), int(s))
 
             # Extract spectrum
             y = spec_block[n]
 
             # Fit the spectrum
             popt, perr, fitted_flag = fit_spec(common, [x, y], grid)
+            
+            # Pull the fit metadata together
+            fit_data = [
+                        start_time, 
+                        motor_pos,
+                        angle,
+                        int_time, 
+                        coadds, 
+                        common['wave_start'],
+                        common['wave_stop'], 
+                        max(y), 
+                        max(y[common['idx']]),
+                        fitted_flag
+                        ]
+            
+            # Add the fit results to the metadata
+            for i in range(len(popt)):
+                fit_data += [popt[i], perr[i]]
+                
+            # Add to the dataframe
+            df.iloc[n-1] = fit_data
 
             # Update fit parameters
             if fitted_flag == True:
                 common['params'] = popt
 
-            # Add the fit results to the results array
-            fit_data[n-1] = [dec_time, motor_pos, angle, popt[7], perr[7]]
-
-        logging.info('Scan ' + str(common['scan_no']) + ' analysis complete')
+        logging.info(f'Scan {str(common["scan_no"])} analysis complete')
 
         if save_results == True:
 
             # Save the data
-            fname = common['scan_fpath'].split('/')[-1][:-4] + '_so2.npy'
+            fname = common['scan_fpath'].split('/')[-1][:-4] + '_so2'
             fpath = common['fpath'] + 'so2/' + fname
-            np.save(fpath, fit_data.astype('float32'))
+            
+            # Try to save in the parquet format
+            try:
+                df.to_parquet(fpath + '.parquet')
+             
+            # Else save as a .csv
+            except ImportError:
+                df.to_csv(fpath + '.csv')
 
-        return fit_data
+        return df
 
 #==============================================================================
 #============================== Update Int Time ===============================
@@ -240,11 +272,14 @@ def read_scan_so2(fpath):
     # Read in the scan so2 file
     scan_data = np.load(fpath)
 
-    # Unpack useful information
+    # Unpack information
+    jul_time    = scan_data[:,0]
+    motor_pos   = scan_data[:,1]
     scan_angles = scan_data[:,2]
     so2_cds     = scan_data[:,3]
+    so2_err     = scan_data[:,4]
 
-    return scan_angles, so2_cds
+    return jul_time, motor_pos, scan_angles, so2_cds, so2_err
 
 #==============================================================================
 #=============================== Calc Scan Flux ===============================

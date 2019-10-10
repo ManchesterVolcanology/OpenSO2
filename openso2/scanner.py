@@ -234,17 +234,17 @@ def acquire_scan(Scanner, Spectrometer, common, settings):
     logging.info('Begin scanning')
     for step_no in range(1, settings['specs_per_scan']):
 
-        # Acquire spectrum
-        spec_int = np.zeros(len(dark))
-        for i in range(settings['coadds']):
-            spec_int = np.add(spec_int, Spectrometer.intensities())
-        spec_int = np.divide(spec_int, settings['coadds'])
-
         # Get time
         t = datetime.datetime.now()
         h = t.hour
         m = t.minute
         s = t.second
+
+        # Acquire spectrum
+        spec_int = np.zeros(len(dark))
+        for i in range(settings['coadds']):
+            spec_int = np.add(spec_int, Spectrometer.intensities())
+        spec_int = np.divide(spec_int, settings['coadds'])
 
         # Add the data to the array
         # Has the format N_acq, Hour, Min, Sec, MotorPos, Coadds, Int time

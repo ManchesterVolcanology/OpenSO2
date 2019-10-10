@@ -192,9 +192,12 @@ class Station:
             # Open connection
             with pysftp.Connection(**self.cinfo, cnopts=cnopts) as sftp:
 
+                # Get the date to find the correct log file
+                date = dt.now().date()
+                
                 # Get the status file
-                sftp.get(f'/home/pi/open_so2/log/{dt.now().date()}.log',
-                         f'Station/{self.name}_log.txt')
+                sftp.get(f'/home/pi/open_so2/Results/{date}/{date}.log', 
+                         f'Results/{date}/{date}.log')
 
             # Successful read
             err = [False, '']
@@ -265,6 +268,32 @@ def sync_station(station, local_dir, remote_dir, queue):
     # Place the results as a list in the queue
     queue.put([name, status_time, status_msg, synced_fnames, err])
 
+#==============================================================================
+#============================= Get Station Status =============================
+#==============================================================================
 
+def get_station_status(gui, station):
+    
+    '''
+    Function to retrieve the status of a station.
+    
+    **Parameters:**
+   
+    gui : tk.Tk GUI
+        GUI object containing the program interface
+    
+    station : string
+        Name of the station
+        
+    **Returns:**
+    
+    None
+    '''
+
+    # Try to retrieve the station status
+    time, status, err = gui.stat_com[station].pull_status()
+
+    gui.station_widjets[station]['status_time'].set(time[:-7])
+    gui.station_widjets[station]['status'].set(status)
 
 
