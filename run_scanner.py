@@ -23,12 +23,15 @@ from openso2.julian_time import hms_to_julian
 dt = datetime.datetime.now()
 datestamp = str(dt.date())
 
-# Make sure the log folder exists
-if not os.path.exists('log'):
-    os.makedirs('log')
+# Create results folder
+fpath = 'Results/' + datestamp + '/'
+if not os.path.exists(fpath + 'so2/'):
+    os.makedirs(fpath + 'so2/')
+if not os.path.exists(fpath + 'spectra/'):
+    os.makedirs(fpath + 'spectra/')
 
 # Create log name
-logname = f'log/{datestamp}.log'
+logname = f'{fpath}{datestamp}.log'
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
 # Create the logger
@@ -79,7 +82,7 @@ if __name__ == '__main__':
 #==============================================================================
 
     # Create an empty dictionary to hold the comon parameters
-    common = {'datestamp': datestamp}
+    common = {'fpath': fpath}
 
     # Read in the station operation settings file
     settings = read_settings('data_bases/station_settings.txt')
@@ -167,13 +170,6 @@ if __name__ == '__main__':
 #==============================================================================
 #========================== Begin the scanning loop ===========================
 #==============================================================================
-
-    # Create results folder
-    common['fpath'] = 'Results/' + datestamp + '/'
-    if not os.path.exists(common['fpath'] + 'so2/'):
-        os.makedirs(common['fpath'] + 'so2/')
-    if not os.path.exists(common['fpath'] + 'spectra/'):
-        os.makedirs(common['fpath'] + 'spectra/')
 
     # Get time and convert to julian time
     timestamp = datetime.datetime.now()
