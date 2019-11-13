@@ -83,7 +83,7 @@ sudo systemctl disable gpsd.socket
 sudo gpsd /dev/ttyUSB0 -F /var/run/gpsd.sock
 
 cd /home/pi/open_so2/
-sudo /home/pi/open_so2/./run_scanner.py
+sudo /home/pi/open_so2/./run_scanner.py &
 ```
 
 ### Wiring
