@@ -15,8 +15,8 @@ This is the main program that controls the scanner. The figure below outlines th
    
 The ``run_scanner.py`` script should be launched when the Raspberry Pi boots and will perform a number of tasks before scanning begins. It is advised to have the Raspberry Pi be powered on for 1 - 2 hours either side of the scanning window to allow plenty of time for these tasks. The exact time that the station will turn on will depend on the power settings in the ``/home/pi/wittyPi/schedule.wpi`` file as described in :ref:`stationsetup`.
 
-Additional Modules
-------------------
+Modules
+-------
 The main program calls additional functions in order to communicate with the various components of the scanner as a whole. These can be found in the ``openso2`` library within the main ``open_so2`` directory.
 
 **scanner**
