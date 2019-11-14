@@ -2,7 +2,7 @@ Home Station Setup
 ==================
 .. _home-setup-ref:
 
-The Open |SO2| scanners are designed to work as a network, with a central home station computing SO2 fluxes in real time, given the geometry of the volcano and scanners as well as real time wind data.
+The |OpenSO2| scanners are designed to work as a network, with a central home station computing SO2 fluxes in real time, given the geometry of the volcano and scanners as well as real time wind data.
 
 Installation
 ------------
@@ -19,7 +19,7 @@ Now the home software can be launched from the command line by navigating to the
 
     python open_so2.py
     
-This will open the Open |SO2| GUI interface and begin the program.
+This will open the |OpenSO2| GUI interface and begin the program.
 
 .. note:: An executable version is planned for the future.
 
@@ -38,4 +38,4 @@ To allow the home software to talk to the stations via SSH it requires the IP ad
 where each station has an entry on a seperate line. Note that the header line and any whitespace is ignored. 
 
 .. Substitutions
-.. |SO2| replace:: SO\ :sub:`2`
+.. |OpenSO2| replace:: OpenSO\ :sub:`2`

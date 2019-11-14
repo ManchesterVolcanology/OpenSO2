@@ -21,4 +21,4 @@ Guide
 * :ref:`search`
 
 
-.. |SO2| replace:: SO\ :sub:`2`
+.. |OpenSO2| replace:: OpenSO\ :sub:`2`

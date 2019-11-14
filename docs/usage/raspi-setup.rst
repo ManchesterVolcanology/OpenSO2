@@ -12,22 +12,22 @@ The station has several core components:
 * GPS (for time keeping)
 * Communication
 
-This section will describe the setup and operation of each of these components in the Open|SO2| scanner.
+This section will describe the setup and operation of each of these components in the |OpenSO2| scanner.
 
-.. note:: The details below refer to specific components as these are the components with which the Open|SO2| scanner was developed. These are not the only solutions available, so the station software is designed to be modular so that the specific components used can be changed with relative ease. 
+.. note:: The details below refer to specific components as these are the components with which the |OpenSO2| scanner was developed. These are not the only solutions available, so the station software is designed to be modular so that the specific components used can be changed with relative ease. 
 
 The Control Computer
 --------------------
 
-The Open|SO2| software has been designed to work on a Raspberry Pi single board computer (specifically the RPI 3B+). This controls the different components and analyses the collected data in real time. Beyond the additions detailed here a small heatsink was added to the Rasberry Pi in order to assist with the termal regulation of the CPU.
+The |OpenSO2| software has been designed to work on a Raspberry Pi single board computer (specifically the RPI 3B+). This controls the different components and analyses the collected data in real time. Beyond the additions detailed here a small heatsink was added to the Rasberry Pi in order to assist with the termal regulation of the CPU.
 
 Operating System
 ----------------
-The Open|SO2| software was designed using the Raspbian operating system. To ensure full functionality the user should flash the Raspbian image (available from <https://www.raspberrypi.org/downloads/>_) directly onto the SD card. Do not use the NOOBS installer as this causes some issues with the WittyPi2 power control board (see below).
+The |OpenSO2| software was designed using the Raspbian operating system. To ensure full functionality the user should flash the Raspbian image (available from <https://www.raspberrypi.org/downloads/>_) directly onto the SD card. Do not use the NOOBS installer as this causes some issues with the WittyPi2 power control board (see below).
 
 Spectrometer
 ------------
-The Open|SO2| station is designed to work with an Ocean Optics USB spectrometer. The spectrometer is controlled through a Python library called Python Seabreeze, which is maintained on GitHub `here <https://github.com/ap--/python-seabreeze>`_ .
+The |OpenSO2| station is designed to work with an Ocean Optics USB spectrometer. The spectrometer is controlled through a Python library called Python Seabreeze, which is maintained on GitHub `here <https://github.com/ap--/python-seabreeze>`_ .
 
 The spectrometer is connected to the Raspberry Pi by a USB cable which provides power and control.
 
@@ -63,7 +63,7 @@ Stepper Motor
 -------------
 The scanner head is rotated using a stepper motor controlled by the Raspberry Pi. The motor requires a separate control board to operate with a separate power supply. 
 
-The Open|SO2| scanner uses a board called the `Adafruit Motor HAT. <https://www.adafruit.com/product/2348>`_ to control the stepper motor. Details can be found in the Adafruit documentation. To operate the HAT Adafruit Blinka must first be installed::
+The |OpenSO2| scanner uses a board called the `Adafruit Motor HAT. <https://www.adafruit.com/product/2348>`_ to control the stepper motor. Details can be found in the Adafruit documentation. To operate the HAT Adafruit Blinka must first be installed::
 	
 	pip install -upgrade setuptools
 	
@@ -87,7 +87,7 @@ To obtain the GPS information requires the GPS module in python as well as GSPD 
 	sudo apt-get install gpsd gpsd-clients
 	pip install gps
 	
-Open|SO2| also changes the RTC time of the wittyPi board to make sure that the board time matches the system time of the Pi when connected to the GPS. This requires the ``system_to_rtc.sh`` file to be placed in the wittyPi folder. Make sure it is executeable with ``chmod +x system_to_rtc.sh``
+|OpenSO2| also changes the RTC time of the wittyPi board to make sure that the board time matches the system time of the Pi when connected to the GPS. This requires the ``system_to_rtc.sh`` file to be placed in the wittyPi folder. Make sure it is executeable with ``chmod +x system_to_rtc.sh``
 
 You should also check that the time zone for the Pi is set to UTC by running::
 
@@ -97,18 +97,18 @@ selecting ``None of the above`` and setting the TimeZone to UTC.
 
 Communication
 -------------
-The Open|SO2| software requires a local network connection between the stations and the home computer. This is achieved through an ethernet connection on the Raspberry Pi computer.
+The |OpenSO2| software requires a local network connection between the stations and the home computer. This is achieved through an ethernet connection on the Raspberry Pi computer.
 
 Wiring
 ------
-The figure below shows how the various components of the Open|SO2| scanner are connected. Note that the boards are stacked on top of each other.
+The figure below shows how the various components of the |OpenSO2| scanner are connected. Note that the boards are stacked on top of each other.
 
 .. figure:: ../Figures/controller_wiring.png
    :scale: 50%
    :alt: Station Wiring
    :align: center
    
-   Basic wiring layout for the Open|SO2| scanner station.
+   Basic wiring layout for the |OpenSO2| scanner station.
    
 Startup Script
 --------------
@@ -135,4 +135,4 @@ This script does two things:
 To test reboot the Raspberry Pi and the software should create a log file for that day.
 
 .. Substitutions
-.. |SO2| replace:: SO\ :sub:`2`
+.. |OpenSO2| replace:: OpenSO\ :sub:`2`
