@@ -14,6 +14,7 @@ from openso2.analyse_scan import analyse_scan, update_int_time
 from openso2.call_gps import sync_gps_time
 from openso2.program_setup import read_settings
 from openso2.julian_time import hms_to_julian
+from openso2.make_ils import make_ils
 
 #==============================================================================
 #=============================== Set up logging ===============================
@@ -147,8 +148,12 @@ if __name__ == '__main__':
     common['flat'] = flat[idx]
 
     # Get spectrometer ILS
-    ils_fpath = f'data_bases/Ref/ils_{settings["Spectrometer"]}.txt'
-    common['ils'] = np.loadtxt(ils_fpath)
+    #ils_fpath = f'data_bases/Ref/ils_{settings["Spectrometer"]}.txt'
+    #common['ils'] = np.loadtxt(ils_fpath)
+    
+    ils_fpath = f'data_bases/Ref/ils_params_{settings["Spectrometer"]}.txt'
+    FWHM, k, a_w, a_k = np.loadtxt(ils_fpath)
+    common['ils'] = make_ils(0.01, FWHM, k, a_w, a_k)
 
     # Set first guess for parameters
     common['params'] = [1.0, 1.0, 1.0, 1.0, -0.2, 0.05, 1.0, 1.0e16, 1.0e17, 
@@ -217,7 +222,8 @@ if __name__ == '__main__':
         if len(processes) <= 2:
 
             # Create new process to handle fitting of the last scan
-            p = Process(target = analyse_scan, kwargs = common)
+            p = Process(target = analyse_scan, args = common['scan_fpath'],
+                        kwargs = common)
 
             # Add to array of active processes
             processes.append(p)

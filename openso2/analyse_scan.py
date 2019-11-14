@@ -81,18 +81,26 @@ def read_scan(fpath):
 #================================ Analyse Scan ================================
 #==============================================================================
 
-def analyse_scan(save_results = True, **common):
+def analyse_scan(scan_path, save_results = True, save_path = None, **common):
 
     '''
     Function to analyse a scan block
 
     **Parameters:**
-        
-    common : dict
-        Common dictionary of parameters used by the program
+    
+    scan_path : str
+        File path to the scan file to analyse
 
     save_results : bool (default True)
         Flag whether or not to save the results. Turn False for post analysis.
+        
+    save_path : str, optional, default None
+        The directory in which to save the results. If None then the results
+        are saved in a folders named "so2" in the same directory as the scan
+        parent folder
+        
+    common : dict
+        Common dictionary of keyword parameters used by the program
 
     **Returns:**
         
@@ -103,7 +111,7 @@ def analyse_scan(save_results = True, **common):
     '''
 
     # Read in the scan data
-    err, x, info_block, spec_block = read_scan(common['scan_fpath'])
+    err, x, info_block, spec_block = read_scan(scan_path)
     
     # Set the column names for the output file
     columns = ['time', 'motor_pos', 'angle', 'int_time', 'coads', 'w_lo', 
@@ -151,6 +159,18 @@ def analyse_scan(save_results = True, **common):
             # Fit the spectrum
             popt, perr, fitted_flag = fit_spec(common, [x, y], grid)
             
+            # Make the fit quality flag
+            if max(y[common['idx']]) > 50000:
+                fit_quality = 0
+            #elif max(y[common['idx']]) < 4000:
+            #    fit_quality = 0
+            elif not fitted_flag:
+                fit_quality = 0
+            elif popt[7] < -2.463e17:
+                fit_quality = 0
+            else:
+                fit_quality = 1
+            
             # Pull the fit metadata together
             fit_data = [
                         start_time, 
@@ -162,7 +182,7 @@ def analyse_scan(save_results = True, **common):
                         common['wave_stop'], 
                         max(y), 
                         max(y[common['idx']]),
-                        fitted_flag
+                        fit_quality
                         ]
             
             # Add the fit results to the metadata
@@ -173,16 +193,20 @@ def analyse_scan(save_results = True, **common):
             df.iloc[n-1] = fit_data
 
             # Update fit parameters
-            if fitted_flag == True:
+            if fitted_flag == True and fit_quality == 1:
                 common['params'] = popt
 
         logging.info(f'Scan {str(common["scan_no"])} analysis complete')
 
         if save_results == True:
 
-            # Save the data
-            fname = common['scan_fpath'].split('/')[-1][:-4] + '_so2'
-            fpath = common['fpath'] + 'so2/' + fname
+            # Form the path to the directory
+            if save_path == None:
+                save_path = common['fpath'] + 'so2/'
+
+            # Extract the file name and save the data
+            fname = scan_path.split('/')[-1][:-4] + '_so2'
+            fpath = save_path + fname
             
             # Try to save in the parquet format
             try:
@@ -285,16 +309,21 @@ def read_scan_so2(fpath):
 #=============================== Calc Scan Flux ===============================
 #==============================================================================
 
-def calc_scan_flux(fpath, windspeed = 10, height = 1000, plume_type = 'flat'):
+def calc_scan_flux(angles, so2_amt, windspeed = 10, height = 1000, 
+                   plume_type = 'flat'):
 
     '''
     Function to calculate the SO2 flux from a scan. Either assumes all SO2 is 
-    at the same altitude or that it is contained within a cylindrical plume
+    at the same distance from the scanner or at a fixed altitude
 
     **Parameters:**
         
-    fpath : str
-        File path to the scan so2 file
+    angles : list or array
+        The angle of each measurement in a scan
+        
+    so2_amt : list or array
+        The retrieved SO2 SCD in molecules/cm2 for each measurement. Must have 
+        the same length as angles
 
     windspeed : float (optional)
         The wind speed used to calculate the flux in m/s (default is 10 m/s)
@@ -324,9 +353,6 @@ def calc_scan_flux(fpath, windspeed = 10, height = 1000, plume_type = 'flat'):
         raise Exception('Plume type not recognised. Must be one of "flat", ' +\
                         '"cylinder" or "arc"')
 
-    # Read in scan data
-    angles, so2_amt = read_scan_so2(fpath)
-
     # Convert the angles to radians
     phi = [radians(a) for a in angles]
 
@@ -352,9 +378,12 @@ def calc_scan_flux(fpath, windspeed = 10, height = 1000, plume_type = 'flat'):
 
         # Calculate the so2 mass in each spectrum
         arc_so2 = [x/2 * (so2_amt[n+1] + so2_amt[n]) for n, x in enumerate(dx)]
+        
+    # Mask any nans
+    masked_arc_so2 = np.ma.masked_invalid(arc_so2)
 
     # Sum the so2 in the scan
-    total_so2 = np.sum(arc_so2)
+    total_so2 = np.sum(masked_arc_so2)
 
     # Convert from molecules/cm to moles/m
     so2_moles = total_so2 * 1.0e4 / 6.022e23

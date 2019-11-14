@@ -263,5 +263,5 @@ def acquire_scan(Scanner, Spectrometer, common, settings):
 
     np.save(fpath, scan_data.astype('float16'))
 
-    # Return the filepath to the save scan
+    # Return the filepath to the saved scan
     return fpath

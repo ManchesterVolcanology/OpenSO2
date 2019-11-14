@@ -21,11 +21,10 @@ import matplotlib.gridspec as gridspec
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
 from openso2.program_setup import get_station_info, update_resfp
-from openso2.station_com import Station, sync_station
+from openso2.station_com import Station, sync_station, get_station_status
 from openso2.analyse_scan import calc_scan_flux, calc_plume_height, get_wind, read_scan_so2
 from openso2.julian_time import hms_to_julian
 from openso2.gui_funcs import update_graph, make_input
-from openso2.station_status import get_station_status
 
 # Define some fonts to use in the program
 NORM_FONT = ('Verdana', 8)
@@ -272,7 +271,8 @@ class mygui(tk.Tk):
 #===================== Add widjets to the station pages =======================
 #==============================================================================
 
-        # Create dictionaries to hold the corresponding widgets for each station
+        # Create dictionaries to hold the corresponding widgets for each 
+        #  station
         self.station_widjets = {}
 
         for station in self.station_info.keys():
@@ -443,7 +443,7 @@ class mygui(tk.Tk):
                         lines = r.readlines()
                         last_log = lines[-1]
 
-                    self.text_out(f'{name} station: ERROR: {last_log}')
+                    self.text_out(f'{name} station: ERROR:\n{last_log}')
 
             # Update status indicator
             self.status.set('Standby')
@@ -489,8 +489,10 @@ class mygui(tk.Tk):
 
                         # Update the results file
                         with open(self.flux_fpaths[s], 'a') as a:
-                            a.write(str(scan_timestamp.time()) + ',' + str(wind_speed) + \
-                                    ',' + str(plume_height) + ',' + str(flux) + '\n')
+                            a.write(str(scan_timestamp.time()) + ',' + \
+                                    str(wind_speed) + ',' + \
+                                    str(plume_height) + ',' + \
+                                    str(flux) + '\n')
 
                     if len(new_fnames) != 0:
 
@@ -498,8 +500,14 @@ class mygui(tk.Tk):
                         y_lim = [1.1 * (max(self.fluxes[s])),
                                  1.1 * (max(self.heights)),
                                  1.1 * (max(self.speeds))]
-                        data = np.array(([self.times[s],self.fluxes[s],'auto',[0,y_lim[0]]],
-                                         [scan_angles,  so2_cd,        'auto', 'auto'     ]))
+                        data = np.array(([self.times[s],
+                                          self.fluxes[s],
+                                          'auto',
+                                          [0,y_lim[0]]],
+                                          [scan_angles,
+                                          so2_cd,
+                                          'auto',
+                                          'auto']))
                         lines = [self.flux_lines[s], self.cd_line]
                         axes  = [self.ax0, self.ax1]
                         update_graph(lines, axes, self.canvas, data)
