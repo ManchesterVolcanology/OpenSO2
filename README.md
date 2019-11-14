@@ -29,8 +29,8 @@ This script goes through several steps to ensure the WittyPi2 board will operate
 ```
 BEGIN 2018-01-01 06:00:00
 END   2050-01-01 23:59:59
-ON    12H
-OFF   12H
+ON    H12
+OFF   H12
 ```
 This script tells the wittyPi board to turn the Pi on from 6:00 to 18:00 everyday. Not that this is UTC, so the ```BEGIN``` time will require adjusting for the local time zone. The script is then activated by running
 ```
