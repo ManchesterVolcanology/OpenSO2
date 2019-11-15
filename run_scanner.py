@@ -1,4 +1,4 @@
-#!/home/pi/berryconda3/bin/python
+#!/usr/bin/python3.7
 
 import os
 import sys
