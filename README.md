@@ -6,18 +6,19 @@ The Open SO<sub>2</sub> scanner uses open source software written in Python to c
 
 This guide will outline the steps to installing the necessary software onto the Raspberry Pi.
 
-### Python - Anaconda
-Python is already installed on the Raspberry Pi, but Anaconda is recommended for the spectrometer control. For the Raspberry Pi a version called Berryconda is used, which can be downloaded [here](https://github.com/jjhelmus/berryconda). Python 3 should be used. Be sure to add anaconda to PATH.
+### Python
+OpenSO<sub>2</sub> is written in Python3. Usually Raspbian will come with both a Python2 and Python3, so make sure you use Python3 (and pip3) as the default is likely Python2.
 
 ### Python Seabreeze
 The Ocean Optics spectrometer is controlled using a Python library called Python Seabreeze, which is maintained on GitHub [here](https://github.com/ap--/python-seabreeze). The library is installed using:
 ```
-conda install –c poehlmann python-seabreeze 
+pip3 install seabreeze 
 ```
-The udev rules must then be downloaded from [here](https://github.com/ap--/python-seabreeze/blob/master/misc/10-oceanoptics.rules) and saved into the ```/etc/udev/rules.d/``` directory and updated using:
+To allow the RPi to talk to the spectrometer the udev rules must updated using:
 ```
-sudo udevadm control –reload-rules
+seabreeze_os_setup
 ```
+Note that you may have to close and open the terminal before running this command.
 
 ### WittyPi 2 HAT
 The power to the Pi is controlled using the WittyPi2 HAT. This controls when the Pi powers down and up to save electricity while it is dark. Details can be found [here](http://www.uugear.com/doc/WittyPi2_UserManual.pdf). To install the required software use the following commands from the home directory (NOTE! it is strongly suggested that this is done before mounting the WittyPi2 board):
@@ -43,23 +44,23 @@ There is an issue with using the WittyPi software when using Raspian with NOOBS.
 ### Adafruit Motor HAT
 Control of the stepper motor in the scanner is achieved using this HAT. Details can be found [here](https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/installing-circuitpython-on-raspberry-pi). To operate first you need to install Adafruit Blinka following these steps:
 ```
-pip install –upgrade setuptools
+pip3 install –upgrade setuptools
 ```
 Next enable I2C and SPI and reboot. Then run the following commands:
 ```
-pip install RPI.GPIO
-pip install adafruit-blinka
+pip3 install RPI.GPIO
+pip3 install adafruit-blinka
 ```
 Then install the circuit python library for motor control
 ```
-pip install adafruit-circuitpython-motorkit
+pip3 install adafruit-circuitpython-motorkit
 ```
 
 ### GPS
 To obtain the GPS information requires the GPS module in python as well as GSPD to talk to the GPS device. To install these run:
 ```
 sudo apt-get install gpsd gpsd-clients
-pip install gps
+pip3 install gps
 ```
 Open SO<sub>2</sub> also changes the RTC time of the wittyPi board to make sure that the board time matches the system time of the Pi when connected to the GPS. This requires the ```system_to_rtc.sh``` file to be placed in the wittyPi folder. Make sure it is executeable with ```chmod +x system_to_rtc.sh```
 
