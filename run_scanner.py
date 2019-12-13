@@ -1,4 +1,4 @@
-#!/home/pi/berryconda3/bin/python
+#!/usr/bin/python3.7
 
 import os
 import sys
@@ -222,7 +222,8 @@ if __name__ == '__main__':
         if len(processes) <= 2:
 
             # Create new process to handle fitting of the last scan
-            p = Process(target = analyse_scan, args = common['scan_fpath'],
+            p = Process(target = analyse_scan, 
+                        args = [True, common['scan_fpath']],
                         kwargs = common)
 
             # Add to array of active processes
