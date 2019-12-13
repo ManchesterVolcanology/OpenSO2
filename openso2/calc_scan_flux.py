@@ -78,7 +78,8 @@ def calc_arc_radius(volc_loc, stat_info, plume_az, plume_height):
 #=============================== Calc Scan Flux ===============================
 #==============================================================================
 
-def calc_scan_flux(df, stat_info, volc_loc, windspeed, plume_az, plume_height):
+def calc_scan_flux(df, stat_info, volc_loc, windspeed, plume_az, plume_height,
+                   flux_units = 't/day'):
 
     '''
     Function to calculate the SO2 flux from a scan. Assumes all the gas is at a 
@@ -106,10 +107,6 @@ def calc_scan_flux(df, stat_info, volc_loc, windspeed, plume_az, plume_height):
                    in degrees clockwise form north of the start of the scan. 
                    Should be 0 - 360.
         
-    scan_az : float
-        The azimuth of the scanning plane, defined as the direction in degrees
-        clockwise form north of the start of the scan. Should be 0 - 360.
-        
     volc_loc : tuple of floats
         The coordinates of the volcano (or vent) in decimal degrees
 
@@ -121,6 +118,9 @@ def calc_scan_flux(df, stat_info, volc_loc, windspeed, plume_az, plume_height):
 
     plume_height : float
         The height of the plume in meters
+        
+    flux_units : str
+        The units to report the flux as. One of 't/day' or 'kg/s'
 
     **Returns:**
         
@@ -166,13 +166,17 @@ def calc_scan_flux(df, stat_info, volc_loc, windspeed, plume_az, plume_height):
 
     # Get flux in kg/s
     flux_kg_s = so2_kg * windspeed
-
-    # Convert to tonnes/day
-    flux = flux_kg_s * 1.0e-3 * 8.64e4
-    
+        
     # Calculate the error
     deltaA = np.average(np.abs(so2_errs)) / np.average(so2_amts)
+
+    if flux_units == 'kg/s':
+        flux = flux_kg_s
     
+    elif flux_units == 't/day':
+        flux = flux_kg_s * 1.0e-3 * 8.64e4
+        
+    # Calculate the flux error
     flux_err = flux * deltaA
 
     return flux, flux_err
