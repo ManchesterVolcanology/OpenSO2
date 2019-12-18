@@ -18,18 +18,18 @@ from openso2.fit import fit_spec
 def read_scan(fpath):
 
     '''
-    Function to read in a scan file in the Open SO2 format. Each line in the 
-    array consists of 2053 floats. The first five hold the spectrum information 
-    followed by the spectrum. The infomation is arranged as: 
+    Function to read in a scan file in the Open SO2 format. Each line in the
+    array consists of 2053 floats. The first five hold the spectrum information
+    followed by the spectrum. The infomation is arranged as:
         [spec_n, hour, minute, second, motor_pos]
 
     **Parameters:**
-        
+
     fpath : str
         File path to the scan file
 
     **Returns:**
-        
+
     err : bool
         Error flag to check for a read error
 
@@ -37,7 +37,7 @@ def read_scan(fpath):
         Wavelength grid of the spectrometer
 
     info : array
-        Acquisition info for each spectrum: 
+        Acquisition info for each spectrum:
             [spec_n, hour, minute, second, motor_pos]
 
     spec : array
@@ -87,23 +87,23 @@ def analyse_scan(scan_path, save_results = True, save_path = None, **common):
     Function to analyse a scan block
 
     **Parameters:**
-    
+
     scan_path : str
         File path to the scan file to analyse
 
     save_results : bool (default True)
         Flag whether or not to save the results. Turn False for post analysis.
-        
+
     save_path : str, optional, default None
         The directory in which to save the results. If None then the results
         are saved in a folders named "so2" in the same directory as the scan
         parent folder
-        
+
     common : dict
         Common dictionary of keyword parameters used by the program
 
     **Returns:**
-        
+
     fit_data : pandas.DataFrame
         DataFrame containing the fit metadata and results
 
@@ -112,14 +112,14 @@ def analyse_scan(scan_path, save_results = True, save_path = None, **common):
 
     # Read in the scan data
     err, x, info_block, spec_block = read_scan(scan_path)
-    
+
     # Set the column names for the output file
-    columns = ['time', 'motor_pos', 'angle', 'int_time', 'coads', 'w_lo', 
-               'w_hi', 'spec_max_int', 'fit_max_int', 'fit_quality', 'p0', 
-               'p0_e', 'p1', 'p1_e', 'p2', 'p2_e', 'p3', 'p3_e', 'shift', 
-               'shift_e', 'stretch', 'stretch_e', 'ring', 'ring_e', 'so2', 
+    columns = ['time', 'motor_pos', 'angle', 'int_time', 'coads', 'w_lo',
+               'w_hi', 'spec_max_int', 'fit_max_int', 'fit_quality', 'p0',
+               'p0_e', 'p1', 'p1_e', 'p2', 'p2_e', 'p3', 'p3_e', 'shift',
+               'shift_e', 'stretch', 'stretch_e', 'ring', 'ring_e', 'so2',
                'so2_e', 'no2', 'no2_e', 'o3', 'o3_e']
-    
+
     # Initialise the dataframe
     df = pd.DataFrame(index = np.arange(spec_block.shape[0]-1),
                       columns=columns)
@@ -146,7 +146,7 @@ def analyse_scan(scan_path, save_results = True, save_path = None, **common):
 
             # Convert motor position to angle
             angle = float(motor_pos) / common['steps_per_degree']
-            
+
             # Subtract the home offset
             angle -= common['home_offset']
 
@@ -158,7 +158,7 @@ def analyse_scan(scan_path, save_results = True, save_path = None, **common):
 
             # Fit the spectrum
             popt, perr, fitted_flag = fit_spec(common, [x, y], grid)
-            
+
             # Make the fit quality flag
             if max(y[common['idx']]) > 50000:
                 fit_quality = 0
@@ -170,25 +170,25 @@ def analyse_scan(scan_path, save_results = True, save_path = None, **common):
                 fit_quality = 0
             else:
                 fit_quality = 1
-            
+
             # Pull the fit metadata together
             fit_data = [
-                        start_time, 
+                        start_time,
                         motor_pos,
                         angle,
-                        int_time, 
-                        coadds, 
+                        int_time,
+                        coadds,
                         common['wave_start'],
-                        common['wave_stop'], 
-                        max(y), 
+                        common['wave_stop'],
+                        max(y),
                         max(y[common['idx']]),
                         fit_quality
                         ]
-            
+
             # Add the fit results to the metadata
             for i in range(len(popt)):
                 fit_data += [popt[i], perr[i]]
-                
+
             # Add to the dataframe
             df.iloc[n-1] = fit_data
 
@@ -207,11 +207,11 @@ def analyse_scan(scan_path, save_results = True, save_path = None, **common):
             # Extract the file name and save the data
             fname = scan_path.split('/')[-1][:-4] + '_so2'
             fpath = save_path + fname
-            
+
             # Try to save in the parquet format
             try:
                 df.to_parquet(fpath + '.parquet')
-             
+
             # Else save as a .csv
             except ImportError:
                 df.to_csv(fpath + '.csv')
@@ -225,11 +225,11 @@ def analyse_scan(scan_path, save_results = True, save_path = None, **common):
 def update_int_time(common, settings):
 
     '''
-    Function to calculate a new integration time based on the intensity of the 
+    Function to calculate a new integration time based on the intensity of the
     previous scan
 
     **Parameters:**
-        
+
     common : dict
         Common dictionary of parameters for the program
 
@@ -237,7 +237,7 @@ def update_int_time(common, settings):
         Dictionary of station settings
 
     **Returns:**
-        
+
     new_int_time : int
         New integration time for the next scan
     '''
@@ -280,12 +280,12 @@ def read_scan_so2(fpath):
     Function to read the so2 results file from a scan
 
     **Parameters:**
-        
+
     fpath : str
         File path to the scan results file
 
     **Returns:**
-        
+
     scan_angles : numpy array
         Scan angles
 
@@ -309,20 +309,20 @@ def read_scan_so2(fpath):
 #=============================== Calc Scan Flux ===============================
 #==============================================================================
 
-def calc_scan_flux(angles, so2_amt, windspeed = 10, height = 1000, 
+def calc_scan_flux(angles, so2_amt, windspeed = 10, height = 1000,
                    plume_type = 'flat'):
 
     '''
-    Function to calculate the SO2 flux from a scan. Either assumes all SO2 is 
+    Function to calculate the SO2 flux from a scan. Either assumes all SO2 is
     at the same distance from the scanner or at a fixed altitude
 
     **Parameters:**
-        
+
     angles : list or array
         The angle of each measurement in a scan
-        
+
     so2_amt : list or array
-        The retrieved SO2 SCD in molecules/cm2 for each measurement. Must have 
+        The retrieved SO2 SCD in molecules/cm2 for each measurement. Must have
         the same length as angles
 
     windspeed : float (optional)
@@ -333,17 +333,17 @@ def calc_scan_flux(angles, so2_amt, windspeed = 10, height = 1000,
 
     plume_type : str (optional)
         The type of plume. One of:
-            - 'flat' assumes all so2 is at the same altitude in a flat blanket. 
+            - 'flat' assumes all so2 is at the same altitude in a flat blanket.
               Good for wide plumes (default)
 
-            - 'cylinder' assumes the plume is cylindrical. Good for smaller 
+            - 'cylinder' assumes the plume is cylindrical. Good for smaller
                plumes. (not yet implemented)
 
-            - 'arc' puts the SO2 at a fixed distance from the scanner across 
+            - 'arc' puts the SO2 at a fixed distance from the scanner across
               the arc of the scan
 
     **Returns:**
-        
+
     flux : float
         The flux of SO2 passing through the scan in tonnes/day
     '''
@@ -364,7 +364,7 @@ def calc_scan_flux(angles, so2_amt, windspeed = 10, height = 1000,
         # Calculate the horizontal distance between the subsiquent scans
         dx = [height * (abs(tan(phi[n+1]) - tan(phi[n]))) for n in range(len(phi) - 1)]
 
-        # Multiply the average SO2 column density of each two subsiquent 
+        # Multiply the average SO2 column density of each two subsiquent
         #  spectra by the horizontal distance between them
         arc_so2 = [x * (corr_so2[n+1] + corr_so2[n]) / 2 for n, x in enumerate(dx)]
 
@@ -378,7 +378,7 @@ def calc_scan_flux(angles, so2_amt, windspeed = 10, height = 1000,
 
         # Calculate the so2 mass in each spectrum
         arc_so2 = [x/2 * (so2_amt[n+1] + so2_amt[n]) for n, x in enumerate(dx)]
-        
+
     # Mask any nans
     masked_arc_so2 = np.ma.masked_invalid(arc_so2)
 
@@ -410,10 +410,10 @@ def calc_plume_height(gui, station, scan_time):
     calculates it from two scans
 
     **Parameters:**
-        
+
     gui : tk.Tk
         The main GUI object
-        
+
     station : str
         Station name for which the scan is being
 
@@ -421,7 +421,7 @@ def calc_plume_height(gui, station, scan_time):
         The time of the scan in decimal hours UTC
 
     **Returns:**
-        
+
     plume_height : float
         The height of the plume in m a.s.l.
     '''
@@ -447,10 +447,9 @@ def get_wind(gui, scan_time):
 
     '''
     Function to get the wind speed.
-    ***Currently just returns 10 m/s as not configured***
 
     **Parameters:**
-        
+
     gui : tk.Tk
         The main GUI object
 
@@ -458,10 +457,10 @@ def get_wind(gui, scan_time):
         The time of the scan in decimal hours UTC
 
     **Returns:**
-        
+
     wind_speed : float
         The latest wind speed in m/s
-        
+
     wind_dir : float
         The latest wind bearing in degrees
     '''
@@ -474,7 +473,7 @@ def get_wind(gui, scan_time):
         wind_speed = gui.wind_speed.get()
         wind_dir   = gui.wind_dir.get()
 
-    # Pull wid=nd data from anenometer (NOT YET IMPLEMENTED)
+    # Pull wind data from anenometer (NOT YET IMPLEMENTED)
     if how_calc_wind == 'Pull':
         wind_speed = 1000
         wind_dir   = 0
@@ -491,12 +490,12 @@ def get_spec_details(fpath):
     Function to get spectrometer details given the FLAME network station name
 
     **Parameters:**
-        
+
     fpath : str
         Filename of the spectra block, containing the station name
 
     **Returns:**
-        
+
     scanner : str
         Scanner station name
 

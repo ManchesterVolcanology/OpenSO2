@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Module to control communication between the home computer and the scanning 
+Module to control communication between the home computer and the scanning
 stations.
 """
 
@@ -14,7 +14,7 @@ from paramiko.ssh_exception import SSHException
 class Station:
 
     '''
-    Creates a Station object which is used by the home station to communicate 
+    Creates a Station object which is used by the home station to communicate
     with the scaning station
 
     **Parameters:**
@@ -54,7 +54,7 @@ class Station:
             File path to the remote folder
 
         **Returns:**
-        
+
         new_fnames : list
             List of synced file name strings
         '''
@@ -76,7 +76,7 @@ class Station:
                 # Get the file names in the remote directory
                 remote_files = sftp.listdir(remote_dir)
 
-                # Iterate through and copy any that are missing in the host 
+                # Iterate through and copy any that are missing in the host
                 #  directory
                 for fname in remote_files:
 
@@ -111,7 +111,7 @@ class Station:
         Function to pull the station status
 
         **Parameters:**
-        
+
         cinfo : dict
             Contains the connection parameters:
                 - host: IP address of the remote server
@@ -119,7 +119,7 @@ class Station:
                 - password: Password for the remote server
 
         **Returns:**
-        
+
         status : dict
             Dictionary containing the status of the station
         '''
@@ -167,16 +167,16 @@ class Station:
         FILE
 
         **Parameters:**
-        
+
         None
 
         **Returns:**
-        
+
         last_log : str
             The last log entry in the log file
 
         err : tuple
-            Consists of the error flag (True is an error occured) and the error 
+            Consists of the error flag (True is an error occured) and the error
             message
         '''
 
@@ -194,9 +194,9 @@ class Station:
 
                 # Get the date to find the correct log file
                 date = dt.now().date()
-                
+
                 # Get the status file
-                sftp.get(f'/home/pi/open_so2/Results/{date}/{date}.log', 
+                sftp.get(f'/home/pi/open_so2/Results/{date}/{date}.log',
                          f'Results/{date}/{date}.log')
 
             # Successful read
@@ -219,7 +219,7 @@ def sync_station(station, local_dir, remote_dir, queue):
     Function to sync the status and files of a station
 
     **Parameters:**
-        
+
     station : Station object
         The station object which will be synced
 
@@ -233,7 +233,7 @@ def sync_station(station, local_dir, remote_dir, queue):
         The queue in which to put the outputs
 
     **Returns:**
-        
+
     name : str
         Name of the station so it can be identified in the queue
 
@@ -273,20 +273,20 @@ def sync_station(station, local_dir, remote_dir, queue):
 #==============================================================================
 
 def get_station_status(gui, station):
-    
+
     '''
     Function to retrieve the status of a station.
-    
+
     **Parameters:**
-   
+
     gui : tk.Tk GUI
         GUI object containing the program interface
-    
+
     station : string
         Name of the station
-        
+
     **Returns:**
-    
+
     None
     '''
 
@@ -296,4 +296,46 @@ def get_station_status(gui, station):
     gui.station_widjets[station]['status_time'].set(time[:-7])
     gui.station_widjets[station]['status'].set(status)
 
+#==============================================================================
+#================================ Sync Station ================================
+#==============================================================================
 
+def sync_psudostation(station, local_dir, remote_dir, queue):
+
+    from shutil import copy2
+
+    remote_dir = '../psudoscanner/Results/so2/'
+
+    # Check station name
+    name = station.name
+
+    status_time = '12:00:00'
+    status_msg = 'testing'
+    err = [False, '']
+
+    local_files = glob.glob(local_dir + '*')
+    remote_files = glob.glob(remote_dir + '*')
+
+    local_files.sort()
+    remote_files.sort()
+
+    local_files = [fn.split('\\')[-1] for fn in local_files]
+    remote_files = [fn.split('\\')[-1] for fn in remote_files]
+
+    synced_fnames = []
+
+    # Iterate through and copy any that are missing in the host
+    #  directory
+    for fname in remote_files:
+
+        # Check if in the local directory
+        if fname not in local_files:
+
+            # Copy the file across
+            copy2(remote_dir + fname, local_dir + fname)
+
+            # Add file list
+            synced_fnames.append(fname)
+
+    # Place the results as a list in the queue
+    queue.put([name, status_time, status_msg, synced_fnames, err])
