@@ -19,7 +19,8 @@ import tkinter.messagebox as tkMessageBox
 from multiprocessing import Process, Queue
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg,
+                                               NavigationToolbar2Tk)
 
 from openso2.program_setup import get_station_info, update_resfp
 from openso2.station_com import Station, sync_psudostation, get_station_status
@@ -30,18 +31,21 @@ from openso2.gui_funcs import update_graph, make_input
 
 # Define some fonts to use in the program
 NORM_FONT = ('Verdana', 8)
-MED_FONT  = ('Veranda', 11)
+MED_FONT = ('Veranda', 11)
 LARG_FONT = ('Verdana', 12, 'bold')
 
-#==============================================================================
-#------------------------------------------------------------------------------
-#=========================== Set up logging handler ===========================
-#------------------------------------------------------------------------------
-#==============================================================================
+
+# =============================================================================
+# -----------------------------------------------------------------------------
+# Set up logging handler
+# -----------------------------------------------------------------------------
+# =============================================================================
 
 class TextHandler(logging.Handler):
+    """Handle logging."""
 
     def __init__(self, text, gui):
+        """Initialise TextHandler."""
 
         # Run the regular Handler __init__
         logging.Handler.__init__(self)
@@ -67,13 +71,16 @@ class TextHandler(logging.Handler):
         # Force the gui to update
         self.gui.update()
 
+
 class mygui(tk.Tk):
+    """Some Docs."""
 
     def __init__(self, *args, **kwargs):
+        """Some Docs."""
 
-#==============================================================================
-#============================ Build GUI Containers ============================
-#==============================================================================
+# =============================================================================
+# Build GUI Containers
+# =============================================================================
 
         # Create GUI in the backend
         tk.Tk.__init__(self, *args, **kwargs)
@@ -90,7 +97,7 @@ class mygui(tk.Tk):
         # Add a title and icon
         tk.Tk.wm_title(self, 'Open SO2 v1.0 - Home Station')
         try:
-            tk.Tk.iconbitmap(self, default = 'data_bases/icon.ico')
+            tk.Tk.iconbitmap(self, default='data_bases/icon.ico')
         except tk.TclError:
             pass
 
@@ -104,66 +111,66 @@ class mygui(tk.Tk):
                                              station)
 
         # Create dicionaries to hold the flux results, plume height and speed
-        self.times   = {}
-        self.fluxes  = {}
-        self.wtimes  = []
+        self.times = {}
+        self.fluxes = {}
+        self.wtimes = []
         self.heights = []
-        self.speeds  = []
+        self.speeds = []
 
         # Populate the flux dictionaries with arrays for each staiton
         for station in self.station_info.keys():
-            self.times[station]   = []
-            self.fluxes[station]  = []
+            self.times[station] = []
+            self.fluxes[station] = []
 
         # Create notebook to hold overview and station info pages
         nb = ttk.Notebook(self)
 
         # Add overview page
         overview_page = ttk.Frame(nb)
-        nb.add(overview_page, text = 'Overview')
+        nb.add(overview_page, text='Overview')
 
         # Add station pages
         station_page = {}
         for station in self.station_info.keys():
 
             station_page[station] = ttk.Frame(nb)
-            nb.add(station_page[station], text = station)
+            nb.add(station_page[station], text=station)
 
         # Add the notebook to the GUI
-        nb.grid(column=0, padx=10, pady=5, sticky = 'NW')
+        nb.grid(column=0, padx=10, pady=5, sticky='NW')
 
-        mygui.columnconfigure(index = 1, weight = 1, self = self)
-        mygui.rowconfigure(index = 5, weight = 1, self = self)
+        mygui.columnconfigure(index=1, weight=1, self=self)
+        mygui.rowconfigure(index=5, weight=1, self=self)
 
-#==============================================================================
-#============================= Add global widgets =============================
-#==============================================================================
+# =============================================================================
+# Add global widgets
+# =============================================================================
 
-#================================ Graph Frame =================================
+# =============================== Graph Frame =================================
 
         # Create frame to hold graphs
-        graph_frame = ttk.Frame(self, relief = 'groove')
+        graph_frame = ttk.Frame(self, relief='groove')
         graph_frame.grid(row=0, column=1, padx=10, pady=10, sticky="NW")
-        graph_frame.columnconfigure(index = 0, weight = 1)
-        graph_frame.rowconfigure(index = 0, weight = 1)
+        graph_frame.columnconfigure(index=0, weight=1)
+        graph_frame.rowconfigure(index=0, weight=1)
 
         # Create figure to hold the graphs
         plt.rcParams.update({'font.size': 8})
-        self.fig = plt.figure(figsize = (8, 5))
+        self.fig = plt.figure(figsize=(8, 5))
         gs = gridspec.GridSpec(2, 2)
 
         # Create plot axes
-        self.ax0 = self.fig.add_subplot(gs[0,:])
-        self.ax1 = self.fig.add_subplot(gs[1,0])
-        self.ax2 = self.fig.add_subplot(gs[1,1])
+        self.ax0 = self.fig.add_subplot(gs[0, :])
+        self.ax1 = self.fig.add_subplot(gs[1, 0])
+        self.ax2 = self.fig.add_subplot(gs[1, 1])
 
         # Set axis labels
-        self.ax0.set_xlabel('Time (decimal hours)', fontsize = 10)
-        self.ax0.set_ylabel('SO$_2$ Flux (t/day)',  fontsize = 10)
-        self.ax1.set_xlabel('Scan Angle (deg)',     fontsize = 10)
-        self.ax1.set_ylabel('SO2 CD (ppm.m)',       fontsize = 10)
-        self.ax2.set_xlabel('Time (decimal hours)', fontsize = 10)
-        self.ax2.set_ylabel('Wind Speed (m/s)',     fontsize = 10)
+        self.ax0.set_xlabel('Time (decimal hours)', fontsize=10)
+        self.ax0.set_ylabel('SO$_2$ Flux (t/day)',  fontsize=10)
+        self.ax1.set_xlabel('Scan Angle (deg)',     fontsize=10)
+        self.ax1.set_ylabel('SO2 CD (ppm.m)',       fontsize=10)
+        self.ax2.set_xlabel('Time (decimal hours)', fontsize=10)
+        self.ax2.set_ylabel('Wind Speed (m/s)',     fontsize=10)
 
         # Create lines for each station flux plot
         self.flux_lines = {}
@@ -182,20 +189,20 @@ class mygui(tk.Tk):
         plt.tight_layout()
 
         # Add legend
-        self.ax0.legend(loc = 0)
+        self.ax0.legend(loc=0)
 
         # Create the canvas to hold the graph in the GUI
         self.canvas = FigureCanvasTkAgg(self.fig, graph_frame)
         self.canvas.draw()
-        self.canvas.get_tk_widget().grid(row=0, column=0, padx=10, pady = 10)
+        self.canvas.get_tk_widget().grid(row=0, column=0, padx=10, pady=10)
 
         # Add matplotlib toolbar above the plot canvas
-        toolbar_frame = tk.Frame(graph_frame, bg = 'black')
-        toolbar_frame.grid(row=1,column=0, sticky = 'W', padx = 5, pady = 5)
+        toolbar_frame = tk.Frame(graph_frame, bg='black')
+        toolbar_frame.grid(row=1, column=0, sticky='W', padx=5, pady=5)
         toolbar = NavigationToolbar2Tk(self.canvas, toolbar_frame)
         toolbar.update()
 
-#============================= Set up text output =============================
+# ============================ Set up text output =============================
 
         # Create frame to hold text output
         text_frame = ttk.Frame(self)
@@ -223,45 +230,45 @@ class mygui(tk.Tk):
         logger = logging.getLogger()
         logger.addHandler(text_handler)
 
-#==============================================================================
-#========================== Add widjets to overview ===========================
-#==============================================================================
+# =============================================================================
+# Add widjets to overview
+# =============================================================================
 
-#=============================== Sync Controls ================================
+# ============================== Sync Controls ================================
 
         # Create frame
-        sync_frame = tk.LabelFrame(overview_page, text = 'Sync Settings',
-                                   font = LARG_FONT)
+        sync_frame = tk.LabelFrame(overview_page, text='Sync Settings',
+                                   font=LARG_FONT)
         sync_frame.grid(row=0, column=0, padx=10, pady=10, sticky="NW")
 
         # Ceate input for the results filepath
-        self.res_fpath = tk.StringVar(value = 'Results/')
-        res_fpath_ent = tk.Entry(sync_frame, font = NORM_FONT, width = 30,
-                                 text = self.res_fpath)
-        res_fpath_ent.grid(row = 0, column = 0, padx = 5, pady = 5,
-                           sticky = 'W', columnspan = 2)
-        res_fpath_b = ttk.Button(sync_frame, text = "Browse",
-                                 command = lambda: update_resfp(self))
-        res_fpath_b.grid(row = 0, column = 2, padx = 5, pady = 5, sticky = 'W')
+        self.res_fpath = tk.StringVar(value='Results/')
+        res_fpath_ent = tk.Entry(sync_frame, font=NORM_FONT, width=30,
+                                 text=self.res_fpath)
+        res_fpath_ent.grid(row=0, column=0, padx=5, pady=5,
+                           sticky='W', columnspan=2)
+        res_fpath_b = ttk.Button(sync_frame, text="Browse",
+                                 command=lambda: update_resfp(self))
+        res_fpath_b.grid(row=0, column=2, padx=5, pady=5, sticky='W')
 
         # Create control for the control loop speed
-        self.loop_speed = tk.IntVar(value = 5)
-        make_input(frame = sync_frame,
-                   text = 'Sync Delay (s):',
-                   var = self.loop_speed,
-                   input_type = 'Spinbox',
-                   row = 1, column = 0,
-                   vals = (1, 600),
-                   width = 10)
+        self.loop_speed = tk.IntVar(value=5)
+        make_input(frame=sync_frame,
+                   text='Sync Delay (s):',
+                   var=self.loop_speed,
+                   input_type='Spinbox',
+                   row=1, column=0,
+                   vals=(1, 600),
+                   width=10)
 
         # Create status indicator
-        self.status = tk.StringVar(value = 'Standby')
-        self.status_e = tk.Label(sync_frame, textvariable = self.status,
+        self.status = tk.StringVar(value='Standby')
+        self.status_e = tk.Label(sync_frame, textvariable=self.status,
                                  fg='red')
         self.status_e.grid(row=1, column=2, padx=5, pady=5, sticky="EW")
         self.status_col = 'red'
 
-#=============================== Flux Controls ================================
+# ============================== Flux Controls ================================
 
         # Create Frame
         flux_frame = tk.LabelFrame(overview_page, text = 'Flux Settings',

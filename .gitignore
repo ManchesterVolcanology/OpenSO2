@@ -6,6 +6,10 @@ _templates
 # Results file
 Results/
 
+# Scratch files
+*scratch*
+*Scratch*
+
 # Temp files
 tmp*
 

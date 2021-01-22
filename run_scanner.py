@@ -2,50 +2,52 @@
 
 import os
 import sys
-import numpy as np
 import time
-import seabreeze.spectrometers as sb
-from multiprocessing import Process
-import datetime
 import logging
+import numpy as np
+from datetime import datetime
+from multiprocessing import Process
+
+from ifit.Parameters import Parameters
+from ifit.spectral_analysis import Analyser
+from ifit.spectrometers import Spectrometer
 
 from openso2.scanner import Scanner, acquire_scan
 from openso2.analyse_scan import analyse_scan, update_int_time
 from openso2.call_gps import sync_gps_time
 from openso2.program_setup import read_settings
 from openso2.julian_time import hms_to_julian
-from openso2.make_ils import make_ils
 
-#==============================================================================
-#=============================== Set up logging ===============================
-#==============================================================================
+# =============================================================================
+# Set up logging
+# =============================================================================
 
 # Get the date
-dt = datetime.datetime.now()
-datestamp = str(dt.date())
+datestamp = datetime.now().date()
 
 # Create results folder
-fpath = 'Results/' + datestamp + '/'
-if not os.path.exists(fpath + 'so2/'):
-    os.makedirs(fpath + 'so2/')
-if not os.path.exists(fpath + 'spectra/'):
-    os.makedirs(fpath + 'spectra/')
+results_fpath = f'Results/{datestamp}/'
+if not os.path.exists(results_fpath + 'so2/'):
+    os.makedirs(results_fpath + 'so2/')
+if not os.path.exists(results_fpath + 'spectra/'):
+    os.makedirs(results_fpath + 'spectra/')
 
 # Create log name
-logname = f'{fpath}{datestamp}.log'
+logname = f'{results_fpath}{datestamp}.log'
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
 # Create the logger
 logging.basicConfig(filename=logname,
-                    filemode = 'a',
-                    format = log_fmt,
-                    level = logging.INFO)
+                    filemode='a',
+                    format=log_fmt,
+                    level=logging.INFO)
 
 logger = logging.getLogger(__name__)
 
-#==============================================================================
-#============================= Set up status log ==============================
-#==============================================================================
+
+# =============================================================================
+# Set up status log
+# =============================================================================
 
 def log_status(status):
 
@@ -60,125 +62,88 @@ def log_status(status):
             w.write(f'{time_str} - {status}')
 
     except Exception:
-        logger.warning('Failed to update status file', exc_info = True)
+        logger.warning('Failed to update status file', exc_info=True)
+
 
 # Create handler to log any exceptions
 def my_handler(*exc_info):
     log_status('Error')
-    logger.exception(f'Uncaught exception!', exc_info = exc_info)
+    logger.exception('Uncaught exception!', exc_info=exc_info)
+
 
 sys.excepthook = my_handler
 
-#==============================================================================
-#=========================== Begin the main program ===========================
-#==============================================================================
+# =============================================================================
+# Begin the main program
+# =============================================================================
 
 if __name__ == '__main__':
 
     log_status('Idle')
     logger.info('Station awake')
 
-#==============================================================================
-#====================== Create common and settings dicts ======================
-#==============================================================================
-
-    # Create an empty dictionary to hold the comon parameters
-    common = {'fpath': fpath}
-
-    # Read in the station operation settings file
-    settings = read_settings('data_bases/station_settings.txt')
-
-#==============================================================================
-#=============================== Sync GPS Time ================================
-#==============================================================================
+# =============================================================================
+#   Program setup
+# =============================================================================
 
     # Sync time with the GPS
     sync_gps_time()
 
-#==============================================================================
-#======================== Connect to the spectrometer =========================
-#==============================================================================
+    # Read in the station operation settings file
+    settings = read_settings('Station/station_settings.txt')
 
-    # Find connected spectrometers
-    devices = sb.list_devices()
+    spectro = Spectrometer(integration_time=settings['start_int_time'],
+                           coadds=settings['start_coadds'])
 
-    # Connect to spectrometer
-    spec = sb.Spectrometer(devices[0])
+# =============================================================================
+#   Set up iFit analyser
+# =============================================================================
 
-    # Set intial integration time
-    common['spec_int_time'] = settings['start_int_time']
-    spec.integration_time_micros(common['spec_int_time'] * 1000)
+    # Create parameter dictionary
+    params = Parameters()
 
-    # Record serial number in settings
-    settings['Spectrometer'] = str(spec.serial_number)
-    logging.info('Spectrometer ' + settings['Spectrometer'] + ' Connected')
+    # Add the gases
+    params.add('SO2',  value=1.0e16, vary=True, xpath='Ref/SO2_295K.txt')
+    params.add('O3',   value=1.0e19, vary=True, xpath='Ref/O3_243K.txt')
+    params.add('Ring', value=0.1,    vary=True, xpath='Ref/Ring.txt')
 
-#==============================================================================
-#============================ Read in ref spectra =============================
-#==============================================================================
+    # Add background polynomial parameters
+    params.add('bg_poly0', value=0.0, vary=True)
+    params.add('bg_poly1', value=0.0, vary=True)
+    params.add('bg_poly2', value=0.0, vary=True)
+    params.add('bg_poly3', value=1.0, vary=True)
 
-    # Set the fit window
-    common['wave_start'] = 310
-    common['wave_stop']  = 320
+    # Add intensity offset parameters
+    params.add('offset0', value=0.0, vary=True)
 
-    # Read in reference spectra
-    grid, so2_xsec = np.loadtxt('data_bases/Ref/so2.txt',  unpack = True)
-    grid, o3_xsec  = np.loadtxt('data_bases/Ref/o3.txt',   unpack = True)
-    grid, no2_xsec = np.loadtxt('data_bases/Ref/no2.txt',  unpack = True)
-    grid, sol      = np.loadtxt('data_bases/Ref/sol.txt',  unpack = True)
-    grid, ring     = np.loadtxt('data_bases/Ref/ring.txt', unpack = True)
+    # Add wavelength shift parameters
+    params.add('shift0', value=0.0, vary=True)
+    params.add('shift1', value=0.1, vary=True)
 
-    # Extract the fit window
-    fit_idx = np.where(np.logical_and(grid > common['wave_start'] - 2,
-                                      grid < common['wave_stop'] + 2))
+    # Generate the analyser
+    analyser = Analyser(params,
+                        fit_window=[310, 320],
+                        frs_path='Ref/sao2010.txt',
+                        flat_flag=True,
+                        flat_path=f'Station/{spectro.serial_number}_flat.txt',
+                        stray_flag=True,
+                        stray_window=[280, 290],
+                        dark_flag=True,
+                        ils_type='Params',
+                        ils_path=f'Station/{spectro.serial_number}_ils.txt')
 
-    # Set the model grid
-    common['model_grid'] = grid[fit_idx]
-    common['so2_xsec']   = so2_xsec[fit_idx]
-    common['o3_xsec']    = o3_xsec[fit_idx]
-    common['no2_xsec']   = no2_xsec[fit_idx]
-    common['sol']        = sol[fit_idx]
-    common['ring']       = ring[fit_idx]
+    # Read in the wavelength calibration
+    wl_calib = np.loadtxt(f'Station/{spectro.serial_number}_wl_calib.txt')
 
-    # Get spectrometer flat spectrum
-    x, flat = np.loadtxt(f'data_bases/Ref/flat_{settings["Spectrometer"]}.txt',
-                         unpack = True)
-    idx = np.where(np.logical_and(x > common['wave_start'], 
-                                  x < common['wave_stop']))
-    common['flat'] = flat[idx]
-
-    # Get spectrometer ILS
-    #ils_fpath = f'data_bases/Ref/ils_{settings["Spectrometer"]}.txt'
-    #common['ils'] = np.loadtxt(ils_fpath)
-    
-    ils_fpath = f'data_bases/Ref/ils_params_{settings["Spectrometer"]}.txt'
-    FWHM, k, a_w, a_k = np.loadtxt(ils_fpath)
-    common['ils'] = make_ils(0.01, FWHM, k, a_w, a_k)
-
-    # Set first guess for parameters
-    common['params'] = [1.0, 1.0, 1.0, 1.0, -0.2, 0.05, 1.0, 1.0e16, 1.0e17, 
-                        1.0e19]
-
-    # Set the station name
-    common['station_name'] = settings['station_name']
-
-    # Set the station motor details and add to the common
-    common['steps_per_degree'] = settings['steps_per_degree']
-    common['home_offset'] = settings['home_offset']
-
-    # Create loop counter
-    common['scan_no'] = 0
+# =============================================================================
+#   Begin the scanning loop
+# =============================================================================
 
     # Create list to hold active processes
     processes = []
 
-#==============================================================================
-#========================== Begin the scanning loop ===========================
-#==============================================================================
-
     # Get time and convert to julian time
-    timestamp = datetime.datetime.now()
-    jul_t = hms_to_julian(timestamp)
+    jul_t = hms_to_julian(datetime.now())
 
     # If before scan time, wait
     if jul_t < settings['start_time']:
@@ -191,40 +156,52 @@ if __name__ == '__main__':
             time.sleep(10)
 
             # Update time
-            timestamp = datetime.datetime.now()
-            jul_t = hms_to_julian(timestamp)
+            jul_t = hms_to_julian(datetime.now())
 
     # Connect to the scanner
-    scanner = Scanner(step_type = settings['step_type'])
+    scanner = Scanner(step_type=settings['step_type'])
+
+    # Create a scan counter
+    scan_no = 0
 
     # Begin loop
     while jul_t < settings['stop_time']:
 
         # Log status change and scan number
         log_status('Active')
-        logging.info('Begin scan ' + str(common['scan_no']))
+        logging.info(f'Begin scan {scan_no}')
 
         # Scan!
-        common['scan_fpath'] = acquire_scan(scanner, spec, common, settings)
+        scan_fname = acquire_scan(scanner, spectro, settings)
 
         # Log scan completion
-        logging.info('Scan ' + str(common['scan_no']) + ' complete')
+        logging.info(f'Scan {scan_no} complete')
 
         # Update the spectrometer integration time
-        common['spec_int_time'] = update_int_time(common, settings)
-        spec.integration_time_micros(common['spec_int_time'] * 1000)
+        new_int_time = update_int_time(scan_fname, spectro.integration_time,
+                                       settings)
+        spectro.update_integration_time(new_int_time)
 
         # Clear any finished processes from the processes list
-        processes = [pro for pro in processes if pro.is_alive()]
+        processes = [p for p in processes if p.is_alive()]
 
-        # Check the number of processes. If there are more than two then don't 
+        # Check the number of processes. If there are more than two then don't
         #  start another to prevent too many processes running at once
         if len(processes) <= 2:
 
+            # Log the start of the scan analysis
+            logging.info(f'Start scan {scan_no} analysis')
+
+            # Build the save filename
+            if settings['save_format'] == 'numpy':
+                file_end = '.npy'
+            elif settings['save_format'] == 'csv':
+                file_end = '.csv'
+            save_fname = f'{results_fpath}/{scan_fname[:-3]}{file_end}'
+
             # Create new process to handle fitting of the last scan
-            p = Process(target = analyse_scan, 
-                        args = [True, common['scan_fpath']],
-                        kwargs = common)
+            p = Process(target=analyse_scan,
+                        args=[scan_fname, analyser, wl_calib, save_fname])
 
             # Add to array of active processes
             processes.append(p)
@@ -234,16 +211,14 @@ if __name__ == '__main__':
 
         else:
             # Log that the process was not started
-            msg = f"Too many processes running, " + \
-                  f"scan {common['scan_no']} not analysed"
+            msg = f"Too many processes running, scan {scan_no} not analysed"
             logging.warning(msg)
 
         # Update the scan number
-        common['scan_no'] += 1
+        scan_no += 1
 
         # Update time
-        timestamp = datetime.datetime.now()
-        jul_t = hms_to_julian(timestamp)
+        jul_t = hms_to_julian(datetime.now())
 
     # Release the scanner to conserve power
     scanner.motor.release()

@@ -3,40 +3,51 @@
 Module to control the scanner head.
 """
 
-import numpy as np
 import logging
 import datetime
 import atexit
 import time
+import numpy as np
 try:
     import board
     import digitalio
     from adafruit_motorkit import MotorKit
     from adafruit_motor import stepper
 except ImportError:
-    print('Failled to import Raspberry Pi modules')
+    logging.warning('Failed to import Raspberry Pi modules')
+
 
 class Scanner:
+    """Scanner class.
 
-    '''
-    Scanner class used to control the scanner head which consists of a stepper 
+    Control the scanner head which consists of a stepper
     motor and a microswitch
-
-    **Parameters:**
-        
-    uswitch_pin : int (optional)
-        The GPIO pin that connects to the microswitch. Default is 21
-
-    steptype : str
-        Stepping type. Must be one of:
-            - single;     single step (lowest power, default)
-            - double;     double step (more power but stronger)
-            - interleave; finer control, has double the steps of single
-            - micro;      slower but with much higher precision (8x)
-    '''
+    """
 
     # Initialise
-    def __init__(self, uswitch_pin = 21, step_type = 'single'):
+    def __init__(self, uswitch_pin=21, step_type='single', angle_per_step=1.8,
+                 home_angle=180):
+        """Initialise.
+
+        Parameters
+        ----------
+        uswitch_pin : int, optional
+            The GPIO pin that connects to the microswitch. Default is 21
+
+        steptype : str, optional
+            Stepping type. Must be one of:
+                - single;     single step (lowest power, default)
+                - double;     double step (more power but stronger)
+                - interleave; finer control, has double the steps of single
+                - micro;      slower but with much higher precision (8x)
+            Default is single
+
+        angle_per_step : float, optional
+            The angle checge with every step in degrees. Default is 1.8
+
+        home_angle : float, optional
+            The angular position (deg) of the scanner when home. Default is 180
+        """
 
         # Define the GPIO pins
         gpio_pin = {'4':  board.D4,
@@ -69,30 +80,23 @@ class Scanner:
             self.motor.release()
         atexit.register(release_motor)
 
-        # Set the motor position to zero
+        # Set the initial motor position and angle (assuming scanner is home)
         self.position = 0
+        self.home_angle = home_angle
+        self.angle = home_angle
+
+        # Define the angle change per step
+        self.angle_per_step = angle_per_step
 
         # Define the type of stepping
         self.step_type = step_type
 
-#==============================================================================
-#================================== Find Home =================================
-#==============================================================================
+# =============================================================================
+#   Find Home
+# =============================================================================
 
     def find_home(self):
-
-        '''
-        Function to rotate the scanner head to the home position
-
-        **Parameters:**
-
-        None
-
-        **Returns:**
-
-        None
-        '''
-
+        """Rotate the scanner head to the home position."""
         # First check if the switch is turned off (station is at home)
         while not self.uswitch.value:
 
@@ -106,36 +110,31 @@ class Scanner:
             i += 1
 
         # Log steps to home
-        logging.info('Steps to home: ' + str(i))
+        logging.info(f'Steps to home: {i}')
 
-        # Once home set the motor position to 0
+        # Once home set the motor position to 0 and set the home angle
         self.position = 0
+        self.angle = self.home_angle
 
-#==============================================================================
-#================================== Move Motor ================================
-#==============================================================================
+# =============================================================================
+#   Move Motor
+# =============================================================================
 
-    def step(self, steps = 1, direction = 'backward'):
+    def step(self, steps=1, direction='backward'):
+        """Move the motor by a given number of steps.
 
-        '''
-        Function to move the motor by a given number of steps
-
-        **Parameters:**
-
-        motor : motor object
-            The object for the stepper motor
-
+        Parameters
+        ----------
         steps : int
             Number of steps to move
 
         direction : str
             Stepping direction, either 'forward' or 'backward'
 
-        **Returns:**
-
+        Returns
+        -------
         None
-        '''
-
+        """
         # Set stepping mode dict
         step_mode = {'single':     stepper.SINGLE,
                      'double':     stepper.DOUBLE,
@@ -148,8 +147,8 @@ class Scanner:
 
         # Perform steps
         for i in range(steps):
-            self.motor.onestep(direction = step_dir[direction],
-                               style = step_mode[self.step_type])
+            self.motor.onestep(direction=step_dir[direction],
+                               style=step_mode[self.step_type])
 
             # Add a short rest between steps to improve accuracy
             time.sleep(0.01)
@@ -160,106 +159,121 @@ class Scanner:
         elif direction == 'forward':
             self.position -= steps
 
-        # Write position to file
-        try:
-            with open('Station/position.txt', 'w') as w:
-                w.write(str(self.position))
-        except FileNotFoundError:
-            pass
+        # Update the angular posiotion
+        if direction == 'backward':
+            self.position += steps * self.angle_per_step
+        elif direction == 'forward':
+            self.position -= steps * self.angle_per_step
 
-#==============================================================================
-#================================ Acuire Scan =================================
-#==============================================================================
+# =============================================================================
+#   Angle check
+# =============================================================================
 
-def acquire_scan(Scanner, Spectrometer, common, settings):
+    def angle_check(self, max_iter=1000):
+        """Check scanner angle is between -180/+180."""
+        counter = 0
+        while self.angle <= -180 or self.angle > 180:
+            if self.angle <= -180:
+                self.angle += 360
+            elif self.angle > 180:
+                self.angle -= 360
+            counter += 1
+            if counter >= max_iter:
+                msg = "Error calculating scanner angle, max iteration reached"
+                raise Exception(msg)
 
-    '''
-    Function to perform a scan.
+        return self.angle
 
-    **Parameters:**
 
-    Scanner : openso2 Scanner object
-        Object to control the scanner head consisting of a stepper motor and a
-        microswitch
+# =============================================================================
+# Acquire Scan
+# =============================================================================
 
-    Spectrometer : Seabreeze.Spectrometer object
-        Object to control the spectrometer
-        
-    common : dict
-        Dictionary of program variables
-        
+def aquire_scan(scanner, spectro, settings, save_path):
+    """Acquire a scan.
+
+    Perform a scan, measuring a dark spectrum then spectra from horizon to
+    horizon as defined in the settings.
+
+    Parameters
+    ----------
+    scanner : OpenSO2 Scanner object
+        The scanner used to take the scan
+
+    spectro : iFit Spectrometer object
+        The spectrometer to acquire the spectra in the scan
+
     settings : dict
-        Dictionary of the program settings
+        Holds the settings for the scan
 
-    **Returns:**
+    save_path : str
+        The folder to hold the scan results
 
+    Returns
+    -------
     fpath : str
         File path to the saved scan
-
-    Written by Ben Esse, January 2019
-    '''
-
+    """
     # Create array to hold scan data
-    scan_data = np.zeros((settings['specs_per_scan'], 2055))
+    scan_data = np.zeros((settings['specs_per_scan'], spectro.pixels+8))
 
     # Return the scanner position to home
-    Scanner.find_home()
+    scanner.find_home()
 
     # Get time
-    t = datetime.datetime.now()
-    y = t.year
-    mo = t.month
-    d = t.day
-    h = t.hour
-    m = t.minute
-    s = t.second
+    dt = datetime.datetime.now()
 
     # Form the filename of the scan file
-    fname = f'{y}{mo:02d}{d:02d}_'                  # Date "yyyymmdd"
-    fname += f'{h:02d}{m:02d}{s:02d}_'              # Time HHMMSS
-    fname += f'{settings["station_name"]}'          # Station name
-    fname += f'_v_1_1_Block{common["scan_no"]}.npy' # Version and scan number
+    fname = f'{dt.year}{dt.month:02d}{dt.dayd:02d}_'          # Date "yyyymmdd"
+    fname += f'{dt.hour:02d}{dt.minute:02d}{dt.second:02d}_'  # Time HHMMSS
+    fname += f'{settings["station_name"]}_'                   # Station name
+    fname += f'{settings["version"]}_'                        # Version
+    fname += f'Block{scanner.scan_no}.npy'                    # Scan no
 
     # Take the dark spectrum
-    dark = Spectrometer.intensities()
-    dark_data = np.array([0, h, m, s, Scanner.position, 1, 
-                         common['spec_int_time']])
-    scan_data[0] = np.append(dark_data, dark)
+    dark_spec, info = spectro.get_spectrum()
+    dark_data = np.array([0,                              # Step number
+                          dt.hour, dt.minute, dt.second,  # Time
+                          scanner.position,               # Scanner position
+                          scanner.angle,                  # Scan angle
+                          spectro.coadds,                 # Coadds
+                          spectro.integration_time        # Integration time
+                          ])
+    scan_data[0] = np.append(dark_data, dark_spec[1])
 
     # Move scanner to start position
     logging.info('Moving to start position')
-    Scanner.step(steps = settings['steps_to_start'])
+    Scanner.step(steps=settings['steps_to_start'])
 
     # Begin stepping through the scan
     logging.info('Begin scanning')
     for step_no in range(1, settings['specs_per_scan']):
 
-        # Get time
-        t = datetime.datetime.now()
-        h = t.hour
-        m = t.minute
-        s = t.second
+        # Acquire the spectrum
+        spectrum, info = spectro.get_spectrum()
+        x, y = spectrum
 
-        # Acquire spectrum
-        spec_int = np.zeros(len(dark))
-        for i in range(settings['coadds']):
-            spec_int = np.add(spec_int, Spectrometer.intensities())
-        spec_int = np.divide(spec_int, settings['coadds'])
+        # Get the time
+        t = datetime.datetime.now()
 
         # Add the data to the array
-        # Has the format N_acq, Hour, Min, Sec, MotorPos, Coadds, Int time
-        spec_data = np.array([step_no, h, m, s, Scanner.position, 1,
-                              common['spec_int_time']])
-        scan_data[step_no] = np.append(spec_data, spec_int)
+        spec_data = np.array([step_no,                     # Step number
+                              t.hour, t.minute, t.second,  # Time
+                              scanner.position,            # Scanner position
+                              scanner.angle,               # Scan angle
+                              spectro.coadds,              # Coadds
+                              spectro.integration_time     # Integration time
+                              ])
+        scan_data[step_no] = np.append(spec_data, y)
 
         # Step the scanner
-        Scanner.step(settings['steps_per_spec'])
+        scanner.step(settings['steps_per_spec'])
 
     # Scan complete
     logging.info('Scan complete')
 
     # Save the scan data
-    fpath = common['fpath'] + 'spectra/' + fname
+    fpath = f'{save_path}spectra/{fname}'
 
     np.save(fpath, scan_data.astype('float16'))
 

@@ -11,6 +11,7 @@ import logging
 from datetime import datetime as dt
 from paramiko.ssh_exception import SSHException
 
+
 class Station:
 
     '''
@@ -29,20 +30,18 @@ class Station:
         Name of the station. Default is "TEST"
     '''
 
-    def __init__(self, cinfo, name = 'TEST'):
+    def __init__(self, cinfo, name='TEST'):
 
         # Set the connection information for this station object
         self.cinfo = cinfo
         self.name = name
 
-
-#==============================================================================
-#================================ Sync Folder =================================
-#==============================================================================
+# =============================================================================
+# Sync Folder
+# =============================================================================
 
     def sync(self, local_dir, remote_dir):
-
-        '''
+        """
         Function to sync a local folder with a remote one.
 
         **Parameters:**
@@ -57,7 +56,7 @@ class Station:
 
         new_fnames : list
             List of synced file name strings
-        '''
+        """
 
         cnopts = pysftp.CnOpts()
         cnopts.hostkeys = None
