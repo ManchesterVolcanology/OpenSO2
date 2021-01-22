@@ -3,6 +3,7 @@
 import os
 import sys
 import time
+import yaml
 import logging
 import numpy as np
 from datetime import datetime
@@ -13,7 +14,7 @@ from ifit.spectral_analysis import Analyser
 from ifit.spectrometers import Spectrometer
 
 from openso2.scanner import Scanner, acquire_scan
-from openso2.analyse_scan import analyse_scan_spectra, update_int_time
+from openso2.analyse_scan import analyse_scan, update_int_time
 from openso2.call_gps import sync_gps_time
 from openso2.julian_time import hms_to_julian
 
@@ -86,10 +87,11 @@ if __name__ == '__main__':
 # =============================================================================
 
     # Sync time with the GPS
-    # sync_gps_time()
+    sync_gps_time()
 
     # Read in the station operation settings file
-    settings = read_settings('Station/station_settings.txt')
+    with open('Station/station_settings.yml', 'r') as ymlfile:
+        settings = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
     spectro = Spectrometer(integration_time=settings['start_int_time'],
                            coadds=settings['start_coadds'])
