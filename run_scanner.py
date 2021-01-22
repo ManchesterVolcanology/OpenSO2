@@ -8,14 +8,13 @@ import numpy as np
 from datetime import datetime
 from multiprocessing import Process
 
-from ifit.Parameters import Parameters
+from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
 from ifit.spectrometers import Spectrometer
 
 from openso2.scanner import Scanner, acquire_scan
-from openso2.analyse_scan import analyse_scan, update_int_time
+from openso2.analyse_scan import analyse_scan_spectra, update_int_time
 from openso2.call_gps import sync_gps_time
-from openso2.program_setup import read_settings
 from openso2.julian_time import hms_to_julian
 
 # =============================================================================
@@ -87,7 +86,7 @@ if __name__ == '__main__':
 # =============================================================================
 
     # Sync time with the GPS
-    sync_gps_time()
+    # sync_gps_time()
 
     # Read in the station operation settings file
     settings = read_settings('Station/station_settings.txt')
