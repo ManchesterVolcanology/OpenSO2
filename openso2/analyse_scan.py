@@ -134,3 +134,56 @@ def analyse_scan_spectra(scan_fname, analyser, wl_calib, save_fname=None):
 
     else:
         logging.warning(f'Error reading file {scan_fname}')
+
+
+# =============================================================================
+# Update Integration Time
+# =============================================================================
+
+def update_int_time(scan_fname, integration_time, settings):
+    """ Update spectrometer integration time.
+
+    Function to calculate a new integration time based on the intensity of the
+    previous scan
+
+    Parameters
+    ----------
+    common : dict
+        Common dictionary of parameters for the program
+
+    settings : dict
+        Dictionary of station settings
+
+    Returns
+    -------
+    new_int_time : int
+        New integration time for the next scan
+    """
+
+    # Load the previous scan
+    err, x, info, spec = read_scan(scan_fname)
+
+    # Find the maximum intensity
+    max_int = np.max(spec)
+
+    # Scale the intensity to the target
+    scale = settings['target_int'] / max_int
+
+    # Scale the integration time by this factor
+    int_time = integration_time * scale
+
+    # Find the nearest integration time
+    int_times = np.arange(settings['min_int_time'],
+                          settings['max_int_time'] + settings['int_time_step'],
+                          settings['int_time_step'])
+
+    # Find the nearest value
+    diff = ((int_times - int_time)**2)**0.5
+    idx = np.where(diff == min(diff))[0][0]
+    new_int_time = int(int_times[idx])
+
+    # Log change
+    logging.info(f'Updated integration time to {new_int_time} ms')
+
+    # Return the updated integration time
+    return new_int_time
