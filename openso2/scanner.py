@@ -189,7 +189,7 @@ class Scanner:
 # Acquire Scan
 # =============================================================================
 
-def aquire_scan(scanner, spectro, settings, save_path):
+def acquire_scan(scanner, spectro, settings, save_path):
     """Acquire a scan.
 
     Perform a scan, measuring a dark spectrum then spectra from horizon to
@@ -251,7 +251,6 @@ def aquire_scan(scanner, spectro, settings, save_path):
 
         # Acquire the spectrum
         spectrum, info = spectro.get_spectrum()
-        x, y = spectrum
 
         # Get the time
         t = datetime.datetime.now()
@@ -264,7 +263,7 @@ def aquire_scan(scanner, spectro, settings, save_path):
                               spectro.coadds,              # Coadds
                               spectro.integration_time     # Integration time
                               ])
-        scan_data[step_no] = np.append(spec_data, y)
+        scan_data[step_no] = np.append(spec_data, spectrum[1])
 
         # Step the scanner
         scanner.step(settings['steps_per_spec'])
