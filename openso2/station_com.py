@@ -14,7 +14,7 @@ from paramiko.ssh_exception import SSHException
 
 class Station:
 
-    '''
+    """
     Creates a Station object which is used by the home station to communicate
     with the scaning station
 
@@ -28,7 +28,7 @@ class Station:
 
     name : str
         Name of the station. Default is "TEST"
-    '''
+    """
 
     def __init__(self, cinfo, name='TEST'):
 
@@ -94,19 +94,18 @@ class Station:
         # Handle the error is the connection is refused
         except SSHException as e:
             print(f'Error syncing: {e}')
-            logging.info('Error with station communication', exc_info = True)
+            logging.info('Error with station communication', exc_info=True)
             new_fnames = []
             err = [True, e]
 
         return new_fnames, err
 
-#==============================================================================
-#================================ Pull Status =================================
-#==============================================================================
+# =============================================================================
+#   Pull Status
+# =============================================================================
 
     def pull_status(self):
-
-        '''
+        """
         Function to pull the station status
 
         **Parameters:**
@@ -121,7 +120,7 @@ class Station:
 
         status : dict
             Dictionary containing the status of the station
-        '''
+        """
 
         # Make sure the Station folder exists
         if not os.path.exists('Station'):
@@ -153,13 +152,12 @@ class Station:
 
         return time, status, err
 
-#==============================================================================
-#================================== Pull Log ==================================
-#==============================================================================
+# =============================================================================
+#   Pull Log
+# =============================================================================
 
     def pull_log(self):
-
-        '''
+        """
         Function to pull the log file from the station for analysis
 
         NOTE THIS ASSUMES THE DATE ON THE PI IS CORRECT TO PULL THE CORRECT LOG
@@ -177,11 +175,14 @@ class Station:
         err : tuple
             Consists of the error flag (True is an error occured) and the error
             message
-        '''
+        """
+
+        # Get the date to find the correct log file
+        date = dt.now().date()
 
         # Make sure the Station folder exists
-        if not os.path.exists('Station'):
-            os.makedirs('Station')
+        if not os.path.exists(f'Results/{date}/'):
+            os.makedirs(f'Results/{date}/')
 
         cnopts = pysftp.CnOpts()
         cnopts.hostkeys = None
@@ -190,9 +191,6 @@ class Station:
 
             # Open connection
             with pysftp.Connection(**self.cinfo, cnopts=cnopts) as sftp:
-
-                # Get the date to find the correct log file
-                date = dt.now().date()
 
                 # Get the status file
                 sftp.get(f'/home/pi/open_so2/Results/{date}/{date}.log',
@@ -208,13 +206,12 @@ class Station:
         return err
 
 
-#==============================================================================
-#================================ Sync Station ================================
-#==============================================================================
+# =============================================================================
+# Sync Station
+# =============================================================================
 
 def sync_station(station, local_dir, remote_dir, queue):
-
-    '''
+    """
     Function to sync the status and files of a station
 
     **Parameters:**
@@ -244,7 +241,7 @@ def sync_station(station, local_dir, remote_dir, queue):
 
     synced_fnames : list
         Contains the synced data file names
-    '''
+    """
 
     # Check station name
     name = station.name
@@ -257,7 +254,7 @@ def sync_station(station, local_dir, remote_dir, queue):
         station.pull_log
 
     # If the connection was succesful then sync files
-    if stat_err[0] == False:
+    if not stat_err[0]:
         synced_fnames, sync_err = station.sync(local_dir, remote_dir)
         err = [False, '']
     else:
@@ -267,13 +264,13 @@ def sync_station(station, local_dir, remote_dir, queue):
     # Place the results as a list in the queue
     queue.put([name, status_time, status_msg, synced_fnames, err])
 
-#==============================================================================
-#============================= Get Station Status =============================
-#==============================================================================
+
+# =============================================================================
+# Get Station Status
+# =============================================================================
 
 def get_station_status(gui, station):
-
-    '''
+    """
     Function to retrieve the status of a station.
 
     **Parameters:**
@@ -287,7 +284,7 @@ def get_station_status(gui, station):
     **Returns:**
 
     None
-    '''
+    """
 
     # Try to retrieve the station status
     time, status, err = gui.stat_com[station].pull_status()
@@ -295,9 +292,10 @@ def get_station_status(gui, station):
     gui.station_widjets[station]['status_time'].set(time[:-7])
     gui.station_widjets[station]['status'].set(status)
 
-#==============================================================================
-#================================ Sync Station ================================
-#==============================================================================
+
+# =============================================================================
+# Sync Station
+# =============================================================================
 
 def sync_psudostation(station, local_dir, remote_dir, queue):
 
