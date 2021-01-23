@@ -240,7 +240,7 @@ def acquire_scan(scanner, spectro, settings, save_path):
     fname += f'{dt.hour:02d}{dt.minute:02d}{dt.second:02d}_'  # Time HHMMSS
     fname += f'{settings["station_name"]}_'                   # Station name
     fname += f'{settings["version"]}_'                        # Version
-    fname += f'Scan{scanner.scan_number}.npy'                 # Scan no
+    fname += f'Scan{scanner.scan_number:03d}.npy'             # Scan no
 
     # Take the dark spectrum
     logging.info('Acquiring dark spectrum')
