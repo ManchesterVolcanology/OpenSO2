@@ -225,6 +225,7 @@ class Analyser():
         self.model_spacing = model_spacing
         self.despike_flag = despike_flag
         self.spike_limit = spike_limit
+        self.dark_spec = 0
 
 # =============================================================================
 #   Spectrum Pre-processing
@@ -383,7 +384,7 @@ class Analyser():
         if update_params and fit_result.nerr == 1:
             self.p0 = popt
         else:
-            logging.info('Resetting initial guess parameters')
+            logging.debug('Resetting initial guess parameters')
             self.p0 = self.params.fittedvalueslist()
 
         return fit_result

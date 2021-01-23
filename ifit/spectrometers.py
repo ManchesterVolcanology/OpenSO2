@@ -200,7 +200,7 @@ class VSpectrometer():
         x, y = np.loadtxt(self.fpath, unpack=True)
 
         # Add a little noise for fun
-        noise = np.random.normal(0, 500, y.shape)
+        noise = np.random.normal(0, 50, y.shape)
         y += noise
 
         # Get the spectrum read time

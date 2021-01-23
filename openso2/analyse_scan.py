@@ -161,7 +161,7 @@ def update_int_time(scan_fname, integration_time, settings):
     """
 
     # Load the previous scan
-    err, info, spec = read_scan(scan_fname)
+    spec = read_scan(scan_fname)[-1]
 
     # Find the maximum intensity
     max_int = np.max(spec)
@@ -181,9 +181,6 @@ def update_int_time(scan_fname, integration_time, settings):
     diff = ((int_times - int_time)**2)**0.5
     idx = np.where(diff == min(diff))[0][0]
     new_int_time = int(int_times[idx])
-
-    # Log change
-    logging.info(f'Updated integration time to {new_int_time} ms')
 
     # Return the updated integration time
     return new_int_time
