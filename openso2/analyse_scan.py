@@ -1,5 +1,6 @@
 """Some text about the module."""
 
+import os
 import logging
 import numpy as np
 import pandas as pd
@@ -22,7 +23,8 @@ def read_scan(scan_fname):
     error : bool
         An error code, 0 if all is OK, 1 if an error was produced
     info_block : array
-        Spectra info: spec no, hours, minutes, seconds, motor position
+        Spectra info: spec no, hours, minutes, seconds, motor position, angle,
+        coadds and integration time (ms)
     spec_block : array
         Array of the measured spectra for the scan block
     """
@@ -32,15 +34,15 @@ def read_scan(scan_fname):
 
         # Create empty arrays to hold the spectra
         width, height = scan_data.shape
-        info = np.zeros((width, 7))
-        spec = np.zeros((width, height - 7))
+        info = np.zeros((width, 8))
+        spec = np.zeros((width, height - 8))
 
         # Unpack the scan data
         for i, line in enumerate(scan_data):
 
             # Split the spectrum from the spectrum info
-            info[i] = line[:7]
-            spec[i] = line[7:]
+            info[i] = line[:8]
+            spec[i] = line[8:]
 
         return 0, info, spec
 
@@ -118,6 +120,9 @@ def analyse_scan(scan_fname, analyser, wl_calib, save_fname=None):
 
             except ValueError as msg:
                 logging.warning(f'Error in analysis, skipping\n{msg}')
+
+        head, tail = os.path.split(scan_fname)
+        logging.info(f'Analysis finished for scan {tail}')
 
         if save_fname is not None:
 

@@ -187,7 +187,8 @@ if __name__ == '__main__':
         if len(processes) <= 2:
 
             # Log the start of the scan analysis
-            logging.info(f'Start scan {scanner.scan_number} analysis')
+            head, tail = os.path.split(scan_fname)
+            logging.info(f'Start analysis for scan {tail}')
 
             head, tail = os.path.split(scan_fname)
 
