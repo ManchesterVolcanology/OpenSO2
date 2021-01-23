@@ -16,7 +16,6 @@ from ifit.spectrometers import VSpectrometer
 from openso2.scanner import Scanner, acquire_scan
 from openso2.analyse_scan import analyse_scan, update_int_time
 from openso2.call_gps import sync_gps_time
-from openso2.julian_time import hms_to_julian
 
 # =============================================================================
 # Set up logging
@@ -140,33 +139,32 @@ if __name__ == '__main__':
 #   Begin the scanning loop
 # =============================================================================
 
+    start_time = datetime.strptime(settings['start_time'], '%H:%M:%S')
+    stop_time = datetime.strptime(settings['stop_time'], '%H:%M:%S')
+
     # Create list to hold active processes
     processes = []
 
-    # Get time and convert to julian time
-    jul_t = hms_to_julian(datetime.now())
-
     # If before scan time, wait
-    if jul_t < settings['start_time']:
+    if datetime.now() < start_time:
         logger.info('Station idle')
 
         # Check time every 10s
-        while jul_t < settings['start_time']:
+        while datetime.now() < start_time:
             log_status('Idle')
             logging.debug('Station on standby')
             time.sleep(10)
 
-            # Update time
-            jul_t = hms_to_julian(datetime.now())
-
     # Connect to the scanner
-    scanner = Scanner(step_type=settings['step_type'])
+    scanner = Scanner(step_type=settings['step_type'],
+                      angle_per_step=settings['angle_per_step'],
+                      home_angle=settings['home_angle'])
 
     # Create a scan counter
     scan_no = 0
 
     # Begin loop
-    while jul_t < settings['stop_time']:
+    while datetime.now() < stop_time:
 
         # Log status change and scan number
         log_status('Active')
@@ -217,9 +215,6 @@ if __name__ == '__main__':
 
         # Update the scan number
         scan_no += 1
-
-        # Update time
-        jul_t = hms_to_julian(datetime.now())
 
     # Release the scanner to conserve power
     scanner.motor.release()
