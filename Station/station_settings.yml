@@ -1,3 +1,4 @@
+version: v_1_2
 station_name: LOVE
 start_int_time: 100
 start_coadds: 10
@@ -9,6 +10,9 @@ min_int_time: 50
 max_int_time: 5000
 int_time_step: 50
 steps_to_start: 50
+steps_per_spec: 1
+specs_per_scan: 100
 angle_per_step: 1.8
 home_angle: 180
+max_steps_home: 1000
 step_type: double

@@ -13,7 +13,7 @@ from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
 from ifit.spectrometers import VSpectrometer
 
-from openso2.scanner import Scanner, acquire_scan
+from openso2.scanner import VScanner, acquire_scan
 from openso2.analyse_scan import analyse_scan, update_int_time
 from openso2.call_gps import sync_gps_time
 
@@ -25,7 +25,7 @@ from openso2.call_gps import sync_gps_time
 datestamp = datetime.now().date()
 
 # Create results folder
-results_fpath = f'Results/{datestamp}/'
+results_fpath = f"Results/{datestamp}/"
 if not os.path.exists(results_fpath + 'so2/'):
     os.makedirs(results_fpath + 'so2/')
 if not os.path.exists(results_fpath + 'spectra/'):
@@ -57,7 +57,7 @@ def log_status(status):
     try:
         # Write the current status to the status file
         with open('Station/status.txt', 'w') as w:
-            time_str = datetime.datetime.now()
+            time_str = datetime.now()
             w.write(f'{time_str} - {status}')
 
     except Exception:
@@ -128,7 +128,6 @@ if __name__ == '__main__':
                         flat_path=f'Station/{spectro.serial_number}_flat.txt',
                         stray_flag=True,
                         stray_window=[280, 290],
-                        dark_flag=True,
                         ils_type='Params',
                         ils_path=f'Station/{spectro.serial_number}_ils.txt')
 
@@ -139,42 +138,41 @@ if __name__ == '__main__':
 #   Begin the scanning loop
 # =============================================================================
 
-    start_time = datetime.strptime(settings['start_time'], '%H:%M:%S')
-    stop_time = datetime.strptime(settings['stop_time'], '%H:%M:%S')
+    start_time = datetime.strptime(settings['start_time'], '%H:%M:%S').time()
+    stop_time = datetime.strptime(settings['stop_time'], '%H:%M:%S').time()
 
     # Create list to hold active processes
     processes = []
 
     # If before scan time, wait
-    if datetime.now() < start_time:
+    if datetime.now().time() < start_time:
         logger.info('Station idle')
 
         # Check time every 10s
-        while datetime.now() < start_time:
+        while datetime.now().time() < start_time:
             log_status('Idle')
             logging.debug('Station on standby')
             time.sleep(10)
 
     # Connect to the scanner
-    scanner = Scanner(step_type=settings['step_type'],
-                      angle_per_step=settings['angle_per_step'],
-                      home_angle=settings['home_angle'])
-
-    # Create a scan counter
-    scan_no = 0
+    scanner = VScanner(step_type=settings['step_type'],
+                       angle_per_step=settings['angle_per_step'],
+                       home_angle=settings['home_angle'],
+                       max_steps_home=settings['max_steps_home'])
+    logging.info('Scanner connected')
 
     # Begin loop
-    while datetime.now() < stop_time:
+    while datetime.now().time() < stop_time:
 
         # Log status change and scan number
         log_status('Active')
-        logging.info(f'Begin scan {scan_no}')
+        logging.info(f'Begin scan {scanner.scan_number}')
 
         # Scan!
-        scan_fname = acquire_scan(scanner, spectro, settings)
+        scan_fname = acquire_scan(scanner, spectro, settings, results_fpath)
 
         # Log scan completion
-        logging.info(f'Scan {scan_no} complete')
+        logging.info(f'Scan {scanner.scan_number} complete')
 
         # Update the spectrometer integration time
         new_int_time = update_int_time(scan_fname, spectro.integration_time,
@@ -189,14 +187,16 @@ if __name__ == '__main__':
         if len(processes) <= 2:
 
             # Log the start of the scan analysis
-            logging.info(f'Start scan {scan_no} analysis')
+            logging.info(f'Start scan {scanner.scan_number} analysis')
+
+            head, tail = os.path.split(scan_fname)
 
             # Build the save filename
             if settings['save_format'] == 'numpy':
                 file_end = '.npy'
             elif settings['save_format'] == 'csv':
                 file_end = '.csv'
-            save_fname = f'{results_fpath}/{scan_fname[:-3]}{file_end}'
+            save_fname = f'{results_fpath}so2/{tail[:-4]}_so2{file_end}'
 
             # Create new process to handle fitting of the last scan
             p = Process(target=analyse_scan,
@@ -210,11 +210,11 @@ if __name__ == '__main__':
 
         else:
             # Log that the process was not started
-            msg = f"Too many processes running, scan {scan_no} not analysed"
-            logging.warning(msg)
+            logging.warning("Too many processes running, "
+                            f"scan {scanner.scan_number} not analysed")
 
         # Update the scan number
-        scan_no += 1
+        scanner.scan_number += 1
 
     # Release the scanner to conserve power
     scanner.motor.release()

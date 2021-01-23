@@ -49,10 +49,10 @@ def read_scan(scan_fname):
 
 
 # =============================================================================
-# Fit Scan
+# Analyse Scan
 # =============================================================================
 
-def analyse_scan_spectra(scan_fname, analyser, wl_calib, save_fname=None):
+def analyse_scan(scan_fname, analyser, wl_calib, save_fname=None):
     """Run iFit analysis of a scan.
 
     Parameters
@@ -81,7 +81,7 @@ def analyse_scan_spectra(scan_fname, analyser, wl_calib, save_fname=None):
     if not err:
 
         # Correct for the dark spectrum
-        corr_spec_block = np.subtract(spec_block[1:], spec_block[0])
+        corr_spec_block = spec_block[1:] - spec_block[0]
 
         # Create columns for the dataframe
         cols = ['Number', 'Time', 'Angle']
@@ -161,7 +161,7 @@ def update_int_time(scan_fname, integration_time, settings):
     """
 
     # Load the previous scan
-    err, x, info, spec = read_scan(scan_fname)
+    err, info, spec = read_scan(scan_fname)
 
     # Find the maximum intensity
     max_int = np.max(spec)

@@ -7,6 +7,7 @@ try:
     import seabreeze.spectrometers as sb
     from seabreeze.spectrometers import SeaBreezeError
 except ImportError:
+    logging.warning('Seabreeze import failed!')
     pass
 
 
