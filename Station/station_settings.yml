@@ -1,0 +1,14 @@
+station_name: LOVE
+start_int_time: 100
+start_coadds: 10
+start_time: "12:00:00"
+stop_time: "20:00:00"
+save_format: numpy
+target_int: 50000
+min_int_time: 50
+max_int_time: 5000
+int_time_step: 50
+steps_to_start: 50
+angle_per_step: 1.8
+home_angle: 180
+step_type: double
