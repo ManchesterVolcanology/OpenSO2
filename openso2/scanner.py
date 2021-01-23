@@ -106,7 +106,7 @@ class Scanner:
 
         # Create a counter for the number of steps taken
         i = 0
-        
+
         # If the scanner is home, rotate until the switch is on
         while not self.uswitch.value:
             self.step()
@@ -240,11 +240,11 @@ def acquire_scan(scanner, spectro, settings, save_path):
     fname += f'{dt.hour:02d}{dt.minute:02d}{dt.second:02d}_'  # Time HHMMSS
     fname += f'{settings["station_name"]}_'                   # Station name
     fname += f'{settings["version"]}_'                        # Version
-    fname += f'Block{scanner.scan_number}.npy'                # Scan no
+    fname += f'Scan{scanner.scan_number}.npy'                 # Scan no
 
     # Take the dark spectrum
     logging.info('Acquiring dark spectrum')
-    spectro.fpath = 'Station/spectrum_00005.txt' #################################
+    spectro.fpath = 'Station/spectrum_00005.txt'  # ###########################
     dark_spec, info = spectro.get_spectrum()
     dark_data = np.array([0,                              # Step number
                           dt.hour, dt.minute, dt.second,  # Time
@@ -264,7 +264,7 @@ def acquire_scan(scanner, spectro, settings, save_path):
     for step_no in range(1, settings['specs_per_scan']):
 
         # Acquire the spectrum
-        spectro.fpath = 'Station/spectrum_00227.txt' ############################
+        spectro.fpath = 'Station/spectrum_00227.txt'  # #######################
         spectrum, info = spectro.get_spectrum()
 
         # Get the time
@@ -359,7 +359,7 @@ class VScanner:
 
         # Create a counter for the number of steps taken
         i = 0
-        
+
         # If the scanner is home, rotate until the switch is on
         while not self.uswitch.value:
             self.step()
@@ -458,4 +458,3 @@ class VMotorKit():
 
     def release(self):
         pass
-
