@@ -11,6 +11,8 @@ import logging
 from datetime import datetime as dt
 from paramiko.ssh_exception import SSHException
 
+logging.getLogger("paramiko").setLevel(logging.WARNING)
+
 
 class Station:
 
@@ -83,7 +85,11 @@ class Station:
                     if fname not in local_files:
 
                         # Copy the file across
-                        sftp.get(remote_dir + fname, local_dir + fname)
+                        try:
+                            sftp.get(remote_dir + fname, local_dir + fname,
+                                     preserve_mtime=True)
+                        except OSError:
+                            pass
 
                         # Add file list
                         new_fnames.append(fname)
@@ -94,7 +100,8 @@ class Station:
         # Handle the error is the connection is refused
         except SSHException as e:
             print(f'Error syncing: {e}')
-            logging.info('Error with station communication', exc_info=True)
+            logging.info(f'Error with station {self.name} communication',
+                         exc_info=True)
             new_fnames = []
             err = [True, e]
 
@@ -136,7 +143,8 @@ class Station:
 
                 # Get the status file
                 sftp.get('/home/pi/open_so2/Station/status.txt',
-                         f'Station/{self.name}_status.txt')
+                         f'Station/{self.name}_status.txt',
+                         preserve_mtime=True)
 
             # Read the status file
             with open(f'Station/{self.name}_status.txt', 'r') as r:
@@ -193,17 +201,25 @@ class Station:
             with pysftp.Connection(**self.cinfo, cnopts=cnopts) as sftp:
 
                 # Get the status file
-                sftp.get(f'/home/pi/open_so2/Results/{date}/{date}.log',
-                         f'Results/{date}/{date}.log')
+                try:
+                    sftp.get(f'/home/pi/open_so2/Results/{date}/{date}.log',
+                             f'Results/{date}/{date}.log', preserve_mtime=True)
+                    fname = f'Results/{date}/{date}.log'
+                except FileNotFoundError:
+                    fname = None
+                    logging.info('No log file found')
+                except OSError:
+                    fname = None
 
             # Successful read
             err = [False, '']
 
         # If connection fails, report
         except SSHException as e:
+            fname = None
             err = [True, e]
 
-        return err
+        return fname, err
 
 
 # =============================================================================
