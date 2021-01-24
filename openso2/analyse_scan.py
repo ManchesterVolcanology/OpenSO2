@@ -104,14 +104,14 @@ def analyse_scan(scan_fname, analyser, wl_calib, save_fname=None):
                                             interp_method='linear')
 
                 # Get the spectrum time and angle
-                hours = info_block[i][1]
-                minutes = info_block[i][1]
-                seconds = info_block[i][1]
+                hours = info_block[i+1][1]
+                minutes = info_block[i+1][1]
+                seconds = info_block[i+1][1]
                 scan_time = hours + minutes/60 + seconds/3600
-                scan_angle = info_block[i][5]
+                scan_angle = info_block[i+1][5]
 
                 # Add to the results dataframe
-                row = [i, scan_time, scan_angle]
+                row = [i+1, scan_time, scan_angle]
                 for par in fit.params.values():
                     row += [par.fit_val, par.fit_err]
                 row += [fit.nerr, fit.int_lo, fit.int_hi,
