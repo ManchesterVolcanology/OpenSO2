@@ -17,7 +17,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
 
 from ifit.gui_functions import Widgets, QTextEditLogger
 from openso2.station_com import Station
-from openso2.gui_funcs import Worker, sync_station
+from openso2.gui_funcs import Worker, sync_station, QTextEditLogger
 
 __version__ = '1.2'
 __author__ = 'Ben Esse'
