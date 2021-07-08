@@ -1,20 +1,17 @@
-# -*- coding: utf-8 -*-
-"""
-Module to control the scanner head.
-"""
+"""Module to control the scanner head."""
 
-import logging
-import datetime
-import atexit
 import time
+import atexit
+import logging
+from datetime import datetime
 import numpy as np
-try:
-    import board
-    import digitalio
-    from adafruit_motorkit import MotorKit
-    from adafruit_motor import stepper
-except ImportError:
-    logging.warning('Failed to import Raspberry Pi modules')
+from threading import Thread
+from adafruit_motor import stepper
+from adafruit_motorkit import MotorKit
+from gpiozero import DigitalInputDevice
+
+
+logger = logging.getLogger(__name__)
 
 
 class Scanner:
@@ -25,14 +22,14 @@ class Scanner:
     """
 
     # Initialise
-    def __init__(self, uswitch_pin=21, step_type='single', angle_per_step=1.8,
+    def __init__(self, switch_pin=24, step_type='single', angle_per_step=1.8,
                  home_angle=180, max_steps_home=1000):
         """Initialise.
 
         Parameters
         ----------
-        uswitch_pin : int, optional
-            The GPIO pin that connects to the microswitch. Default is 21
+        switch_pin : int, optional
+            The GPIO pin that connects to the home switch. Default is 24
 
         steptype : str, optional
             Stepping type. Must be one of:
@@ -43,34 +40,18 @@ class Scanner:
             Default is single
 
         angle_per_step : float, optional
-            The angle checge with every step in degrees. Default is 1.8
+            The angle change with every step in degrees. Default is 1.8
 
         home_angle : float, optional
             The angular position (deg) of the scanner when home. Default is 180
+        
+        max_steps_home : int, optional
+            Sets the maximum number of steps to look for home before giving up.
+            Default is 1000.
         """
-
-        # Define the GPIO pins
-        gpio_pin = {'4':  board.D4,
-                    '5':  board.D5,
-                    '6':  board.D6,
-                    '12': board.D12,
-                    '13': board.D13,
-                    '16': board.D16,
-                    '17': board.D17,
-                    '18': board.D18,
-                    '19': board.D19,
-                    '20': board.D20,
-                    '21': board.D21,
-                    '22': board.D22,
-                    '23': board.D23,
-                    '24': board.D24,
-                    '25': board.D25,
-                    '27': board.D27}
-
-        # Connect to the micro switch
-        self.uswitch = digitalio.DigitalInOut(gpio_pin[str(uswitch_pin)])
-        self.uswitch.direction = digitalio.Direction.INPUT
-        self.uswitch.pull = digitalio.Pull.UP
+                    
+        # Connect to the home switch
+        self.home_switch = DigitalInputDevice(switch_pin, pull_up=False)
 
         # Connect to the stepper motor
         self.motor = MotorKit().stepper1
@@ -102,29 +83,63 @@ class Scanner:
 # =============================================================================
 
     def find_home(self):
-        """Rotate the scanner head to the home position."""
+        """Rotate the scanner head to the home position.
+        
+        Parameters
+        ----------
+        None
+        
+        Returns
+        -------
+        steps_to_home : int
+            The number of steps taken to reach home
+        """
+        # Log searching for home
+        logger.info('Finding home position')
+
+        # Check if already home
+        if self.home_switch.value:
+            logger.info('Scanner already home!')
+            return 0 
 
         # Create a counter for the number of steps taken
         i = 0
-
-        # If the scanner is home, rotate until the switch is on
-        while not self.uswitch.value:
+        
+        # Set home flag to false
+        self.home_flag = False
+        
+        # Launch home watcher thread
+        watcher_thread = Thread(target=self._watch_for_home)
+        watcher_thread.daemon = True
+        watcher_thread.start()
+        
+        # Search for home
+        while not self.home_flag:
+        
+            # Step the scanner
             self.step()
             i += 1
-            if i > self.max_steps_home:
-                logging.error(f'Scanner cannot find home after {i} steps')
-
-        # Then step the motor until the switch turns off (scanner is home)
-        while self.uswitch.value:
-            self.step()
-            i += 1
+            
+            # Check if the max home steps has been reached
+            if i >= self.max_steps_home:
+                logger.error(f'Scanner cannot find home after {i} steps')
+                raise Exception('Error with scanner: unable to find home')
 
         # Log steps to home
-        logging.info(f'Steps to home: {i}')
+        logger.info(f'Steps to home: {i}')
 
         # Once home set the motor position to 0 and set the home angle
         self.position = 0
         self.angle = self.home_angle
+
+# =============================================================================
+#   Watch for home
+# =============================================================================
+
+    def _watch_for_home(self):
+        """Watch for change in home switch state."""
+        self.home_switch.wait_for_active()
+        self.home_flag = True
 
 # =============================================================================
 #   Move Motor
@@ -157,11 +172,13 @@ class Scanner:
 
         # Perform steps
         for i in range(steps):
-            self.motor.onestep(direction=step_dir[direction],
-                               style=step_mode[self.step_type])
 
             # Add a short rest between steps to improve accuracy
             time.sleep(0.01)
+            
+            # Step the motor
+            self.motor.onestep(direction=step_dir[direction],
+                               style=step_mode[self.step_type])
 
         # Update the motor postion
         if direction == 'backward':
@@ -229,11 +246,11 @@ def acquire_scan(scanner, spectro, settings, save_path):
     scan_data = np.zeros((settings['specs_per_scan'], spectro.pixels+8))
 
     # Return the scanner position to home
-    logging.info('Returning to home position...')
+    logger.info('Returning to home position...')
     scanner.find_home()
 
     # Get time
-    dt = datetime.datetime.now()
+    dt = datetime.now()
 
     # Form the filename of the scan file
     fname = f'{dt.year}{dt.month:02d}{dt.day:02d}_'           # Date "yyyymmdd"
@@ -243,7 +260,7 @@ def acquire_scan(scanner, spectro, settings, save_path):
     fname += f'Scan{scanner.scan_number:03d}.npy'             # Scan no
 
     # Take the dark spectrum
-    logging.info('Acquiring dark spectrum')
+    logger.info('Acquiring dark spectrum')
     spectro.fpath = 'Station/spectrum_00005.txt'  # ###########################
     dark_spec, info = spectro.get_spectrum()
     dark_data = np.array([0,                              # Step number
@@ -256,11 +273,11 @@ def acquire_scan(scanner, spectro, settings, save_path):
     scan_data[0] = np.append(dark_data, dark_spec[1])
 
     # Move scanner to start position
-    logging.info('Moving to start position')
+    logger.info('Moving to start position')
     scanner.step(steps=settings['steps_to_start'])
 
     # Begin stepping through the scan
-    logging.info('Begin main scan')
+    logger.info('Begin main scan')
     for step_no in range(1, settings['specs_per_scan']):
 
         # Acquire the spectrum
@@ -268,7 +285,7 @@ def acquire_scan(scanner, spectro, settings, save_path):
         spectrum, info = spectro.get_spectrum()
 
         # Get the time
-        t = datetime.datetime.now()
+        t = info['time']
 
         # Add the data to the array
         spec_data = np.array([step_no,                     # Step number
@@ -284,7 +301,7 @@ def acquire_scan(scanner, spectro, settings, save_path):
         scanner.step(settings['steps_per_spec'])
 
     # Scan complete
-    logging.info('Scan complete')
+    logger.info('Scan complete')
 
     # Save the scan data
     fpath = f'{save_path}spectra/{fname}'
@@ -365,7 +382,7 @@ class VScanner:
             self.step()
             i += 1
             if i > self.max_steps_home:
-                logging.error(f'Scanner cannot find home after {i} steps')
+                logger.error(f'Scanner cannot find home after {i} steps')
 
         # Then step the motor until the switch turns off (scanner is home)
         while self.uswitch.value:
@@ -373,7 +390,7 @@ class VScanner:
             i += 1
 
         # Log steps to home
-        logging.info(f'Steps to home: {i}')
+        logger.info(f'Steps to home: {i}')
 
         # Once home set the motor position to 0 and set the home angle
         self.position = 0
