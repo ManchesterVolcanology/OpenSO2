@@ -27,26 +27,13 @@ class QTextEditLogger(logging.Handler, QObject):
 
 # Create a worker signals object to handle worker signals
 class WorkerSignals(QObject):
-    """Defines the signals available from a running worker thread.
-
-    Supported signals are:
-
-    finished
-        No data
-    progress
-        `int` indicating % progress
-    plotter
-        `list` data to be plotted on the analysis graphs
-    error
-        `tuple` (exctype, value, traceback.format_exc() )
-    status
-        'str' status message for the GUI
-    spectrum
-        `tuple` spectrum to be displayed on the scope graph
+    """Define the signals available from a running worker thread.
     """
     finished = pyqtSignal()
     plot = pyqtSignal(str, str)
     log = pyqtSignal(str, list)
+    status = pyqtSignal(str)
+    error = pyqtSignal(tuple)
 
 
 # Create a worker to handle QThreads
@@ -72,6 +59,7 @@ class Worker(QRunnable):
         self.signals = WorkerSignals()
         self.kwargs['log_callback'] = self.signals.log
         self.kwargs['plot_callback'] = self.signals.plot
+        self.kwargs['status_callback'] = self.signals.status
 
     @pyqtSlot()
     def run(self):
@@ -89,30 +77,38 @@ class Worker(QRunnable):
         self.signals.finished.emit()
 
 
-def sync_station(worker, station, today_date, log_callback, plot_callback):
-    """Sync the log file and write to the text file"""
+def sync_stations(worker, stations, today_date, log_callback, plot_callback,
+                  status_callback):
+    """Sync the station logs and scans."""
 
-    # Sync the station log
-    fname, err = station.pull_log()
+    for station in stations.values():
 
-    # Read the log file
-    if fname is not None:
-        with open(fname, 'r') as r:
-            log_text = r.readlines()
+        logging.info(f'Syncing {station.name} station...')
 
-        # Send signal with log text
-        log_callback.emit(station.name, log_text)
+        # Sync the station log
+        fname, err = station.pull_log()
 
-    # Sync SO2 files
-    local_dir = f'Results/{today_date}/{station.name}/so2/'
-    if not os.path.isdir(local_dir):
-        os.makedirs(local_dir)
-    remote_dir = f'/home/pi/open_so2/Results/{today_date}/so2/'
-    new_fnames, err = station.sync(local_dir, remote_dir)
+        # Read the log file
+        if fname is not None:
+            with open(fname, 'r') as r:
+                log_text = r.readlines()
 
-    # Plot last scan
-    if len(new_fnames) != 0:
-        plot_callback.emit(station.name, local_dir + new_fnames[-1])
+            # Send signal with log text
+            log_callback.emit(station.name, log_text)
+
+        # Sync SO2 files
+        local_dir = f'Results/{today_date}/{station.name}/so2/'
+        if not os.path.isdir(local_dir):
+            os.makedirs(local_dir)
+        remote_dir = f'/home/pi/open_so2/Results/{today_date}/so2/'
+        new_fnames, err = station.sync(local_dir, remote_dir)
+        logging.info(f'Synced {len(new_fnames)} scans from {station.name}')
+
+        # Plot last scan
+        if len(new_fnames) != 0:
+            plot_callback.emit(station.name, local_dir + new_fnames[-1])
+
+    status_callback.emit('Ready')
 
 
 # =============================================================================
