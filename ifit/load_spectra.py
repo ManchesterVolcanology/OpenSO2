@@ -1,29 +1,40 @@
+import os
 import logging
-import datetime
 import linecache
 import numpy as np
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
 # read_spectrum
 # =============================================================================
 
-def read_spectrum(fname, spec_type='iFit'):
-    """Function to read spectra and extract information, depending on the file
-    format.
+def read_spectrum(fname, spec_type='iFit', wl_calib_file=None,
+                  stop_on_err=True):
+    """Read spectra and extract metadata.
 
     Parameters
     ----------
     fname : str
         Spectrum file path.
-    spec_type : type, optional
-        Format of spectrum file. Choices: iFit, Master.Scope, Spectrasuite or
-        Basic. Default is "iFit"
+    spec_type : str, optional
+        Format of spectrum file. Choices: iFit, Master.Scope, Spectrasuite,
+        mobileDOAS or Basic. Default is "iFit"
+    wl_calib_file : str, optional
+        The wavelength calibration file to use if not provided in the spectrum
+        file. Must be provided for mobileDOAS files.
+    stop_on_err : bool, optional
+        If True then if an error is found while reading a spectrum an Exception
+        is raised.
 
     Returns
     -------
-    spectrum : 2D numpy array
-        The spectrum as [wavelength, intensities]
+    grid : numpy array
+        The spectrum wavelengths
+    spec : numpy array
+        The spectrum intensities
     spec_info : dict
         Dictionary of information about the spectrum
     read_err, tuple
@@ -32,84 +43,22 @@ def read_spectrum(fname, spec_type='iFit'):
         The string is 'No error' for no error, and the error message if an
         error occurs.
     """
+    # Create a dictionary of available functions
+    func_dict = {'iFit': load_ifit,
+                 'Master.Scope': load_master_scope,
+                 'Spectrasuite': load_spectrasuite,
+                 'mobileDOAS': load_mobile_doas,
+                 'Basic': load_basic}
 
+    # Select the desired function
     try:
+        read_func = func_dict[spec_type]
+    except KeyError:
+        raise Exception(f'File format {spec_type} not recognised')
 
-        # Check the file format exists
-        if spec_type not in ['iFit', 'Master.Scope', 'Spectrasuite', 'Basic']:
-            raise Exception('File format not recognised')
-
-        if spec_type == 'iFit':
-
-            # Load data into a numpy array
-            grid, spec = np.loadtxt(fname, unpack=True)
-
-            # Extract date and time string
-            date_time = linecache.getline(fname, 5).strip().split(': ')[-1]
-
-            # Unpack date_time string
-            try:
-                date_time = datetime.datetime.strptime(date_time,
-                                                       '%Y-%m-%d %H:%M:%S.%f')
-            except ValueError:
-                date_time = datetime.datetime.strptime(date_time,
-                                                       '%Y-%m-%d %H:%M:%S')
-
-            # Get spectrum number
-            try:
-                spec_no = int(fname[-9:-4])
-            except ValueError:
-                spec_no = 0
-
-        if spec_type == 'Master.Scope':
-
-            # Load data into a numpy array, skipping the header data
-            grid, spec = np.genfromtxt(fname, unpack=True, skip_header=19,
-                                       skip_footer=1)
-
-            # Extract date and time string
-            date_time = linecache.getline(fname, 3)[6:].strip()
-
-            # Unpack date_time string
-            date_time = datetime.datetime.strptime(date_time,
-                                                   '%m-%d-%Y, %H:%M:%S')
-
-            # Get spectrum number
-            try:
-                spec_no = int(fname[-18:-13])
-            except ValueError:
-                spec_no = 0
-
-        if spec_type == 'Spectrasuite':
-
-            # Load data into a numpy array, skipping the header data
-            grid, spec = np.genfromtxt(fname, unpack=True, skip_header=17,
-                                       skip_footer=2)
-
-            # Extract date and time string
-            date_time = linecache.getline(fname, 3).strip()
-
-            # Unpack date_time string
-            date_time = datetime.datetime.strptime(date_time,
-                                                   '%a %b %Y %H:%M:%S')
-
-            # Get spectrum number
-            spec_no = int(fname[-9:-4])
-
-        if spec_type == 'Basic':
-
-            # Generic file format that only holds the essential information
-
-            # Load data into a numpy array
-            grid, spec = np.loadtxt(fname, unpack=True, skiprows=2)
-
-            # Extract date and time string
-            read_date = linecache.getline(fname, 1).strip()
-            spec_no = int(linecache.getline(fname, 2).strip())
-
-            # Get the date
-            date_time = datetime.datetime.strptime(read_date,
-                                                   '%Y-%m-%d %H:%M:%S')
+    # Read the spectrum
+    try:
+        grid, spec, spec_no, date_time = read_func(fname, wl_calib_file)
 
         # Report no error
         read_err = False, 'No Error'
@@ -122,11 +71,17 @@ def read_spectrum(fname, spec_type='iFit'):
                      'time':    time,
                      'spec_no': spec_no}
 
+    # Report if the read fails
     except Exception as e:
+
         # Something wrong with reading
+        logger.warning(f'Error reading file {fname}:\n{e}')
         grid, spec = np.row_stack([[], []])
         spec_info = {}
         read_err = True, e
+
+        if stop_on_err:
+            raise Exception
 
     return grid, spec, spec_info, read_err
 
@@ -135,8 +90,8 @@ def read_spectrum(fname, spec_type='iFit'):
 # average_spectra
 # =============================================================================
 
-def average_spectra(files, spec_type='iFit'):
-    """Fuction to average a selection of spectra.
+def average_spectra(files, spec_type='iFit', wl_calib_file=None):
+    """Average a selection of spectra.
 
     Parameters
     ----------
@@ -151,9 +106,9 @@ def average_spectra(files, spec_type='iFit'):
     spectrum : 2d np.array
         The averaged spectrum as [wavelength, intensity]
     """
-
     # Load the first spectrum to get the shape
-    grid, y, spec_info, read_err = read_spectrum(files[0], spec_type)
+    grid, y, spec_info, read_err = read_spectrum(files[0], spec_type,
+                                                 wl_calib_file)
 
     # Create an emptry array to hold the spectra
     spec = np.zeros([len(files), len(grid)])
@@ -161,11 +116,12 @@ def average_spectra(files, spec_type='iFit'):
     for n, fname in enumerate(files):
 
         # Load spectrum
-        grid, y, spec_info, read_err = read_spectrum(fname, spec_type)
+        grid, y, spec_info, read_err = read_spectrum(fname, spec_type,
+                                                     wl_calib_file)
 
         # Check for a read error
         if read_err[0]:
-            logging.warn(f'Error reading spectrum:\n{read_err[1]}')
+            logger.warn(f'Error reading spectrum:\n{read_err[1]}')
 
         else:
             # Add to the spectra array
@@ -182,8 +138,7 @@ def average_spectra(files, spec_type='iFit'):
 # =============================================================================
 
 def read_scan(fpath, scan_type):
-    """Function to read spectra and header info for a data block created by
-       SpectraLan or OpenSO2.
+    """Read spectra and header info for a scan block.
 
     Parameters
     ----------
@@ -201,7 +156,6 @@ def read_scan(fpath, scan_type):
     spec_block : array
         Array of the measured spectra for the scan block
     """
-
     if scan_type == 'FLAME':
 
         try:
@@ -307,3 +261,141 @@ def read_scan(fpath, scan_type):
 
         except Exception:
             return 1, 0, 0
+
+
+# =============================================================================
+# Load Functions
+# =============================================================================
+
+def load_ifit(*args):
+    """Load iFit file."""
+    # Unpack arguments
+    fname = args[0]
+
+    # Load data into a numpy array
+    grid, spec = np.loadtxt(fname, unpack=True)
+
+    # Extract date and time string
+    date_time = linecache.getline(fname, 5).strip().split(': ')[-1]
+
+    # Unpack date_time string
+    try:
+        date_time = datetime.strptime(date_time,
+                                      '%Y-%m-%d %H:%M:%S.%f')
+    except ValueError:
+        date_time = datetime.strptime(date_time, '%Y-%m-%d %H:%M:%S')
+
+    # Get spectrum number
+    try:
+        spec_no = int(fname[-9:-4])
+    except ValueError:
+        spec_no = 0
+
+    return grid, spec, spec_no, date_time
+
+
+def load_master_scope(*args):
+    """Load Master.Scope file."""
+    # Unpack arguments
+    fname = args[0]
+
+    # Load data into a numpy array, skipping the header data
+    grid, spec = np.genfromtxt(fname, unpack=True, skip_header=19,
+                               skip_footer=1)
+
+    # Extract date and time string
+    date_time = linecache.getline(fname, 3)[6:].strip()
+
+    # Unpack date_time string
+    date_time = datetime.strptime(date_time, '%m-%d-%Y, %H:%M:%S')
+
+    # Get spectrum number
+    try:
+        spec_no = int(fname[-18:-13])
+    except ValueError:
+        spec_no = 0
+
+    return grid, spec, spec_no, date_time
+
+
+def load_spectrasuite(*args):
+    """Load Spectrasuite file."""
+    # Unpack arguments
+    fname = args[0]
+
+    # Load data into a numpy array, skipping the header data
+    grid, spec = np.genfromtxt(fname, unpack=True, skip_header=17,
+                               skip_footer=2)
+
+    # Extract date and time string
+    date_time = linecache.getline(fname, 3).strip()
+
+    # Unpack date_time string
+    date_time = datetime.strptime(date_time, '%a %b %Y %H:%M:%S')
+
+    # Get spectrum number
+    spec_no = int(fname[-9:-4])
+
+    return grid, spec, spec_no, date_time
+
+
+def load_mobile_doas(*args):
+    """Load mobileDOAS file."""
+    # Unpack arguments
+    fname = args[0]
+    wl_calib_file = args[1]
+
+    # Read the wavelength calibration
+    try:
+        grid = np.loadtxt(wl_calib_file)
+    except FileNotFoundError:
+        logger.error(f'Wavelength calibration file {wl_calib_file} '
+                     + 'not found')
+        raise FileNotFoundError
+
+    # Get the spectrum number
+    head, tail = os.path.split(fname)
+    try:
+        spec_no = int(tail[:5])
+    except ValueError:
+        spec_no = 0
+
+    # Format created by the mobileDOAS program
+    with open(fname, 'r') as r:
+
+        # Read in the file
+        lines = [line.strip() for line in r.readlines()]
+
+        # Get the number of pixels
+        npixels = int(lines[2])
+
+        # Pull out the spectral information
+        spec = np.array([float(y) for y in lines[3:3+npixels]])
+
+        # Pull out the metadata
+        metadata = lines[npixels+3:]
+
+        # Get the date
+        year, month, day = [int(n) for n in metadata[3].split('.')]
+        hour, minute, second = [int(n) for n in metadata[4].split(':')]
+        date_time = datetime(year, month, day, hour, minute, second)
+
+    return grid, spec, spec_no, date_time
+
+
+def load_basic(*args):
+    """Load basic file."""
+    # Unpack arguments
+    fname = args[0]
+
+    # Load data into a numpy array
+    grid, spec = np.loadtxt(fname, unpack=True, skiprows=2)
+
+    # Extract date and time string
+    read_date = linecache.getline(fname, 1).strip()
+    spec_no = int(linecache.getline(fname, 2).strip())
+
+    # Get the date
+    date_time = datetime.strptime(read_date, '%Y-%m-%d %H:%M:%S')
+
+    return grid, spec, spec_no, date_time
