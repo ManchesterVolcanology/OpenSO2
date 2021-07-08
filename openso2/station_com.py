@@ -203,8 +203,9 @@ class Station:
                 # Get the status file
                 try:
                     sftp.get(f'/home/pi/open_so2/Results/{date}/{date}.log',
-                             f'Results/{date}/{date}.log', preserve_mtime=True)
-                    fname = f'Results/{date}/{date}.log'
+                             f'Results/{date}/{self.name}/{date}.log',
+                             preserve_mtime=True)
+                    fname = f'Results/{date}/{self.name}/{date}.log'
                 except FileNotFoundError:
                     fname = None
                     logging.info('No log file found')
