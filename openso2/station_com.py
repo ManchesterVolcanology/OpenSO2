@@ -13,6 +13,7 @@ from paramiko.ssh_exception import SSHException
 
 logging.getLogger("paramiko").setLevel(logging.WARNING)
 
+logger = logging.getLogger(__name__)
 
 class Station:
 
@@ -100,7 +101,7 @@ class Station:
         # Handle the error is the connection is refused
         except SSHException as e:
             print(f'Error syncing: {e}')
-            logging.info(f'Error with station {self.name} communication',
+            logger.info(f'Error with station {self.name} communication',
                          exc_info=True)
             new_fnames = []
             err = [True, e]
@@ -207,7 +208,7 @@ class Station:
                     fname = f'Results/{date}/{date}.log'
                 except FileNotFoundError:
                     fname = None
-                    logging.info('No log file found')
+                    logger.info('No log file found')
                 except OSError:
                     fname = None
 
