@@ -13,6 +13,8 @@ except ImportError:
     print('GPS module missing!')
 
 
+logger = logging.getLogger(__name__)
+
 def sync_gps_time():
     """
     Function to sync the system time with GPS
@@ -55,7 +57,7 @@ def sync_gps_time():
                             shell=True)
 
             # Log the change
-            logging.info('System time updated from GPS: ' + gpsutc)
+            logger.info('System time updated from GPS: ' + gpsutc)
 
             # Exit the loop
             break

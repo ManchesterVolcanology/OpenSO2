@@ -8,6 +8,8 @@ from PyQt5.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
                              QSpinBox, QCheckBox, QPlainTextEdit)
 
 
+logger = logging.getLogger(__name__)
+
 class QTextEditLogger(logging.Handler, QObject):
     """Records logs to the GUI"""
     appendPlainText = pyqtSignal(str)

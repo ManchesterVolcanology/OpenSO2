@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 
 
+logger = logging.getLogger(__name__)
+
 # =============================================================================
 # Read Scan
 # =============================================================================
@@ -119,10 +121,10 @@ def analyse_scan(scan_fname, analyser, wl_calib, save_fname=None):
                 fit_df.loc[i] = row
 
             except ValueError as msg:
-                logging.warning(f'Error in analysis, skipping\n{msg}')
+                logger.warning(f'Error in analysis, skipping\n{msg}')
 
         head, tail = os.path.split(scan_fname)
-        logging.info(f'Analysis finished for scan {tail}')
+        logger.info(f'Analysis finished for scan {tail}')
 
         if save_fname is not None:
 
@@ -133,12 +135,12 @@ def analyse_scan(scan_fname, analyser, wl_calib, save_fname=None):
             elif file_end == 'npy':
                 np.save(save_fname, fit_df.to_numpy())
             else:
-                logging.warning(f'Error in save filename {save_fname}')
+                logger.warning(f'Error in save filename {save_fname}')
 
         return fit_df
 
     else:
-        logging.warning(f'Error reading file {scan_fname}')
+        logger.warning(f'Error reading file {scan_fname}')
 
 
 # =============================================================================
