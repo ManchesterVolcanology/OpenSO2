@@ -5,7 +5,10 @@ _templates
 
 # OpenSO2 files
 Results/
+Station/
 status.txt
+.config
+*.log.*
 
 # Scratch files
 *scratch*
