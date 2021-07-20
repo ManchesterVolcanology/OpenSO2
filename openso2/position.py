@@ -1,13 +1,12 @@
 import gps
 import logging
 import subprocess
-from datetime import datetime
 
 logger = logging.getLogger()
 
-class GPS(object):
 
-    """GPS class used to listen to GPS signals"""
+class GPS(object):
+    """GPS class used to listen to GPS signals."""
 
     def __init__(self):
 
@@ -24,8 +23,7 @@ class GPS(object):
         self.gpsd.stream(gps.WATCH_ENABLE | gps.WATCH_NEWSTYLE)
 
     def read(self, maxtime=10):
-        """Call the GPS for position data"""
-
+        """Call the GPS for position data."""
         while True:
             print('mark')
             nx = self.gpsd.next()
@@ -43,13 +41,14 @@ class GPS(object):
         logger.warning(f'GPS timed out after {maxtime}s')
         return None
 
+
 if __name__ == '__main__':
 
     import time
 
-    gps = GPS()
+    gps_device = GPS()
 
-    data = gps.read()
+    data = gps_device.read()
     for i in range(10):
         print(data['time'], data['lat'], data['lon'])
         time.sleep(1)

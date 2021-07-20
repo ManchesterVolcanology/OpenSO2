@@ -44,12 +44,11 @@ class Scanner:
 
         home_angle : float, optional
             The angular position (deg) of the scanner when home. Default is 180
-        
+
         max_steps_home : int, optional
             Sets the maximum number of steps to look for home before giving up.
             Default is 1000.
         """
-                    
         # Connect to the home switch
         self.home_switch = DigitalInputDevice(switch_pin, pull_up=False)
 
@@ -84,11 +83,11 @@ class Scanner:
 
     def find_home(self):
         """Rotate the scanner head to the home position.
-        
+
         Parameters
         ----------
         None
-        
+
         Returns
         -------
         steps_to_home : int
@@ -100,26 +99,26 @@ class Scanner:
         # Check if already home
         if self.home_switch.value:
             logger.info('Scanner already home!')
-            return 0 
+            return 0
 
         # Create a counter for the number of steps taken
         i = 0
-        
+
         # Set home flag to false
         self.home_flag = False
-        
+
         # Launch home watcher thread
         watcher_thread = Thread(target=self._watch_for_home)
         watcher_thread.daemon = True
         watcher_thread.start()
-        
+
         # Search for home
         while not self.home_flag:
-        
+
             # Step the scanner
             self.step()
             i += 1
-            
+
             # Check if the max home steps has been reached
             if i >= self.max_steps_home:
                 logger.error(f'Scanner cannot find home after {i} steps')
@@ -175,7 +174,7 @@ class Scanner:
 
             # Add a short rest between steps to improve accuracy
             time.sleep(0.01)
-            
+
             # Step the motor
             self.motor.onestep(direction=step_dir[direction],
                                style=step_mode[self.step_type])

@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Contains functions to connect and talk to a GPS antenna for exact positioning
-and time
-"""
-
 import logging
 import subprocess
 
@@ -15,9 +9,9 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+
 def sync_gps_time():
-    """
-    Function to sync the system time with GPS
+    """Sync the system time with GPS.
 
     **Parameters:**
 
@@ -27,7 +21,6 @@ def sync_gps_time():
 
     None
     """
-
     # Listen on port 2947 (GPSD) of localhost
     gpsd = gps.gps("localhost", "2947")
     gpsd.stream(gps.WATCH_ENABLE | gps.WATCH_NEWSTYLE)

@@ -8,6 +8,7 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+
 # =============================================================================
 # Read Scan
 # =============================================================================
@@ -78,7 +79,6 @@ def analyse_scan(scan_fname, analyser, wl_calib, save_fname=None):
     results : Pandas DataFrame
         Contains the scan information and fit results and errors
     """
-
     # Read in the scan
     err, info_block, spec_block = read_scan(scan_fname)
 
@@ -148,7 +148,7 @@ def analyse_scan(scan_fname, analyser, wl_calib, save_fname=None):
 # =============================================================================
 
 def update_int_time(scan_fname, integration_time, settings):
-    """ Update spectrometer integration time.
+    """Update spectrometer integration time.
 
     Function to calculate a new integration time based on the intensity of the
     previous scan
@@ -166,7 +166,6 @@ def update_int_time(scan_fname, integration_time, settings):
     new_int_time : int
         New integration time for the next scan
     """
-
     # Load the previous scan
     spec = read_scan(scan_fname)[-1]
 
