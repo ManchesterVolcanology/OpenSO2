@@ -1,5 +1,20 @@
 #!/usr/bin/python3.7
 
+"""The main script for the scanner unit.
+
+This script should be run automatically after startup (e.g. using crontab). It
+will perform the following tasks in order:
+    - Check and update the system time using the GPS
+    - Connect to the spectrometer and prepare for analysis
+    - Wait until the designated start time
+    - Connect to the scanner head and find home
+    - Scan continuously until the designated stop time
+    - Disconnect the scanner head
+    - Finish any outstanding analysis
+    - Wait to power down, allowing the home station to sync the data as
+      required
+"""
+
 import os
 import sys
 import time
@@ -21,6 +36,17 @@ from openso2.call_gps import sync_gps_time
 # Set up logging
 # =============================================================================
 
+# Get the logger
+logger = logging.getLogger(__name__)
+
+# Setup logger to standard output
+logger.setLevel(logging.INFO)
+stdout_handler = logging.StreamHandler(sys.stdout)
+stdout_handler.setLevel(logging.INFO)
+stdout_formatter = logging.Formatter('%(asctime)s - %(message)s', '%H:%M:%S')
+stdout_handler.setFormatter(stdout_formatter)
+logger.addHandler(stdout_handler)
+
 # Get the date
 datestamp = datetime.now().date()
 
@@ -31,17 +57,12 @@ if not os.path.exists(results_fpath + 'so2/'):
 if not os.path.exists(results_fpath + 'spectra/'):
     os.makedirs(results_fpath + 'spectra/')
 
-# Create log name
-logname = f'{results_fpath}{datestamp}.log'
+# Add a file handler o the logger
+file_handler = logging.FileHandler(f'{results_fpath}{datestamp}.log')
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-
-# Create the logger
-logging.basicConfig(filename=logname,
-                    filemode='a',
-                    format=log_fmt,
-                    level=logging.INFO)
-
-logger = logging.getLogger(__name__)
+file_format = logging.Formatter(log_fmt, '%Y-%m-%d %H:%M:%S')
+file_handler.setFormatter(file_format)
+logger.addHandler(file_handler)
 
 
 # =============================================================================
@@ -76,7 +97,7 @@ sys.excepthook = my_handler
 # Begin the main program
 # =============================================================================
 
-if __name__ == '__main__':
+def main_loop():
 
     log_status('Idle')
     logger.info('Station awake')
@@ -130,6 +151,9 @@ if __name__ == '__main__':
                         stray_window=[280, 290],
                         ils_type='Params',
                         ils_path=f'Station/{spectro.serial_number}_ils.txt')
+                        
+    # Report fitting parameters
+    logger.info(params.pretty_print(cols=['name', 'value', 'vary', 'xpath']))
 
     # Read in the wavelength calibration
     wl_calib = np.loadtxt(f'Station/{spectro.serial_number}_wl_calib.txt')
@@ -151,7 +175,7 @@ if __name__ == '__main__':
         # Check time every 10s
         while datetime.now().time() < start_time:
             log_status('Idle')
-            logging.debug('Station on standby')
+            logger.debug('Station on standby')
             time.sleep(10)
 
     # Connect to the scanner
@@ -159,25 +183,26 @@ if __name__ == '__main__':
                        angle_per_step=settings['angle_per_step'],
                        home_angle=settings['home_angle'],
                        max_steps_home=settings['max_steps_home'])
-    logging.info('Scanner connected')
+    logger.info('Scanner connected')
 
     # Begin loop
     while datetime.now().time() < stop_time:
 
         # Log status change and scan number
         log_status('Active')
-        logging.info(f'Begin scan {scanner.scan_number}')
+        logger.info(f'Begin scan {scanner.scan_number}')
 
         # Scan!
         scan_fname = acquire_scan(scanner, spectro, settings, results_fpath)
 
         # Log scan completion
-        logging.info(f'Scan {scanner.scan_number} complete')
+        logger.info(f'Scan {scanner.scan_number} complete')
 
         # Update the spectrometer integration time
         new_int_time = update_int_time(scan_fname, spectro.integration_time,
                                        settings)
-        spectro.update_integration_time(new_int_time)
+        # spectro.update_integration_time(new_int_time)
+        # logger.info(f'Integration time updated to {int(new_int_time)}')
 
         # Clear any finished processes from the processes list
         processes = [p for p in processes if p.is_alive()]
@@ -188,7 +213,7 @@ if __name__ == '__main__':
 
             # Log the start of the scan analysis
             head, tail = os.path.split(scan_fname)
-            logging.info(f'Start analysis for scan {tail}')
+            logger.info(f'Start analysis for scan {tail}')
 
             head, tail = os.path.split(scan_fname)
 
@@ -211,8 +236,8 @@ if __name__ == '__main__':
 
         else:
             # Log that the process was not started
-            logging.warning("Too many processes running, "
-                            f"scan {scanner.scan_number} not analysed")
+            logger.warning("Too many processes running, "
+                           f"scan {scanner.scan_number} not analysed")
 
         # Update the scan number
         scanner.scan_number += 1
@@ -226,4 +251,8 @@ if __name__ == '__main__':
 
     # Change the station status
     log_status('Asleep')
-    logging.info('Station going to sleep')
+    logger.info('Station going to sleep')
+
+
+if __name__ == '__main__':
+    main_loop()

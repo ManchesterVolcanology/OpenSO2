@@ -131,6 +131,8 @@ class Scanner:
         # Once home set the motor position to 0 and set the home angle
         self.position = 0
         self.angle = self.home_angle
+        
+        return i
 
 # =============================================================================
 #   Watch for home
