@@ -20,7 +20,13 @@ There are several libraries required for OpenSO<sub>2</sub> beyond the base libr
 - PyYaml
 - GPIOzero
 
-These can be installed using pip3. There are a number of additional specialised libraries that are also required, these are detailled below.
+These can be installed using pip3:
+
+```
+pip3 install numpy scipy pandas PyYAML GPIOzero
+```
+
+There are a number of additional specialised libraries that are also required, these are detailled below.
 
 ### Python Seabreeze
 The Ocean Optics spectrometer is controlled using a Python library called Python Seabreeze, which is maintained on GitHub [here](https://github.com/ap--/python-seabreeze). The library is installed using:
