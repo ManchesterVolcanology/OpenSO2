@@ -38,6 +38,8 @@ fmt = '%(asctime)s %(levelname)s %(module)s %(funcName)s %(message)s'
 fh.setFormatter(logging.Formatter(fmt))
 logger.addHandler(fh)
 
+logger.debug(f'Qt version: PySide2 {PySide2.__version__}')
+
 
 class MainWindow(QMainWindow):
     """View for the OpenSO2 GUI."""
@@ -432,9 +434,14 @@ class MainWindow(QMainWindow):
         volc_loc = [float(self.widgets.get('vlat')),
                     float(self.widgets.get('vlon'))]
 
+        # Get the default altitude and azimuth
+        default_alt = float(self.widgets.get('plume_alt'))
+        default_az = float(self.widgets.get('plume_dir'))
+
         self.statusBar().showMessage('Syncing...')
         self.sync_worker = Worker(sync_stations, self.stations,
-                                  self.today_date, volc_loc)
+                                  self.today_date, volc_loc, default_alt,
+                                  default_az)
         self.sync_worker.signals.log.connect(self.update_station_log)
         self.sync_worker.signals.plot.connect(self.update_scan_plot)
         self.sync_worker.signals.flux.connect(self.update_flux_plots)
