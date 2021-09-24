@@ -1,0 +1,29 @@
+# Station name
+station_name: TEST
+
+# Scanning start and end time (hours)
+start_time: '08:00'
+stop_time: '16:00'
+
+# iFit model settings
+model_pad: 2
+model_res: 0.01
+
+# Spectrometer settings
+min_int_time: 50
+max_int_time: 5000
+int_time_step: 50
+start_int_time: 200
+target_int: 50000
+coadds: 10
+
+# Scanner settings
+home_angle: -180
+switch_pin: 21
+max_steps_home: 4000
+steps_to_start: 100
+step_type: double
+steps_per_spec: 2
+specs_per_scan: 100
+angle_per_step: 0.9
+home_offset: 100
