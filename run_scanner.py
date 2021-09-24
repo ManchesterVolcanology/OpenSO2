@@ -180,7 +180,8 @@ def main_loop():
             time.sleep(10)
 
     # Connect to the scanner
-    scanner = Scanner(step_type=settings['step_type'],
+    scanner = Scanner(switch_pi=settings['switch_pin'],
+                      step_type=settings['step_type'],
                       angle_per_step=settings['angle_per_step'],
                       home_angle=settings['home_angle'],
                       max_steps_home=settings['max_steps_home'])
