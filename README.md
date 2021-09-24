@@ -54,7 +54,7 @@ sudo sh installWittyPi.sh
 ```
 or 
 ```
-wget http://www.uugear.com/repo/WittyPi3/installWittyPi.sh
+wget http://www.uugear.com/repo/WittyPi3/install.sh
 sudo sh installWittyPi.sh
 ```
 Depending on whether you have the 2 or 3 board. This script goes through several steps to ensure the WittyPi board will operate correctly. Note it is not necessary to install Qt for the GUI. Once it is installed a correct script to tell the board when to power on and off is required. In the ```/home/pi/wittyPi``` folder create a text document called ```schedule.wpi``` containing the following text:
