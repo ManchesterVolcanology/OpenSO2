@@ -86,12 +86,13 @@ def log_status(status):
 
 
 # Create handler to log any exceptions
-def my_handler(*exc_info):
+def exception_handler(*exc_info):
     log_status('Error')
     logger.exception('Uncaught exception!', exc_info=exc_info)
 
 
-sys.excepthook = my_handler
+sys.excepthook = exception_handler
+
 
 # =============================================================================
 # Begin the main program
@@ -145,13 +146,13 @@ def main_loop():
     analyser = Analyser(params,
                         fit_window=[310, 320],
                         frs_path='Ref/sao2010.txt',
-                        flat_flag=True,
+                        flat_flag=False,
                         flat_path=f'Station/{spectro.serial_number}_flat.txt',
                         stray_flag=True,
                         stray_window=[280, 290],
                         ils_type='Params',
                         ils_path=f'Station/{spectro.serial_number}_ils.txt')
-                        
+
     # Report fitting parameters
     logger.info(params.pretty_print(cols=['name', 'value', 'vary', 'xpath']))
 
@@ -162,8 +163,8 @@ def main_loop():
 #   Begin the scanning loop
 # =============================================================================
 
-    start_time = datetime.strptime(settings['start_time'], '%H:%M:%S').time()
-    stop_time = datetime.strptime(settings['stop_time'], '%H:%M:%S').time()
+    start_time = datetime.strptime(settings['start_time'], '%H:%M').time()
+    stop_time = datetime.strptime(settings['stop_time'], '%H:%M').time()
 
     # Create list to hold active processes
     processes = []
@@ -201,8 +202,8 @@ def main_loop():
         # Update the spectrometer integration time
         new_int_time = update_int_time(scan_fname, spectro.integration_time,
                                        settings)
-        # spectro.update_integration_time(new_int_time)
-        # logger.info(f'Integration time updated to {int(new_int_time)}')
+        spectro.update_integration_time(new_int_time)
+        logger.info(f'Integration time updated to {int(new_int_time)}')
 
         # Clear any finished processes from the processes list
         processes = [p for p in processes if p.is_alive()]
