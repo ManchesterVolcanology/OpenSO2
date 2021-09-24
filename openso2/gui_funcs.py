@@ -2,13 +2,15 @@ import os
 import sys
 import logging
 import traceback
+import numpy as np
 import pandas as pd
-from datetime import datetime
+from scipy.signal import savgol_filter
+from datetime import datetime, timedelta
 from PySide2.QtCore import Qt, QObject, Signal, Slot, QRunnable
 from PySide2.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
                                QSpinBox, QCheckBox)
 
-from openso2.calculate_flux import calc_scan_flux
+from openso2.plume import calc_plume_altitude, calc_scan_flux
 
 
 logger = logging.getLogger(__name__)
@@ -89,13 +91,13 @@ class Worker(QRunnable):
         self.signals.finished.emit()
 
 
-def sync_stations(worker, stations, today_date, vent_loc, log_callback,
-                  plot_callback, flux_callback, gui_status_callback,
-                  stat_status_callback):
+def sync_stations(worker, widgets, stations, today_date, vent_loc, default_alt,
+                  default_az, log_callback,  plot_callback, flux_callback,
+                  gui_status_callback, stat_status_callback):
     """Sync the station logs and scans."""
     # Generate an empty dictionary to hold the scans
     scans = {}
-
+    raise NameError
     # Sync each station
     for station in stations.values():
 
@@ -133,7 +135,8 @@ def sync_stations(worker, stations, today_date, vent_loc, log_callback,
 
     # Calculate the fluxes
     gui_status_callback.emit('Calculating fluxes')
-    calculate_fluxes(stations, scans, today_date, vent_loc)
+    calculate_fluxes(stations, scans, today_date, vent_loc, default_alt,
+                     default_az, scan_pair_time=10)
 
     # Plot the fluxes on the GUI
     flux_callback.emit()
@@ -143,10 +146,14 @@ def sync_stations(worker, stations, today_date, vent_loc, log_callback,
     gui_status_callback.emit('Ready')
 
 
-def calculate_fluxes(stations, scans, today_date, vent_loc):
-    """Calculate the flux from a scan."""
-    # Get the scan database
-    # saved_scans = get_local_scans(today_date)
+def calculate_fluxes(stations, scans, today_date, vent_loc, default_alt,
+                     default_az, scan_pair_time, min_scd=-1e17, max_scd=1e20,
+                     plume_scd=1e17, good_scan_lim=0.2, sg_window=11,
+                     sg_polyn=3):
+    """Calculate the flux from a set of scans."""
+
+    # Get the existing scan database
+    scan_fnames, scan_times = get_local_scans(stations, today_date)
 
     # For each station calculate fluxes
     for name, station in stations.items():
@@ -156,45 +163,194 @@ def calculate_fluxes(stations, scans, today_date, vent_loc):
 
         for scan_fname in scans[name]:
 
+            # Read in the scan
             scan_df = pd.read_csv(fpath + scan_fname)
 
+            # Filter the scan
+            msk_scan_df, peak, msg = filter_scan(scan_df, min_scd, max_scd,
+                                                 plume_scd, good_scan_lim,
+                                                 sg_window, sg_polyn)
+
+            if msk_scan_df is None:
+                logger.info(f'Scan {scan_fname} not analysed. {msg}')
+                continue
+
+            # Pull the scan time from the filename
+            scan_time = datetime.strptime(os.path.split(scan_fname)[1][:14],
+                                          '%Y%m%d_%H%M%S')
+
+            # Find the nearest scan from other stations
+            near_fname, near_ts, alt_name = find_nearest_scan(name, scan_time,
+                                                              scan_fnames,
+                                                              scan_times)
+
+            # Calculate the time difference
+            time_diff = scan_time - near_ts
+            if time_diff < timedelta(minutes=scan_pair_time):
+
+                # Read in the scan
+                alt_scan_df = pd.read_csv(near_fname)
+
+                # Filter the scan
+                alt_msk_df, alt_peak, msg = filter_scan(alt_scan_df, min_scd,
+                                                        max_scd, plume_scd,
+                                                        good_scan_lim,
+                                                        sg_window, sg_polyn)
+
+                # If the alt scan is good, calculate the plume altitude
+                if alt_msk_df is None:
+                    plume_alt = default_alt
+                    plume_az = default_az
+                else:
+                    alt_station = stations[alt_name]
+                    plume_alt, plume_az = calc_plume_altitude(station,
+                                                              alt_station,
+                                                              peak,
+                                                              alt_peak,
+                                                              vent_loc,
+                                                              default_alt)
+
+            # If scans are too far appart, use default values
+            else:
+                plume_alt = default_alt
+                plume_az = default_az
+
+            # Calculate the scan flux
             flux_amt, flux_err = calc_scan_flux(angles=scan_df['Angle'],
                                                 scan_so2=[scan_df['SO2'],
                                                           scan_df['SO2_err']],
                                                 station_info=station.loc_info,
                                                 volcano_location=vent_loc,
                                                 windspeed=1,
-                                                plume_altitude=600,
-                                                plume_azimuth=270)
+                                                plume_altitude=plume_alt,
+                                                plume_azimuth=plume_az)
 
-            scan_time = datetime.strptime(os.path.split(scan_fname)[1][:14],
-                                          '%Y%m%d_%H%M%S')
-
+            # Format the file name of the flux output file
             flux_fname = f'Results/{today_date}/{name}/' \
                          + f'{today_date}_{name}_fluxes.csv'
 
+            # Check the file exists
             if not os.path.exists(flux_fname):
                 with open(flux_fname, 'w') as w:
                     w.write('Time [UTC],Flux [kg/s],Flux Err [kg/s]')
+
+            # Write the results to the file
             with open(flux_fname, 'a') as w:
                 w.write(f'\n{scan_time},{flux_amt},{flux_err}')
 
 
-def get_local_scans(today_date):
-    """Find al the scans for the given day for all stations."""
+def filter_scan(scan_df, min_scd, max_scd, plume_scd, good_scan_lim,
+                sg_window, sg_polyn):
+    """Filter scans for quality and find the centre."""
+    # Filter the points for quality
+    mask = np.row_stack([scan_df['fit_quality'] != 1,
+                         scan_df['SO2'] < min_scd,
+                         scan_df['SO2'] > max_scd
+                         ]).any(axis=0)
+    masked_scan_df = scan_df.mask(mask)
+    so2_scd_masked = masked_scan_df['SO2']
+
+    # Count the number of 'plume' spectra
+    nplume = sum(so2_scd_masked > plume_scd)
+
+    if len(np.where(mask)[0]) > good_scan_lim*len(scan_df['SO2']):
+        return None, None, 'Not enough good spectra'
+
+    if nplume < 10:
+        return None, None, 'Not enough plume spectra'
+
+    # Determine the peak scan angle
+    x = scan_df['Angle'][~mask].to_numpy()
+    y = scan_df['SO2'][~mask].to_numpy()
+    so2_filtered = savgol_filter(y, sg_window, sg_polyn, mode='nearest')
+    peak_angle = x[so2_filtered.argmax()]
+
+    return masked_scan_df, peak_angle, 'Scan analysed'
+
+
+def get_local_scans(stations, today_date):
+    """Find all the scans for the given day for all stations.
+
+    Parameters
+    ----------
+    stations : dict
+        Holds the openso2 Station objects.
+    today_date : dateimte date
+        The date of the analysis in question
+
+    Returns
+    -------
+    scan_fnames : dict
+        Dictionary of the scan filenames for each scanner
+    scan_times : dict
+        Dictionary of the scan timestamps ofr each scanner
+    """
     # Set the results filepath
     fpath = f'Results/{today_date}'
 
-    # Get the stations
-    stations = os.listdir(fpath)
+    # Initialise empty dictionaries for the file names and timestamps
+    scan_fnames = {}
+    scan_times = {}
 
-    # For each station find the available scans
-    saved_scans = {}
-    for station in stations:
-        saved_scans[station] = [f'{fpath}/{station}/so2/{f}'
-                                for f in os.listdir(f'{fpath}/{station}/so2/')]
+    # For each station find the available scans and there timestamps
+    for name, station in stations.items():
+        scan_fnames[station] = [f'{fpath}/{name}/so2/{f}'
+                                for f in os.listdir(f'{fpath}/{name}/so2/')]
+        scan_times = [datetime.strptime(f[:14], '%Y%m%d_%H%M%S')
+                      for f in os.listdir(f'{fpath}/{name}/so2/')]
 
-    return saved_scans
+    return scan_fnames, scan_times
+
+
+def find_nearest_scan(station_name, scan_time, scan_fnames, scan_times):
+    """Find nearest scan from multiple other stations.
+
+    Parameters
+    ----------
+    station_name : str
+        The station from which the scan is being analysed.
+    scan_time : datetime
+        The timestamp of the scan
+    scan_fnames : dict
+        Dictionary of the scan filenames for each scanner
+    scan_times : dict
+        Dictionary of the scan timestamps ofr each scanner
+
+    Returns
+    -------
+    nearest_fname : str
+        The filepath to the nearest scan
+    nearest_timestamp : datetime
+        The timestamp of the nearest scan
+    """
+    # Initialise empty lists to hold the results
+    nearest_scan_times = []
+    nearest_scan_fnames = []
+
+    # search through the dictionary of station scans
+    for name, fnames in scan_fnames.items():
+
+        # Skip if this is the same station
+        if name == station_name:
+            continue
+
+        # Find the time difference
+        delta_times = [abs(t - scan_time).total_seconds()
+                       for t in scan_times[name]]
+
+        # Find the closest time
+        min_idx = np.argmin(delta_times)
+
+        # Record the nearest scan for that station
+        nearest_scan_times.append(scan_times[name][min_idx])
+        nearest_scan_fnames.append(fnames[min_idx])
+
+    # Now find the nearest of the nearest scans
+    idx = np.argmin(nearest_scan_times)
+    nearest_fname = nearest_scan_fnames[idx]
+    nearest_timestamp = nearest_scan_times[idx]
+
+    return nearest_fname, nearest_timestamp
 
 
 # =============================================================================
