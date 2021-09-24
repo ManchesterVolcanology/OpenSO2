@@ -1,18 +1,31 @@
+# Station name
+station_name: TEST
 version: v_1_2
-station_name: LOVE
-start_int_time: 100
-start_coadds: 10
-start_time: "12:00:00"
-stop_time: "20:00:00"
-save_format: numpy
-target_int: 50000
+save_format: csv
+
+# Scanning start and end time (hours)
+start_time: '08:00'
+stop_time: '16:00'
+
+# iFit model settings
+model_pad: 2
+model_res: 0.01
+
+# Spectrometer settings
+start_int_time: 200
+coadds: 10
 min_int_time: 50
 max_int_time: 5000
 int_time_step: 50
-steps_to_start: 50
-steps_per_spec: 1
-specs_per_scan: 100
-angle_per_step: 1.8
+target_int: 50000
+
+# Scanner settings
 home_angle: 180
-max_steps_home: 1000
+switch_pin: 21
+max_steps_home: 4000
+steps_to_start: 100
 step_type: double
+steps_per_spec: 2
+specs_per_scan: 100
+angle_per_step: 0.9
+home_offset: 100
