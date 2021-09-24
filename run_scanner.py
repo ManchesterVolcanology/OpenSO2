@@ -28,7 +28,7 @@ from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
 from ifit.spectrometers import VSpectrometer
 
-from openso2.scanner import VScanner, acquire_scan
+from openso2.scanner import Scanner, acquire_scan
 from openso2.analyse_scan import analyse_scan, update_int_time
 from openso2.call_gps import sync_gps_time
 
@@ -180,10 +180,10 @@ def main_loop():
             time.sleep(10)
 
     # Connect to the scanner
-    scanner = VScanner(step_type=settings['step_type'],
-                       angle_per_step=settings['angle_per_step'],
-                       home_angle=settings['home_angle'],
-                       max_steps_home=settings['max_steps_home'])
+    scanner = Scanner(step_type=settings['step_type'],
+                      angle_per_step=settings['angle_per_step'],
+                      home_angle=settings['home_angle'],
+                      max_steps_home=settings['max_steps_home'])
     logger.info('Scanner connected')
 
     # Begin loop

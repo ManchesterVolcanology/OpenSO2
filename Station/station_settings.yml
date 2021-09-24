@@ -13,7 +13,7 @@ model_res: 0.01
 
 # Spectrometer settings
 start_int_time: 200
-coadds: 10
+start_coadds: 10
 min_int_time: 50
 max_int_time: 5000
 int_time_step: 50
