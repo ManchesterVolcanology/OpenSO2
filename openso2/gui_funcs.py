@@ -1,252 +1,413 @@
-# -*- coding: utf-8 -*-
-"""
-Contains functions to help build the GUI interface.
-"""
+import os
+import sys
+import logging
+import traceback
+import numpy as np
+import pandas as pd
+from scipy.signal import savgol_filter
+from datetime import datetime, timedelta
+from PySide2.QtCore import Qt, QObject, Signal, Slot, QRunnable
+from PySide2.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
+                               QSpinBox, QCheckBox)
 
-from tkinter import ttk
-import tkinter as tk
-
-#==============================================================================
-#================================= Make Input =================================
-#==============================================================================
-
-def make_input(frame, text, var, input_type, row, column, padx = 5, pady = 5,
-               command = None, sticky = ['NSEW', None], width = None,
-               options = None, vals = [0, 10], increment = 1, rowspan = None, 
-               columnspan = None, label_font = ('Verdana', 8)):
-
-    '''
-    Function to build GUI inputs consisting of a label and an input.
-
-    **Parameters:**
-
-    frame : tk.Frame or tk.LabelFrame
-        Container in which to place the object
-
-    text : str
-        Text to display in the label
-
-    var : tk variable
-        Variable to assosiate with the input
-
-    input_type : str
-        Type of input to use. Must be one of Entry, Spinbox, OptionMenu, 
-        Checkbutton or Label
-
-    row : int
-        Row number, will be the same for label and input
-
-    column : int
-        Column number, the input will be column + 1
-
-    padx : int (optional)
-        X-padding to apply to the label and input. Default is 5
-
-    pady : int (optional)
-        Y-padding to apply to the label and input. Default is 5
-
-    command : func
-        function to run on change to the input value
-
-    sticky : str or tuple of strings (optional)
-        Direction to stick the object (compass direction). If given as a tuple 
-        the first corresponds to the label and the second to the entry. Default 
-        is None
-
-    width : float (optional)
-        Width of the entry. Default is None.
-
-    options : list (optional)
-        List of options for an Option Menu. Default is None
-
-    vals : tuple or list (optional)
-        Sets the range of values for a spinbox. If two values are give it sets 
-        the limits (from, to)
-
-    increment : int (optional)
-        Value spacing for a spinbox. Default is 1
-
-    rowspan : int (optional)
-        Number of rows the entry will span. Default is None
-
-    columnspan : int (optional)
-        Number of columns the entry will span. Default is None
-
-    label_font : tuple (optional)
-        Font tuple in the form (font, size) for the label. Default is 
-        ('Verdana', 8)
-
-    **Returns:**
-        
-    label : tk.Label object
-        Input label object
-
-    entry : tk object
-        Input entry object, type depends on the input_type
-    '''
-
-    # Unpack stickyness
-    if sticky == None:
-        label_sticky = None
-        entry_sticky = None
-    elif len(sticky) == 2:
-        label_sticky = sticky[0]
-        entry_sticky = sticky[1]
-    else:
-        label_sticky = sticky
-        entry_sticky = sticky
-
-    # Create the input label
-    label = ttk.Label(frame, text = text, font = label_font)
-    label.grid(row=row, column=column, padx=padx, pady=pady,
-               sticky=label_sticky)
-
-    # Check that the entry type is valid
-    if input_type not in ['Entry', 'Spinbox', 'OptionMenu', 'Label', 
-                          'Checkbutton']:
-        raise TypeError('Data entry type "' + input_type + '" not recognised')
+from openso2.plume import calc_plume_altitude, calc_scan_flux
 
 
-    # Normal entry
-    if input_type == 'Entry':
-        if command == None:
-            validate = None
-        else:
-            validate = "focusout"
-        entry = ttk.Entry(frame, textvariable = var, width = width, 
-                          validate = validate, validatecommand = command)
+logger = logging.getLogger(__name__)
 
 
-    # Spinbox
-    if input_type == 'Spinbox':
+class Signaller(QObject):
+    """Signal for logs."""
 
-        # Check if range is from:to or a list
-        if len(vals) == 2:
-            entry = tk.Spinbox(frame,
-                               textvariable = var, 
-                               width = width, 
-                               from_ = vals[0],
-                               to = vals[1], 
-                               command = command, 
-                               increment = increment)
-
-        else:
-            entry = tk.Spinbox(frame, 
-                               textvariable = var, 
-                               width = width, 
-                               values = vals,
-                               command = command, 
-                               increment = increment)
-
-        # Set first value
-        #entry.update(var.get())
+    signal = Signal(str, logging.LogRecord)
 
 
-    # Option Menu
-    if input_type == 'OptionMenu':
-        entry = ttk.OptionMenu(frame, var, *options, command = command)
-        entry.config(width = width)
+class QtHandler(logging.Handler):
+    """Logging handler for Qt application."""
+
+    def __init__(self, slotfunc, *args, **kwargs):
+        super(QtHandler, self).__init__(*args, **kwargs)
+        self.signaller = Signaller()
+        self.signaller.signal.connect(slotfunc)
+
+    # @Signal()
+    def emit(self, record):
+        """Emit the log message and record."""
+        s = self.format(record)
+        self.signaller.signal.emit(s, record)
 
 
-    # Label
-    if input_type == 'Label':
-        entry = ttk.Label(frame, textvariable = var)
+# Create a worker signals object to handle worker signals
+class WorkerSignals(QObject):
+    """Define the signals available from a running worker thread."""
+
+    finished = Signal()
+    plot = Signal(str, str)
+    log = Signal(str, list)
+    flux = Signal()
+    gui_status = Signal(str)
+    stat_status = Signal(str, str, str)
+    error = Signal(tuple)
 
 
-    # Checkbutton
-    if input_type == 'Checkbutton':
-        entry = ttk.Checkbutton(frame, variable = var)
+# Create a worker to handle QThreads
+class Worker(QRunnable):
+    """Worker thread.
 
+    Inherits from QRunnable to handler worker thread setup, signals and wrap-up
 
-    # Add entry to the frame
-    entry.grid(row=row, column=column+1, padx=padx, pady=pady, 
-               sticky=entry_sticky, rowspan=rowspan, columnspan=columnspan)
+    Parameters
+    ----------
+    fn : function
+        The function to run on the worker thread
+    """
 
-    return label, entry
+    def __init__(self, fn, *args, **kwargs):
+        super(Worker, self).__init__()
 
-#==============================================================================
-#================================ Update Graph ================================
-#==============================================================================
+        # Store constructor arguments (re-used for processing)
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+        self.signals = WorkerSignals()
+        self.kwargs['log_callback'] = self.signals.log
+        self.kwargs['plot_callback'] = self.signals.plot
+        self.kwargs['flux_callback'] = self.signals.flux
+        self.kwargs['gui_status_callback'] = self.signals.gui_status
+        self.kwargs['stat_status_callback'] = self.signals.stat_status
 
-def update_graph(lines, axes, canvas, new_data):
-
-    '''
-    Function to update a matplotlib figure
-
-    **Parameters:**
-        
-    lines : list
-        The plots to update
-
-    axes : list
-        Axes that correspond to the lines (must be same length and order as 
-        lines)
-
-    canvas : tkagg canvas object
-        Canvas that holds the axes
-
-    new_data : array
-        New data to plot. Has the form [[x1, y1, x1lims, y1lims],
-                                        [x2, y2, x2lims, y2lims],...]
-        
-    **Returns:**
-        
-    None
-    '''
-
-    # Unpack new data
-    if len(new_data.shape) > 1:
-        xdata = new_data[:,0]
-        ydata = new_data[:,1]
-        xlims = new_data[:,2]
-        ylims = new_data[:,3]
-
-    else:
-        xdata = [new_data[0]]
-        ydata = [new_data[1]]
-        xlims = [new_data[2]]
-        ylims = [new_data[3]]
-
-    # Iterate plotting over each data series
-    for i in range(len(lines)):
-
-        # Update data points on the graph
-        lines[i].set_xdata(xdata[i])
-        lines[i].set_ydata(ydata[i])
-
-        # Rescale the axes
-        axes[i].relim()
-        axes[i].autoscale_view()
-
+    @Slot()
+    def run(self):
+        """Initialise the runner function with passed args, kwargs."""
+        # Retrieve args/kwargs here; and fire processing using them
         try:
-            # If auto, pad by 10% of range
-            if xlims[i] == 'auto':
-                x_min = min(xdata[i]) - abs(max(xdata[i]) - min(xdata[i]))*0.1
-                x_max = max(xdata[i]) + abs(max(xdata[i]) - min(xdata[i]))*0.1
-                axes[i].set_xlim(x_min, x_max)
+            self.fn(self, *self.args, **self.kwargs)
+        except Exception:
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.signals.error.emit((exctype, value, traceback.format_exc()))
 
-            # If false set as limits +/- 1
-            elif xlims[i] == False:
-                axes[i].set_xlim(min(xdata[i])-1, max(xdata[i])+1)
+        # Done
+        self.signals.finished.emit()
 
-            # If fixed, fix value
+
+def sync_stations(worker, widgets, stations, today_date, vent_loc, default_alt,
+                  default_az, log_callback,  plot_callback, flux_callback,
+                  gui_status_callback, stat_status_callback):
+    """Sync the station logs and scans."""
+    # Generate an empty dictionary to hold the scans
+    scans = {}
+    raise NameError
+    # Sync each station
+    for station in stations.values():
+
+        logging.info(f'Syncing {station.name} station...')
+
+        # Sync the station status and log
+        time, status, err = station.pull_status()
+        fname, err = station.pull_log()
+
+        # Update the station status
+        stat_status_callback.emit(station.name, time, status)
+
+        # Read the log file
+        if fname is not None:
+            with open(fname, 'r') as r:
+                log_text = r.readlines()
+
+            # Send signal with log text
+            log_callback.emit(station.name, log_text)
+
+        # Sync SO2 files
+        local_dir = f'Results/{today_date}/{station.name}/so2/'
+        if not os.path.isdir(local_dir):
+            os.makedirs(local_dir)
+        remote_dir = f'/home/pi/open_so2/Results/{today_date}/so2/'
+        new_fnames, err = station.sync(local_dir, remote_dir)
+        logging.info(f'Synced {len(new_fnames)} scans from {station.name}')
+
+        # Add the scans to the dictionary
+        scans[station.name] = new_fnames
+
+        # Plot last scan
+        if len(new_fnames) != 0:
+            plot_callback.emit(station.name, local_dir + new_fnames[-1])
+
+    # Calculate the fluxes
+    gui_status_callback.emit('Calculating fluxes')
+    calculate_fluxes(stations, scans, today_date, vent_loc, default_alt,
+                     default_az, scan_pair_time=10)
+
+    # Plot the fluxes on the GUI
+    flux_callback.emit()
+
+    logger.info('Sync complete')
+
+    gui_status_callback.emit('Ready')
+
+
+def calculate_fluxes(stations, scans, today_date, vent_loc, default_alt,
+                     default_az, scan_pair_time, min_scd=-1e17, max_scd=1e20,
+                     plume_scd=1e17, good_scan_lim=0.2, sg_window=11,
+                     sg_polyn=3):
+    """Calculate the flux from a set of scans."""
+
+    # Get the existing scan database
+    scan_fnames, scan_times = get_local_scans(stations, today_date)
+
+    # For each station calculate fluxes
+    for name, station in stations.items():
+
+        # Set filepath to scan data
+        fpath = f'Results/{today_date}/{name}/so2/'
+
+        for scan_fname in scans[name]:
+
+            # Read in the scan
+            scan_df = pd.read_csv(fpath + scan_fname)
+
+            # Filter the scan
+            msk_scan_df, peak, msg = filter_scan(scan_df, min_scd, max_scd,
+                                                 plume_scd, good_scan_lim,
+                                                 sg_window, sg_polyn)
+
+            if msk_scan_df is None:
+                logger.info(f'Scan {scan_fname} not analysed. {msg}')
+                continue
+
+            # Pull the scan time from the filename
+            scan_time = datetime.strptime(os.path.split(scan_fname)[1][:14],
+                                          '%Y%m%d_%H%M%S')
+
+            # Find the nearest scan from other stations
+            near_fname, near_ts, alt_name = find_nearest_scan(name, scan_time,
+                                                              scan_fnames,
+                                                              scan_times)
+
+            # Calculate the time difference
+            time_diff = scan_time - near_ts
+            if time_diff < timedelta(minutes=scan_pair_time):
+
+                # Read in the scan
+                alt_scan_df = pd.read_csv(near_fname)
+
+                # Filter the scan
+                alt_msk_df, alt_peak, msg = filter_scan(alt_scan_df, min_scd,
+                                                        max_scd, plume_scd,
+                                                        good_scan_lim,
+                                                        sg_window, sg_polyn)
+
+                # If the alt scan is good, calculate the plume altitude
+                if alt_msk_df is None:
+                    plume_alt = default_alt
+                    plume_az = default_az
+                else:
+                    alt_station = stations[alt_name]
+                    plume_alt, plume_az = calc_plume_altitude(station,
+                                                              alt_station,
+                                                              peak,
+                                                              alt_peak,
+                                                              vent_loc,
+                                                              default_alt)
+
+            # If scans are too far appart, use default values
             else:
-                axes[i].set_xlim(xlims[i][0], xlims[i][1])
+                plume_alt = default_alt
+                plume_az = default_az
 
-            # Do same for y axis
-            if ylims[i] == 'auto':
-                y_min = min(ydata[i]) - abs(max(ydata[i]) - min(ydata[i]))*0.1
-                y_max = max(ydata[i]) + abs(max(ydata[i]) - min(ydata[i]))*0.1
-                axes[i].set_ylim(y_min, y_max)
+            # Calculate the scan flux
+            flux_amt, flux_err = calc_scan_flux(angles=scan_df['Angle'],
+                                                scan_so2=[scan_df['SO2'],
+                                                          scan_df['SO2_err']],
+                                                station_info=station.loc_info,
+                                                volcano_location=vent_loc,
+                                                windspeed=1,
+                                                plume_altitude=plume_alt,
+                                                plume_azimuth=plume_az)
 
-            elif ylims[i] == False:
-                axes[i].set_ylim(min(ydata[i])-1, max(ydata[i])+1)
+            # Format the file name of the flux output file
+            flux_fname = f'Results/{today_date}/{name}/' \
+                         + f'{today_date}_{name}_fluxes.csv'
 
-            else:
-                axes[i].set_ylim(ylims[i][0], ylims[i][1])
+            # Check the file exists
+            if not os.path.exists(flux_fname):
+                with open(flux_fname, 'w') as w:
+                    w.write('Time [UTC],Flux [kg/s],Flux Err [kg/s]')
 
-        except ValueError:
-            pass
+            # Write the results to the file
+            with open(flux_fname, 'a') as w:
+                w.write(f'\n{scan_time},{flux_amt},{flux_err}')
 
-    # Apply changes
-    canvas.draw()
+
+def filter_scan(scan_df, min_scd, max_scd, plume_scd, good_scan_lim,
+                sg_window, sg_polyn):
+    """Filter scans for quality and find the centre."""
+    # Filter the points for quality
+    mask = np.row_stack([scan_df['fit_quality'] != 1,
+                         scan_df['SO2'] < min_scd,
+                         scan_df['SO2'] > max_scd
+                         ]).any(axis=0)
+    masked_scan_df = scan_df.mask(mask)
+    so2_scd_masked = masked_scan_df['SO2']
+
+    # Count the number of 'plume' spectra
+    nplume = sum(so2_scd_masked > plume_scd)
+
+    if len(np.where(mask)[0]) > good_scan_lim*len(scan_df['SO2']):
+        return None, None, 'Not enough good spectra'
+
+    if nplume < 10:
+        return None, None, 'Not enough plume spectra'
+
+    # Determine the peak scan angle
+    x = scan_df['Angle'][~mask].to_numpy()
+    y = scan_df['SO2'][~mask].to_numpy()
+    so2_filtered = savgol_filter(y, sg_window, sg_polyn, mode='nearest')
+    peak_angle = x[so2_filtered.argmax()]
+
+    return masked_scan_df, peak_angle, 'Scan analysed'
+
+
+def get_local_scans(stations, today_date):
+    """Find all the scans for the given day for all stations.
+
+    Parameters
+    ----------
+    stations : dict
+        Holds the openso2 Station objects.
+    today_date : dateimte date
+        The date of the analysis in question
+
+    Returns
+    -------
+    scan_fnames : dict
+        Dictionary of the scan filenames for each scanner
+    scan_times : dict
+        Dictionary of the scan timestamps ofr each scanner
+    """
+    # Set the results filepath
+    fpath = f'Results/{today_date}'
+
+    # Initialise empty dictionaries for the file names and timestamps
+    scan_fnames = {}
+    scan_times = {}
+
+    # For each station find the available scans and there timestamps
+    for name, station in stations.items():
+        scan_fnames[station] = [f'{fpath}/{name}/so2/{f}'
+                                for f in os.listdir(f'{fpath}/{name}/so2/')]
+        scan_times = [datetime.strptime(f[:14], '%Y%m%d_%H%M%S')
+                      for f in os.listdir(f'{fpath}/{name}/so2/')]
+
+    return scan_fnames, scan_times
+
+
+def find_nearest_scan(station_name, scan_time, scan_fnames, scan_times):
+    """Find nearest scan from multiple other stations.
+
+    Parameters
+    ----------
+    station_name : str
+        The station from which the scan is being analysed.
+    scan_time : datetime
+        The timestamp of the scan
+    scan_fnames : dict
+        Dictionary of the scan filenames for each scanner
+    scan_times : dict
+        Dictionary of the scan timestamps ofr each scanner
+
+    Returns
+    -------
+    nearest_fname : str
+        The filepath to the nearest scan
+    nearest_timestamp : datetime
+        The timestamp of the nearest scan
+    """
+    # Initialise empty lists to hold the results
+    nearest_scan_times = []
+    nearest_scan_fnames = []
+
+    # search through the dictionary of station scans
+    for name, fnames in scan_fnames.items():
+
+        # Skip if this is the same station
+        if name == station_name:
+            continue
+
+        # Find the time difference
+        delta_times = [abs(t - scan_time).total_seconds()
+                       for t in scan_times[name]]
+
+        # Find the closest time
+        min_idx = np.argmin(delta_times)
+
+        # Record the nearest scan for that station
+        nearest_scan_times.append(scan_times[name][min_idx])
+        nearest_scan_fnames.append(fnames[min_idx])
+
+    # Now find the nearest of the nearest scans
+    idx = np.argmin(nearest_scan_times)
+    nearest_fname = nearest_scan_fnames[idx]
+    nearest_timestamp = nearest_scan_times[idx]
+
+    return nearest_fname, nearest_timestamp
+
+
+# =============================================================================
+# Spinbox
+# =============================================================================
+
+# Create a Spinbox object for ease
+class DSpinBox(QDoubleSpinBox):
+    """Object for generating custom float spinboxes."""
+
+    def __init__(self, value, range):
+        super().__init__()
+        self.setRange(*range)
+        self.setValue(value)
+
+
+class SpinBox(QSpinBox):
+    """Object for generating custom integer spinboxes."""
+
+    def __init__(self, value, range):
+        super().__init__()
+        self.setRange(*range)
+        self.setValue(value)
+
+
+# =============================================================================
+# Widgets Object
+# =============================================================================
+
+class Widgets(dict):
+    """Object to allow easy config/info transfer with PyQT Widgets."""
+
+    def __init__(self):
+        super().__init__()
+
+    def get(self, key):
+        """Get the value of a widget."""
+        if type(self[key]) == QTextEdit:
+            return self[key].toPlainText()
+        elif type(self[key]) == QLineEdit:
+            return self[key].text()
+        elif type(self[key]) == QComboBox:
+            return str(self[key].currentText())
+        elif type(self[key]) == QCheckBox:
+            return self[key].isChecked()
+        elif type(self[key]) in [SpinBox, DSpinBox, QSpinBox, QDoubleSpinBox]:
+            return self[key].value()
+
+    def set(self, key, value):
+        """Set the value of a widget."""
+        if type(self[key]) in [QTextEdit, QLineEdit]:
+            self[key].setText(str(value))
+        if type(self[key]) == QComboBox:
+            index = self[key].findText(value, Qt.MatchFixedString)
+            if index >= 0:
+                self[key].setCurrentIndex(index)
+        if type(self[key]) == QCheckBox:
+            self[key].setChecked(value)
+        if type(self[key]) in [SpinBox, DSpinBox, QSpinBox, QDoubleSpinBox]:
+            self[key].setValue(value)

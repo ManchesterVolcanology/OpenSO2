@@ -3,8 +3,16 @@ _build
 _static
 _templates
 
-# Results file
+# OpenSO2 files
 Results/
+Station/
+status.txt
+.config
+*.log.*
+
+# Scratch files
+*scratch*
+*Scratch*
 
 # Temp files
 tmp*
