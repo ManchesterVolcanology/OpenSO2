@@ -22,6 +22,11 @@ def sync_gps_time():
 
     None
     """
+    # Ensure the GPS daemon socket is running
+    subprocess.call('sudo systemctl stop gpsd.socket')
+    subprocess.call('sudo systemctl disable gpsd.socket')
+    subprocess.call('sudo gpsd /dev/ttyUSB0 -F /var/run/gpsd.sock')
+
     # Listen on port 2947 (GPSD) of localhost
     gpsd = gps.gps("localhost", "2947")
     gpsd.stream(gps.WATCH_ENABLE | gps.WATCH_NEWSTYLE)
