@@ -108,7 +108,8 @@ def main_loop():
 # =============================================================================
 
     # Sync time with the GPS
-    # sync_gps_time()
+    p = Process(target=sync_gps_time)
+    p.start()
 
     # Read in the station operation settings file
     with open('Station/station_settings.yml', 'r') as ymlfile:
@@ -146,6 +147,8 @@ def main_loop():
     analyser = Analyser(params,
                         fit_window=[310, 320],
                         frs_path='Ref/sao2010.txt',
+                        model_padding=settings['model_pad'],
+                        model_spacing=settings['model_res'],
                         flat_flag=False,
                         flat_path=f'Station/{spectro.serial_number}_flat.txt',
                         stray_flag=True,
@@ -203,7 +206,7 @@ def main_loop():
         # Update the spectrometer integration time
         new_int_time = update_int_time(scan_fname, spectro.integration_time,
                                        settings)
-        spectro.update_integration_time(new_int_time)
+        # spectro.update_integration_time(new_int_time)
         logger.info(f'Integration time updated to {int(new_int_time)}')
 
         # Clear any finished processes from the processes list
