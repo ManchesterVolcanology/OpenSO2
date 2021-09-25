@@ -1,3 +1,4 @@
+import sys
 import logging
 import subprocess
 
@@ -54,3 +55,15 @@ def sync_gps_time():
 
             # Exit the loop
             break
+
+
+if __name__ == '__main__':
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+    date_fmt = '%H:%M:%S'
+    formatter = logging.Formatter('%(asctime)s - %(message)s', date_fmt)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    sync_gps_time()
