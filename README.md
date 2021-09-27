@@ -26,6 +26,12 @@ These can be installed using pip3:
 pip3 install numpy scipy pandas PyYAML GPIOzero
 ```
 
+Sometimes there is an issue with numpy caused by a missing libf77blas file. If this is the case try:
+
+```
+sudo apt install libatlas3-base
+```
+
 There are a number of additional specialised libraries that are also required, these are detailled below.
 
 ### Python Seabreeze
