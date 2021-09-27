@@ -96,20 +96,16 @@ pip3 install adafruit-circuitpython-motorkit
 ```
 
 ### Start up script
-Open SO<sub>2</sub> is designed to run on startup. This is achieved by following these steps.
+Open SO<sub>2</sub> is designed to run on startup. This is achieved with crontab. To set this up, open the crontab editor using
 
-First make sure the script ```run_scanner.py``` is executable by navigating to the open_so2 folder and running:
 ```
-chmod +x run_scanner.py
+crontab -e
 ```
-Now to make sure it runs on startup add the following lines to the startup script found at ```/etc/rc.local``` above the ```exit 0``` line:
-```
-sudo systemctl stop gpsd.socket
-sudo systemctl disable gpsd.socket
-sudo gpsd /dev/ttyUSB0 -F /var/run/gpsd.sock
 
-cd /home/pi/open_so2/
-sudo /home/pi/open_so2/./run_scanner.py &
+Then at the bottom of the file add the following line:
+
+```
+@reboot cd /home/pi/open_so2/ && python3 run_scanner.py &
 ```
 
 ### Wiring
