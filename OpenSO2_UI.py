@@ -2,10 +2,6 @@
 
 Syncs data from scanners and calculates fluxes for an OpenSO2 network
 """
-
-from openso2.gui_funcs import (Worker, sync_stations, QtHandler, Widgets)
-from openso2.gui_funcs import (Worker, sync_stations, QDoubleSpinBox,
-                               Widgets, QTextEditLogger)
 import os
 import sys
 import yaml
@@ -29,6 +25,7 @@ from PySide2.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                                QSpinBox, QDoubleSpinBox, QCheckBox)
 
 from openso2.station import Station
+from openso2.gui_funcs import Worker, sync_stations, Widgets, QTextEditLogger
 
 __version__ = '1.2'
 __author__ = 'Ben Esse'
