@@ -23,7 +23,7 @@ from PySide2.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                                QFrame, QSplitter, QTabWidget, QFileDialog,
                                QScrollArea, QToolBar, QPlainTextEdit,
                                QFormLayout, QDialog, QAction, QDateTimeEdit,
-                               QSpinBox, QDoubleSpinBox)
+                               QSpinBox, QDoubleSpinBox, QCheckBox)
 
 from openso2.station import Station
 from openso2.gui_funcs import (Worker, sync_stations, QtHandler, Widgets)
@@ -229,6 +229,20 @@ class MainWindow(QMainWindow):
         self.widgets['plume_alt'].setRange(0, 100000)
         self.widgets['plume_alt'].setValue(1000)
         layout.addWidget(self.widgets['plume_alt'], nrow, 1)
+        nrow += 1
+
+        layout.addWidget(QLabel('Scan Pair Time\nLimit (min):'), nrow, 0)
+        self.widgets['scan_pair_time'] = QSpinBox()
+        self.widgets['scan_pair_time'].setRange(0, 1440)
+        self.widgets['scan_pair_time'].setValue(10)
+        layout.addWidget(self.widgets['scan_pair_time'], nrow, 1)
+        nrow += 1
+
+        self.widgets['scan_pair_flag'] = QCheckBox('Calc Plume\nLocation?')
+        self.widgets['scan_pair_flag'].setToolTip('Toggle whether plume '
+                                                  + 'location is calculated '
+                                                  + 'from paired scans')
+        layout.addWidget(self.widgets['scan_pair_flag'], nrow, 0)
         nrow += 1
 
         layout.addWidget(QHLine(), nrow, 0, 1, 10)
@@ -489,10 +503,14 @@ class MainWindow(QMainWindow):
         default_alt = float(self.widgets.get('plume_alt'))
         default_az = float(self.widgets.get('plume_dir'))
 
+        # Get the scan pair time
+        scan_pair_time = self.widgets.get('scan_pair_time')
+        scan_pair_flag = self.widgets.get('scan_pair_flag')
+
         self.statusBar().showMessage('Syncing...')
         self.sync_worker = Worker(sync_stations, self.stations,
                                   self.today_date, volc_loc, default_alt,
-                                  default_az)
+                                  default_az, scan_pair_time, scan_pair_flag)
         self.sync_worker.signals.log.connect(self.update_station_log)
         self.sync_worker.signals.plot.connect(self.update_scan_plot)
         self.sync_worker.signals.flux.connect(self.update_flux_plots)

@@ -96,8 +96,9 @@ class Worker(QRunnable):
 
 
 def sync_stations(worker, widgets, stations, today_date, vent_loc, default_alt,
-                  default_az, log_callback,  plot_callback, flux_callback,
-                  gui_status_callback, stat_status_callback):
+                  default_az, scan_pair_time, scan_pair_flag, log_callback,
+                  plot_callback, flux_callback, gui_status_callback,
+                  stat_status_callback):
     """Sync the station logs and scans."""
     # Generate an empty dictionary to hold the scans
     scans = {}
@@ -140,7 +141,7 @@ def sync_stations(worker, widgets, stations, today_date, vent_loc, default_alt,
     # Calculate the fluxes
     gui_status_callback.emit('Calculating fluxes')
     calculate_fluxes(stations, scans, today_date, vent_loc, default_alt,
-                     default_az, scan_pair_time=10)
+                     default_az, scan_pair_time, scan_pair_flag)
 
     # Plot the fluxes on the GUI
     flux_callback.emit()
@@ -151,9 +152,9 @@ def sync_stations(worker, widgets, stations, today_date, vent_loc, default_alt,
 
 
 def calculate_fluxes(stations, scans, today_date, vent_loc, default_alt,
-                     default_az, scan_pair_time, min_scd=-1e17, max_scd=1e20,
-                     plume_scd=1e17, good_scan_lim=0.2, sg_window=11,
-                     sg_polyn=3):
+                     default_az, scan_pair_time, scan_pair_flag, min_scd=-1e17,
+                     max_scd=1e20, plume_scd=1e17, good_scan_lim=0.2,
+                     sg_window=11, sg_polyn=3):
     """Calculate the flux from a set of scans."""
     # Get the existing scan database
     scan_fnames, scan_times = get_local_scans(stations, today_date)
@@ -189,7 +190,8 @@ def calculate_fluxes(stations, scans, today_date, vent_loc, default_alt,
 
             # Calculate the time difference
             time_diff = scan_time - near_ts
-            if time_diff < timedelta(minutes=scan_pair_time):
+            delta_time = timedelta(minutes=scan_pair_time)
+            if time_diff < delta_time and scan_pair_flag:
 
                 # Read in the scan
                 alt_scan_df = pd.read_csv(near_fname)
