@@ -44,7 +44,6 @@ class QTextEditLogger(logging.Handler):
     @Slot()
     def emit(self, record):
         """Emit the log."""
-        print('mark')
         msg = self.format(record)
         self.log.signal.emit(msg)
 
