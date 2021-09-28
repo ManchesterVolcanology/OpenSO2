@@ -21,7 +21,7 @@ from PySide2.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
 
 from openso2.station import Station
 from openso2.gui_funcs import (Worker, sync_stations, QDoubleSpinBox,
-                               QtHandler, Widgets)
+                               Widgets, QTextEditLogger)
 
 __version__ = '1.2'
 __author__ = 'Ben Esse'
@@ -237,20 +237,30 @@ class MainWindow(QMainWindow):
         layout.setAlignment(Qt.AlignTop)
 
         # Generate the log box
-        self.logBox = QPlainTextEdit()
-        self.logBox.setReadOnly(True)
-        self.logBox.setFont(QFont('Courier', 10))
-
-        # Add the handler
-        handler = QtHandler(self.update_log)
-        date_fmt = '%H:%M:%S'
-        formatter = logging.Formatter('%(asctime)s - %(message)s', date_fmt)
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-
-        layout.addWidget(self.logBox, 0, 0)
+        self.logBox = QTextEditLogger(self)
+        formatter = logging.Formatter('%(asctime)s - %(message)s', '%H:%M:%S')
+        self.logBox.setFormatter(formatter)
+        logger.addHandler(self.logBox)
+        logger.setLevel(logging.INFO)
+        layout.addWidget(self.logBox.widget, 3, 0, 1, 6)
         msg = 'Welcome to OpenSO2! Written by Ben Esse'
-        self.logBox.appendPlainText(msg)
+        self.logBox.widget.appendPlainText(msg)
+
+        # # Generate the log box
+        # self.logBox = QPlainTextEdit()
+        # self.logBox.setReadOnly(True)
+        # self.logBox.setFont(QFont('Courier', 10))
+        #
+        # # Add the handler
+        # handler = QtHandler(self.update_log)
+        # date_fmt = '%H:%M:%S'
+        # formatter = logging.Formatter('%(asctime)s - %(message)s', date_fmt)
+        # handler.setFormatter(formatter)
+        # logger.addHandler(handler)
+
+        # layout.addWidget(self.logBox, 0, 0)
+        # msg = 'Welcome to OpenSO2! Written by Ben Esse'
+        # self.logBox.appendPlainText(msg)
 
     # @Slot(str, logging.LogRecord)
     def update_log(self, msg, record):
@@ -268,7 +278,38 @@ class MainWindow(QMainWindow):
 
         # Form the tab widget
         self.stationTabHolder = QTabWidget()
-        self.stationTabHolder.addTab(QWidget(), 'Flux Results')
+        resultsTab = QWidget()
+        self.stationTabHolder.addTab(resultsTab, 'Flux Results')
+
+        # Add plots for overall results
+        # Create the graphs
+        graph_layout = QGridLayout(resultsTab)
+        graphwin = pg.GraphicsLayoutWidget(show=True)
+        pg.setConfigOptions(antialias=True)
+
+        # Make the graphs
+        x_axis = pg.DateAxisItem(utcOffset=0)
+        ax0 = graphwin.addPlot(row=1, col=0, axisItems={'bottom': x_axis})
+        x_axis = pg.DateAxisItem(utcOffset=0)
+        ax1 = graphwin.addPlot(row=1, col=1, axisItems={'bottom': x_axis})
+        x_axis = pg.DateAxisItem(utcOffset=0)
+        ax2 = graphwin.addPlot(row=0, col=0, colspan=2,
+                               axisItems={'bottom': x_axis})
+        self.flux_axes = [ax0, ax1, ax2]
+        self.flux_plots = {}
+
+        for ax in self.flux_axes:
+            ax.setDownsampling(mode='peak')
+            ax.setClipToView(True)
+            ax.showGrid(x=True, y=True)
+            ax.setLabel('bottom', 'Time')
+
+        # Add axis labels
+        ax0.setLabel('left', 'Plume Altitude [m]')
+        ax1.setLabel('left', 'Plume Direction [deg]')
+        ax2.setLabel('left', 'SO2 Flux [kg/s]')
+
+        graph_layout.addWidget(graphwin)
 
         # Initialise dictionaries to hold the station widgets
         self.station_log = {}
@@ -370,6 +411,10 @@ class MainWindow(QMainWindow):
 
         self.plot_lines[name] = [l0, l1]
 
+        # Add flux plot lines
+        # fl0 = pg.ErrorBarItem()
+        # fl1 =
+
         # Create a textbox to hold the station logs
         self.station_log[name] = QPlainTextEdit(self)
         self.station_log[name].setReadOnly(True)
@@ -426,7 +471,7 @@ class MainWindow(QMainWindow):
             self.syncTimer.start()
 
     def _station_sync(self):
-
+        logger.info('Syncing stations')
         # Get today's date
         self.today_date = datetime.now().date()
 
@@ -486,7 +531,7 @@ class MainWindow(QMainWindow):
             self.plot_axes[s][0].setLabel('left',
                                           f'SO2 SCD (1e{order} molec/cm2)')
 
-        self.plot_lines[s][0].setData(plotx, ploty)
+        self.plot_lines[s][0].setData(x=plotx, y=ploty)
 
     @Slot()
     def update_flux_plots(self):

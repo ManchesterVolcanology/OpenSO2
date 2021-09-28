@@ -6,9 +6,10 @@ import numpy as np
 import pandas as pd
 from scipy.signal import savgol_filter
 from datetime import datetime, timedelta
+from PySide2.QtGui import QFont
 from PySide2.QtCore import Qt, QObject, Signal, Slot, QRunnable
 from PySide2.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
-                               QSpinBox, QCheckBox)
+                               QSpinBox, QCheckBox, QPlainTextEdit)
 
 from openso2.plume import calc_plume_altitude, calc_scan_flux
 
@@ -16,25 +17,69 @@ from openso2.plume import calc_plume_altitude, calc_scan_flux
 logger = logging.getLogger(__name__)
 
 
-class Signaller(QObject):
+# =============================================================================
+# Logging text box
+# =============================================================================
+
+class MyLog(QObject):
     """Signal for logs."""
+    signal = Signal(str)
 
-    signal = Signal(str, logging.LogRecord)
 
+class QTextEditLogger(logging.Handler):
+    """Record logs to the GUI."""
 
-class QtHandler(logging.Handler):
-    """Logging handler for Qt application."""
+    def __init__(self, parent):
+        """Initialise."""
+        super().__init__()
+        self.log = MyLog()
+        self.widget = QPlainTextEdit(parent)
+        self.widget.setReadOnly(True)
+        self.widget.setFont(QFont('Courier', 10))
+        self.log.signal.connect(self.widget.appendPlainText)
 
-    def __init__(self, slotfunc, *args, **kwargs):
-        super(QtHandler, self).__init__(*args, **kwargs)
-        self.signaller = Signaller()
-        self.signaller.signal.connect(slotfunc)
-
-    # @Signal()
+    @Slot()
     def emit(self, record):
-        """Emit the log message and record."""
-        s = self.format(record)
-        self.signaller.signal.emit(s, record)
+        """Emit the log."""
+        print('mark')
+        msg = self.format(record)
+        self.log.signal.emit(msg)
+
+
+# =============================================================================
+# Station Sync Worker
+# =============================================================================
+
+
+class SyncWorker(QObject):
+    """Handle station syncing."""
+
+    # Define signals
+    finished = Signal()
+    updateLog = Signal(str, list)
+
+    def __init__(self, stations, today_date, volc_loc, default_alt,
+                 default_az):
+        """Initialize."""
+        super(QObject, self).__init__()
+        self.stations = stations
+        self.today_date = today_date
+        self.volc_loc = volc_loc
+        self.default_alt = default_alt
+        self.default_az = default_az
+
+    def run(self):
+        """Launch worker task."""
+        try:
+            self._run()
+        except Exception:
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.error.emit((exctype, value, traceback.format_exc()))
+        self.finished.emit()
+
+    def _run(self):
+        pass
 
 
 # Create a worker signals object to handle worker signals
@@ -91,13 +136,13 @@ class Worker(QRunnable):
         self.signals.finished.emit()
 
 
-def sync_stations(worker, widgets, stations, today_date, vent_loc, default_alt,
+def sync_stations(worker, stations, today_date, vent_loc, default_alt,
                   default_az, log_callback,  plot_callback, flux_callback,
                   gui_status_callback, stat_status_callback):
     """Sync the station logs and scans."""
     # Generate an empty dictionary to hold the scans
     scans = {}
-    raise NameError
+
     # Sync each station
     for station in stations.values():
 
@@ -151,12 +196,13 @@ def calculate_fluxes(stations, scans, today_date, vent_loc, default_alt,
                      plume_scd=1e17, good_scan_lim=0.2, sg_window=11,
                      sg_polyn=3):
     """Calculate the flux from a set of scans."""
-
     # Get the existing scan database
     scan_fnames, scan_times = get_local_scans(stations, today_date)
 
     # For each station calculate fluxes
     for name, station in stations.items():
+
+        logger.info(f'Calculating fluxes for {name}')
 
         # Set filepath to scan data
         fpath = f'Results/{today_date}/{name}/so2/'
@@ -247,14 +293,15 @@ def filter_scan(scan_df, min_scd, max_scd, plume_scd, good_scan_lim,
                          scan_df['SO2'] < min_scd,
                          scan_df['SO2'] > max_scd
                          ]).any(axis=0)
+
+    if len(np.where(mask)[0]) > good_scan_lim*len(scan_df['SO2']):
+        return None, None, 'Not enough good spectra'
+
     masked_scan_df = scan_df.mask(mask)
     so2_scd_masked = masked_scan_df['SO2']
 
     # Count the number of 'plume' spectra
     nplume = sum(so2_scd_masked > plume_scd)
-
-    if len(np.where(mask)[0]) > good_scan_lim*len(scan_df['SO2']):
-        return None, None, 'Not enough good spectra'
 
     if nplume < 10:
         return None, None, 'Not enough plume spectra'
