@@ -402,10 +402,10 @@ class MainWindow(QMainWindow):
             ax.showGrid(x=True, y=True)
 
         # Add axis labels
-        ax0.setLabel('left', 'SO2 SCD (molec/cm2)')
-        ax1.setLabel('left', 'SO2 Flux (kg/s)')
-        ax0.setLabel('bottom', 'Scan Angle (deg)')
-        ax1.setLabel('bottom', 'Time')
+        ax0.setLabel('left', 'SO2 SCD [molec/cm2]')
+        ax1.setLabel('left', 'SO2 Flux [kg/s]')
+        ax0.setLabel('bottom', 'Scan Angle [deg]')
+        ax1.setLabel('bottom', 'Time [UTC]')
 
         # Initialise the lines
         p0 = pg.mkPen(color='#1f77b4', width=1.0)
