@@ -26,6 +26,12 @@ These can be installed using pip3:
 pip3 install numpy scipy pandas PyYAML GPIOzero
 ```
 
+Sometimes there is an issue with numpy caused by a missing libf77blas file. If this is the case try:
+
+```
+sudo apt install libatlas3-base
+```
+
 There are a number of additional specialised libraries that are also required, these are detailled below.
 
 ### Python Seabreeze
@@ -96,20 +102,16 @@ pip3 install adafruit-circuitpython-motorkit
 ```
 
 ### Start up script
-Open SO<sub>2</sub> is designed to run on startup. This is achieved by following these steps.
+Open SO<sub>2</sub> is designed to run on startup. This is achieved with crontab. To set this up, open the crontab editor using
 
-First make sure the script ```run_scanner.py``` is executable by navigating to the open_so2 folder and running:
 ```
-chmod +x run_scanner.py
+crontab -e
 ```
-Now to make sure it runs on startup add the following lines to the startup script found at ```/etc/rc.local``` above the ```exit 0``` line:
-```
-sudo systemctl stop gpsd.socket
-sudo systemctl disable gpsd.socket
-sudo gpsd /dev/ttyUSB0 -F /var/run/gpsd.sock
 
-cd /home/pi/open_so2/
-sudo /home/pi/open_so2/./run_scanner.py &
+Then at the bottom of the file add the following line:
+
+```
+@reboot cd /home/pi/open_so2/ && python3 run_scanner.py &
 ```
 
 ### Wiring
@@ -122,21 +124,22 @@ This image shows the wiring of the control boards for the Open SO<sub>2</sub> sc
 ### Installing
 The Open SO<sub>2</sub> scanners are designed to work as a network, with a central home station computing SO<sub>2</sub> fluxes in real time, given the geometry of the volcano and scanners as well as real time wind data.
 
-The home software is currently run as a python script (written in python 3.6). The easiest way to get python up and running is using Anaconda (https://www.anaconda.com/) which comes with most of the required libraries. The only extra library required is ```pysftp``` which handles transfering files via SFTP from the Pi to the home computer. This can be installed using conda:
+The home software is currently run as a python script (written in python 3.6). The easiest way to get python up and running is using Anaconda (https://www.anaconda.com/) which comes with most of the required libraries. The best method to install is to create a new virtual environment for the software:
+
 ```
-conda install -c conda-forge pysftp
+conda create -n openso2 python=3.6 numpy scipy pandas pyyaml pyqt pyqtgraph
+```
+
+This will create the environment and install some of the libraries on the main Anaconda channel. Down activate the environment:
+
+```
+conda activate openso2
+```
+
+and install the remaining libraries from conda-forge:
+
+```
+conda install -c conda-forge pyside2 pysftp
 ```
 
 Now the home software can be launched from the command line.
-
-### Setting up Station Connection
-To allow the home software to talk to the stations via SSH it requires the IP address, user name and password for the station. The username and password can be configured on the Pi manually, and the IP address is determined by the network. This information is stored in the ```station_info.txt``` input file in the ```data_bases/``` directory. It has the following format:
-```
-Station Name     ;      Host      ; Username     ; Password
-[Station 1 Name] ; [IP Address 1] ; [Username 1] ; [Password 1]
-[Station 2 Name] ; [IP Address 2] ; [Username 2] ; [Password 2]
-.
-.
-.
-```
-Note that the first (header) line of the file is ignored.

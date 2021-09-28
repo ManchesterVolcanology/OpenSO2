@@ -1,3 +1,11 @@
+"""Main Home Station Script.
+
+Syncs data from scanners and calculates fluxes for an OpenSO2 network
+"""
+
+from openso2.gui_funcs import (Worker, sync_stations, QtHandler, Widgets)
+from openso2.gui_funcs import (Worker, sync_stations, QDoubleSpinBox,
+                               Widgets, QTextEditLogger)
 import os
 import sys
 import yaml
@@ -17,11 +25,10 @@ from PySide2.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                                QMessageBox, QLabel, QLineEdit, QPushButton,
                                QFrame, QSplitter, QTabWidget, QFileDialog,
                                QScrollArea, QToolBar, QPlainTextEdit,
-                               QFormLayout, QDialog, QAction)
+                               QFormLayout, QDialog, QAction, QDateTimeEdit,
+                               QSpinBox, QDoubleSpinBox, QCheckBox)
 
 from openso2.station import Station
-from openso2.gui_funcs import (Worker, sync_stations, QDoubleSpinBox,
-                               Widgets, QTextEditLogger)
 
 __version__ = '1.2'
 __author__ = 'Ben Esse'
@@ -226,6 +233,47 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['plume_alt'], nrow, 1)
         nrow += 1
 
+        layout.addWidget(QLabel('Scan Pair Time\nLimit (min):'), nrow, 0)
+        self.widgets['scan_pair_time'] = QSpinBox()
+        self.widgets['scan_pair_time'].setRange(0, 1440)
+        self.widgets['scan_pair_time'].setValue(10)
+        layout.addWidget(self.widgets['scan_pair_time'], nrow, 1)
+        nrow += 1
+
+        self.widgets['scan_pair_flag'] = QCheckBox('Calc Plume\nLocation?')
+        self.widgets['scan_pair_flag'].setToolTip('Toggle whether plume '
+                                                  + 'location is calculated '
+                                                  + 'from paired scans')
+        layout.addWidget(self.widgets['scan_pair_flag'], nrow, 0)
+        nrow += 1
+
+        layout.addWidget(QHLine(), nrow, 0, 1, 10)
+        nrow += 1
+
+        header = QLabel('Scanner Syncing Settings')
+        header.setAlignment(Qt.AlignLeft)
+        header.setFont(QFont('Ariel', 12))
+        layout.addWidget(header, nrow, 0, 1, 2)
+        nrow += 1
+
+        # Create widgets for the start and stop scan times
+        layout.addWidget(QLabel('Sync Start Time\n(HH:MM):'), nrow, 0)
+        self.widgets['sync_start_time'] = QDateTimeEdit(displayFormat='HH:mm')
+        layout.addWidget(self.widgets['sync_start_time'], nrow, 1)
+        nrow += 1
+
+        layout.addWidget(QLabel('Sync Stop Time\n(HH:MM):'), nrow, 0)
+        self.widgets['sync_stop_time'] = QDateTimeEdit(displayFormat='HH:mm')
+        layout.addWidget(self.widgets['sync_stop_time'], nrow, 1)
+        nrow += 1
+
+        layout.addWidget(QLabel('Sync Time\nInterval (s):'), nrow, 0)
+        self.widgets['sync_interval'] = QSpinBox()
+        self.widgets['sync_interval'].setRange(0, 86400)
+        self.widgets['sync_interval'].setValue(30)
+        layout.addWidget(self.widgets['sync_interval'], nrow, 1)
+        nrow += 1
+
 # =============================================================================
 #   Generate the program outputs
 # =============================================================================
@@ -316,6 +364,7 @@ class MainWindow(QMainWindow):
         self.plot_lines = {}
         self.plot_axes = {}
         self.station_status = {}
+        self.station_graphwin = {}
 
         # Add station tabs
         self.stationTabs = OrderedDict()
@@ -382,13 +431,14 @@ class MainWindow(QMainWindow):
         layout.addWidget(close_btn, 0, 3)
 
         # Create the graphs
-        graphwin = pg.GraphicsLayoutWidget(show=True)
+        self.station_graphwin[name] = pg.GraphicsLayoutWidget(show=True)
         pg.setConfigOptions(antialias=True)
 
         # Make the graphs
-        ax0 = graphwin.addPlot(row=0, col=0)
+        ax0 = self.station_graphwin[name].addPlot(row=0, col=0)
         x_axis = pg.DateAxisItem(utcOffset=0)
-        ax1 = graphwin.addPlot(row=0, col=1, axisItems={'bottom': x_axis})
+        ax1 = self.station_graphwin[name].addPlot(row=0, col=1,
+                                                  axisItems={'bottom': x_axis})
         self.plot_axes[name] = [ax0, ax1]
 
         for ax in self.plot_axes[name]:
@@ -397,10 +447,10 @@ class MainWindow(QMainWindow):
             ax.showGrid(x=True, y=True)
 
         # Add axis labels
-        ax0.setLabel('left', 'SO2 SCD (molec/cm2)')
-        ax1.setLabel('left', 'SO2 Flux (kg/s)')
-        ax0.setLabel('bottom', 'Scan Angle (deg)')
-        ax1.setLabel('bottom', 'Time')
+        ax0.setLabel('left', 'SO2 SCD [molec/cm2]')
+        ax1.setLabel('left', 'SO2 Flux [kg/s]')
+        ax0.setLabel('bottom', 'Scan Angle [deg]')
+        ax1.setLabel('bottom', 'Time [UTC]')
 
         # Initialise the lines
         p0 = pg.mkPen(color='#1f77b4', width=1.0)
@@ -421,7 +471,7 @@ class MainWindow(QMainWindow):
         self.station_log[name].setFont(QFont('Courier', 10))
 
         splitter = QSplitter(Qt.Vertical)
-        splitter.addWidget(graphwin)
+        splitter.addWidget(self.station_graphwin[name])
         splitter.addWidget(self.station_log[name])
         layout.addWidget(splitter, 1, 0, 1, 4)
 
@@ -456,6 +506,8 @@ class MainWindow(QMainWindow):
         if self.syncing:
             self.sync_button.setText('Syncing OFF')
             self.sync_button.setStyleSheet("background-color: red")
+            self.widgets['sync_interval'].setDisabled(False)
+            self.widgets['sync_interval'].setStyleSheet("color: white")
             self.syncing = False
             self.syncTimer.stop()
 
@@ -464,14 +516,31 @@ class MainWindow(QMainWindow):
             self.sync_button.setText('Syncing ON')
             self.sync_button.setStyleSheet("background-color: green")
             self.syncing = True
+            interval = self.widgets.get('sync_interval') * 1000
+            self.widgets['sync_interval'].setDisabled(True)
+            self.widgets['sync_interval'].setStyleSheet("color: darkGray")
             self._station_sync()
             self.syncTimer = QTimer(self)
-            self.syncTimer.setInterval(30000)
+            self.syncTimer.setInterval(interval)
             self.syncTimer.timeout.connect(self._station_sync)
             self.syncTimer.start()
 
     def _station_sync(self):
-        logger.info('Syncing stations')
+
+        # Check that the program is within the syncing time
+        start_time = datetime.strptime(self.widgets.get('sync_start_time'),
+                                       "%H:%M").time()
+        stop_time = datetime.strptime(self.widgets.get('sync_stop_time'),
+                                      "%H:%M").time()
+
+        now_time = datetime.now().time()
+
+        if now_time < start_time or now_time > stop_time:
+            logger.info('Not within syncing time window')
+            return
+
+        logger.info('Beginning scan sync')
+
         # Get today's date
         self.today_date = datetime.now().date()
 
@@ -483,10 +552,14 @@ class MainWindow(QMainWindow):
         default_alt = float(self.widgets.get('plume_alt'))
         default_az = float(self.widgets.get('plume_dir'))
 
+        # Get the scan pair time
+        scan_pair_time = self.widgets.get('scan_pair_time')
+        scan_pair_flag = self.widgets.get('scan_pair_flag')
+
         self.statusBar().showMessage('Syncing...')
         self.sync_worker = Worker(sync_stations, self.stations,
                                   self.today_date, volc_loc, default_alt,
-                                  default_az)
+                                  default_az, scan_pair_time, scan_pair_flag)
         self.sync_worker.signals.log.connect(self.update_station_log)
         self.sync_worker.signals.plot.connect(self.update_scan_plot)
         self.sync_worker.signals.flux.connect(self.update_flux_plots)
@@ -666,10 +739,31 @@ class MainWindow(QMainWindow):
                              Qt.darkGray)
         QApplication.instance().setPalette(darkpalette)
 
+        pen = pg.mkPen('w', width=1)
+        for name, station in self.stations.items():
+            self.station_graphwin[name].setBackground('k')
+            for ax in self.plot_axes[name]:
+                ax.getAxis('left').setPen(pen)
+                ax.getAxis('right').setPen(pen)
+                ax.getAxis('top').setPen(pen)
+                ax.getAxis('bottom').setPen(pen)
+                ax.getAxis('left').setTextPen(pen)
+                ax.getAxis('bottom').setTextPen(pen)
+
     @Slot()
     def changeThemeLight(self):
         """Change theme to light."""
         QApplication.instance().setPalette(self.style().standardPalette())
+        pen = pg.mkPen('k', width=1)
+        for name, station in self.stations.items():
+            self.station_graphwin[name].setBackground('w')
+            for ax in self.plot_axes[name]:
+                ax.getAxis('left').setPen(pen)
+                ax.getAxis('right').setPen(pen)
+                ax.getAxis('top').setPen(pen)
+                ax.getAxis('bottom').setPen(pen)
+                ax.getAxis('left').setTextPen(pen)
+                ax.getAxis('bottom').setTextPen(pen)
         # self.graphwin.setBackground('w')
         # self.scopewin.setBackground('w')
         # pen = pg.mkPen('k', width=1)
@@ -763,6 +857,7 @@ class QHLine(QFrame):
     """Horizontal line widget."""
 
     def __init__(self):
+        """Initialize."""
         super(QHLine, self).__init__()
         self.setFrameShape(QFrame.HLine)
         self.setFrameShadow(QFrame.Sunken)

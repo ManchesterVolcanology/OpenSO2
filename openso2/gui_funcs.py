@@ -1,3 +1,5 @@
+"""Useful functions for the GUI."""
+
 import os
 import sys
 import logging
@@ -9,7 +11,8 @@ from datetime import datetime, timedelta
 from PySide2.QtGui import QFont
 from PySide2.QtCore import Qt, QObject, Signal, Slot, QRunnable
 from PySide2.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
-                               QSpinBox, QCheckBox, QPlainTextEdit)
+                               QSpinBox, QCheckBox, QDateTimeEdit,
+                               QPlainTextEdit)
 
 from openso2.plume import calc_plume_altitude, calc_scan_flux
 
@@ -108,6 +111,7 @@ class Worker(QRunnable):
     """
 
     def __init__(self, fn, *args, **kwargs):
+        """Initialize."""
         super(Worker, self).__init__()
 
         # Store constructor arguments (re-used for processing)
@@ -136,9 +140,10 @@ class Worker(QRunnable):
         self.signals.finished.emit()
 
 
-def sync_stations(worker, stations, today_date, vent_loc, default_alt,
-                  default_az, log_callback,  plot_callback, flux_callback,
-                  gui_status_callback, stat_status_callback):
+def sync_stations(worker, widgets, stations, today_date, vent_loc, default_alt,
+                  default_az, scan_pair_time, scan_pair_flag, log_callback,
+                  plot_callback, flux_callback, gui_status_callback,
+                  stat_status_callback):
     """Sync the station logs and scans."""
     # Generate an empty dictionary to hold the scans
     scans = {}
@@ -181,7 +186,7 @@ def sync_stations(worker, stations, today_date, vent_loc, default_alt,
     # Calculate the fluxes
     gui_status_callback.emit('Calculating fluxes')
     calculate_fluxes(stations, scans, today_date, vent_loc, default_alt,
-                     default_az, scan_pair_time=10)
+                     default_az, scan_pair_time, scan_pair_flag)
 
     # Plot the fluxes on the GUI
     flux_callback.emit()
@@ -192,9 +197,9 @@ def sync_stations(worker, stations, today_date, vent_loc, default_alt,
 
 
 def calculate_fluxes(stations, scans, today_date, vent_loc, default_alt,
-                     default_az, scan_pair_time, min_scd=-1e17, max_scd=1e20,
-                     plume_scd=1e17, good_scan_lim=0.2, sg_window=11,
-                     sg_polyn=3):
+                     default_az, scan_pair_time, scan_pair_flag, min_scd=-1e17,
+                     max_scd=1e20, plume_scd=1e17, good_scan_lim=0.2,
+                     sg_window=11, sg_polyn=3):
     """Calculate the flux from a set of scans."""
     # Get the existing scan database
     scan_fnames, scan_times = get_local_scans(stations, today_date)
@@ -232,7 +237,8 @@ def calculate_fluxes(stations, scans, today_date, vent_loc, default_alt,
 
             # Calculate the time difference
             time_diff = scan_time - near_ts
-            if time_diff < timedelta(minutes=scan_pair_time):
+            delta_time = timedelta(minutes=scan_pair_time)
+            if time_diff < delta_time and scan_pair_flag:
 
                 # Read in the scan
                 alt_scan_df = pd.read_csv(near_fname)
@@ -409,6 +415,7 @@ class DSpinBox(QDoubleSpinBox):
     """Object for generating custom float spinboxes."""
 
     def __init__(self, value, range):
+        """Initialize."""
         super().__init__()
         self.setRange(*range)
         self.setValue(value)
@@ -418,6 +425,7 @@ class SpinBox(QSpinBox):
     """Object for generating custom integer spinboxes."""
 
     def __init__(self, value, range):
+        """Initialize."""
         super().__init__()
         self.setRange(*range)
         self.setValue(value)
@@ -431,6 +439,7 @@ class Widgets(dict):
     """Object to allow easy config/info transfer with PyQT Widgets."""
 
     def __init__(self):
+        """Initialize."""
         super().__init__()
 
     def get(self, key):
@@ -443,6 +452,8 @@ class Widgets(dict):
             return str(self[key].currentText())
         elif type(self[key]) == QCheckBox:
             return self[key].isChecked()
+        elif type(self[key]) == QDateTimeEdit:
+            return self[key].textFromDateTime(self[key].dateTime())
         elif type(self[key]) in [SpinBox, DSpinBox, QSpinBox, QDoubleSpinBox]:
             return self[key].value()
 
@@ -456,5 +467,7 @@ class Widgets(dict):
                 self[key].setCurrentIndex(index)
         if type(self[key]) == QCheckBox:
             self[key].setChecked(value)
+        if type(self[key]) == QDateTimeEdit:
+            self[key].setDateTime(self[key].dateTimeFromText(value))
         if type(self[key]) in [SpinBox, DSpinBox, QSpinBox, QDoubleSpinBox]:
             self[key].setValue(value)

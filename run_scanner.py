@@ -70,7 +70,7 @@ logger.addHandler(file_handler)
 # =============================================================================
 
 def log_status(status):
-
+    """Log scanner status to file."""
     # Make sure the Station directory exists
     if not os.path.exists('Station'):
         os.makedirs('Station')
@@ -87,6 +87,7 @@ def log_status(status):
 
 # Create handler to log any exceptions
 def exception_handler(*exc_info):
+    """Handle uncaught exceptions."""
     log_status('Error')
     logger.exception('Uncaught exception!', exc_info=exc_info)
 
@@ -99,7 +100,7 @@ sys.excepthook = exception_handler
 # =============================================================================
 
 def main_loop():
-
+    """Primary control loop."""
     log_status('Idle')
     logger.info('Station awake')
 
