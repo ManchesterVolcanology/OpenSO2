@@ -478,8 +478,6 @@ class MainWindow(QMainWindow):
 
         logger.info('Beginning scan sync')
 
-        raise Exception
-
         # Get today's date
         self.today_date = datetime.now().date()
 
