@@ -1,3 +1,5 @@
+"""Useful functions for the GUI."""
+
 import os
 import sys
 import logging
@@ -26,6 +28,7 @@ class QtHandler(logging.Handler):
     """Logging handler for Qt application."""
 
     def __init__(self, slotfunc, *args, **kwargs):
+        """Initialize."""
         super(QtHandler, self).__init__(*args, **kwargs)
         self.signaller = Signaller()
         self.signaller.signal.connect(slotfunc)
@@ -63,6 +66,7 @@ class Worker(QRunnable):
     """
 
     def __init__(self, fn, *args, **kwargs):
+        """Initialize."""
         super(Worker, self).__init__()
 
         # Store constructor arguments (re-used for processing)
@@ -151,7 +155,6 @@ def calculate_fluxes(stations, scans, today_date, vent_loc, default_alt,
                      plume_scd=1e17, good_scan_lim=0.2, sg_window=11,
                      sg_polyn=3):
     """Calculate the flux from a set of scans."""
-
     # Get the existing scan database
     scan_fnames, scan_times = get_local_scans(stations, today_date)
 
@@ -362,6 +365,7 @@ class DSpinBox(QDoubleSpinBox):
     """Object for generating custom float spinboxes."""
 
     def __init__(self, value, range):
+        """Initialize."""
         super().__init__()
         self.setRange(*range)
         self.setValue(value)
@@ -371,6 +375,7 @@ class SpinBox(QSpinBox):
     """Object for generating custom integer spinboxes."""
 
     def __init__(self, value, range):
+        """Initialize."""
         super().__init__()
         self.setRange(*range)
         self.setValue(value)
@@ -384,6 +389,7 @@ class Widgets(dict):
     """Object to allow easy config/info transfer with PyQT Widgets."""
 
     def __init__(self):
+        """Initialize."""
         super().__init__()
 
     def get(self, key):

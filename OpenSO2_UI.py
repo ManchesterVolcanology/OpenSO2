@@ -1,3 +1,8 @@
+"""Main Home Station Script.
+
+Syncs data from scanners and calculates fluxes for an OpenSO2 network
+"""
+
 import os
 import sys
 import yaml
@@ -718,6 +723,7 @@ class QHLine(QFrame):
     """Horizontal line widget."""
 
     def __init__(self):
+        """Initialize."""
         super(QHLine, self).__init__()
         self.setFrameShape(QFrame.HLine)
         self.setFrameShadow(QFrame.Sunken)
