@@ -321,6 +321,7 @@ class MainWindow(QMainWindow):
         self.plot_lines = {}
         self.plot_axes = {}
         self.station_status = {}
+        self.station_graphwin = {}
 
         # Add station tabs
         self.stationTabs = OrderedDict()
@@ -387,13 +388,14 @@ class MainWindow(QMainWindow):
         layout.addWidget(close_btn, 0, 3)
 
         # Create the graphs
-        graphwin = pg.GraphicsLayoutWidget(show=True)
+        self.station_graphwin[name] = pg.GraphicsLayoutWidget(show=True)
         pg.setConfigOptions(antialias=True)
 
         # Make the graphs
-        ax0 = graphwin.addPlot(row=0, col=0)
+        ax0 = self.station_graphwin[name].addPlot(row=0, col=0)
         x_axis = pg.DateAxisItem(utcOffset=0)
-        ax1 = graphwin.addPlot(row=0, col=1, axisItems={'bottom': x_axis})
+        ax1 = self.station_graphwin[name].addPlot(row=0, col=1,
+                                                  axisItems={'bottom': x_axis})
         self.plot_axes[name] = [ax0, ax1]
 
         for ax in self.plot_axes[name]:
@@ -422,7 +424,7 @@ class MainWindow(QMainWindow):
         self.station_log[name].setFont(QFont('Courier', 10))
 
         splitter = QSplitter(Qt.Vertical)
-        splitter.addWidget(graphwin)
+        splitter.addWidget(self.station_graphwin[name])
         splitter.addWidget(self.station_log[name])
         layout.addWidget(splitter, 1, 0, 1, 4)
 
@@ -690,10 +692,31 @@ class MainWindow(QMainWindow):
                              Qt.darkGray)
         QApplication.instance().setPalette(darkpalette)
 
+        pen = pg.mkPen('w', width=1)
+        for name, station in self.stations.items():
+            self.station_graphwin[name].setBackground('k')
+            for ax in self.plot_axes[name]:
+                ax.getAxis('left').setPen(pen)
+                ax.getAxis('right').setPen(pen)
+                ax.getAxis('top').setPen(pen)
+                ax.getAxis('bottom').setPen(pen)
+                ax.getAxis('left').setTextPen(pen)
+                ax.getAxis('bottom').setTextPen(pen)
+
     @Slot()
     def changeThemeLight(self):
         """Change theme to light."""
         QApplication.instance().setPalette(self.style().standardPalette())
+        pen = pg.mkPen('k', width=1)
+        for name, station in self.stations.items():
+            self.station_graphwin[name].setBackground('w')
+            for ax in self.plot_axes[name]:
+                ax.getAxis('left').setPen(pen)
+                ax.getAxis('right').setPen(pen)
+                ax.getAxis('top').setPen(pen)
+                ax.getAxis('bottom').setPen(pen)
+                ax.getAxis('left').setTextPen(pen)
+                ax.getAxis('bottom').setTextPen(pen)
         # self.graphwin.setBackground('w')
         # self.scopewin.setBackground('w')
         # pen = pg.mkPen('k', width=1)
