@@ -10,7 +10,7 @@ from scipy.signal import savgol_filter
 from datetime import datetime, timedelta
 from PySide2.QtCore import Qt, QObject, Signal, Slot, QRunnable
 from PySide2.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
-                               QSpinBox, QCheckBox)
+                               QSpinBox, QCheckBox, QDateTimeEdit)
 
 from openso2.plume import calc_plume_altitude, calc_scan_flux
 
@@ -402,6 +402,8 @@ class Widgets(dict):
             return str(self[key].currentText())
         elif type(self[key]) == QCheckBox:
             return self[key].isChecked()
+        elif type(self[key]) == QDateTimeEdit:
+            return self[key].textFromDateTime(self[key].dateTime())
         elif type(self[key]) in [SpinBox, DSpinBox, QSpinBox, QDoubleSpinBox]:
             return self[key].value()
 
@@ -415,5 +417,7 @@ class Widgets(dict):
                 self[key].setCurrentIndex(index)
         if type(self[key]) == QCheckBox:
             self[key].setChecked(value)
+        if type(self[key]) == QDateTimeEdit:
+            self[key].setDateTime(self[key].dateTimeFromText(value))
         if type(self[key]) in [SpinBox, DSpinBox, QSpinBox, QDoubleSpinBox]:
             self[key].setValue(value)

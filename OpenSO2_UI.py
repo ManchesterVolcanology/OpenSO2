@@ -22,11 +22,11 @@ from PySide2.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                                QMessageBox, QLabel, QLineEdit, QPushButton,
                                QFrame, QSplitter, QTabWidget, QFileDialog,
                                QScrollArea, QToolBar, QPlainTextEdit,
-                               QFormLayout, QDialog, QAction)
+                               QFormLayout, QDialog, QAction, QDateTimeEdit,
+                               QSpinBox, QDoubleSpinBox)
 
 from openso2.station import Station
-from openso2.gui_funcs import (Worker, sync_stations, QDoubleSpinBox,
-                               QtHandler, Widgets)
+from openso2.gui_funcs import (Worker, sync_stations, QtHandler, Widgets)
 
 __version__ = '1.2'
 __author__ = 'Ben Esse'
@@ -231,6 +231,33 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.widgets['plume_alt'], nrow, 1)
         nrow += 1
 
+        layout.addWidget(QHLine(), nrow, 0, 1, 10)
+        nrow += 1
+
+        header = QLabel('Scanner Syncing Settings')
+        header.setAlignment(Qt.AlignLeft)
+        header.setFont(QFont('Ariel', 12))
+        layout.addWidget(header, nrow, 0, 1, 2)
+        nrow += 1
+
+        # Create widgets for the start and stop scan times
+        layout.addWidget(QLabel('Sync Start Time\n(HH:MM):'), nrow, 0)
+        self.widgets['sync_start_time'] = QDateTimeEdit(displayFormat='HH:mm')
+        layout.addWidget(self.widgets['sync_start_time'], nrow, 1)
+        nrow += 1
+
+        layout.addWidget(QLabel('Sync Stop Time\n(HH:MM):'), nrow, 0)
+        self.widgets['sync_stop_time'] = QDateTimeEdit(displayFormat='HH:mm')
+        layout.addWidget(self.widgets['sync_stop_time'], nrow, 1)
+        nrow += 1
+
+        layout.addWidget(QLabel('Sync Time\nInterval (s):'), nrow, 0)
+        self.widgets['sync_interval'] = QSpinBox()
+        self.widgets['sync_interval'].setRange(0, 86400)
+        self.widgets['sync_interval'].setValue(30)
+        layout.addWidget(self.widgets['sync_interval'], nrow, 1)
+        nrow += 1
+
 # =============================================================================
 #   Generate the program outputs
 # =============================================================================
@@ -416,6 +443,8 @@ class MainWindow(QMainWindow):
         if self.syncing:
             self.sync_button.setText('Syncing OFF')
             self.sync_button.setStyleSheet("background-color: red")
+            self.widgets['sync_interval'].setDisabled(False)
+            self.widgets['sync_interval'].setStyleSheet("color: white")
             self.syncing = False
             self.syncTimer.stop()
 
@@ -424,13 +453,32 @@ class MainWindow(QMainWindow):
             self.sync_button.setText('Syncing ON')
             self.sync_button.setStyleSheet("background-color: green")
             self.syncing = True
+            interval = self.widgets.get('sync_interval') * 1000
+            self.widgets['sync_interval'].setDisabled(True)
+            self.widgets['sync_interval'].setStyleSheet("color: darkGray")
             self._station_sync()
             self.syncTimer = QTimer(self)
-            self.syncTimer.setInterval(30000)
+            self.syncTimer.setInterval(interval)
             self.syncTimer.timeout.connect(self._station_sync)
             self.syncTimer.start()
 
     def _station_sync(self):
+
+        # Check that the program is within the syncing time
+        start_time = datetime.strptime(self.widgets.get('sync_start_time'),
+                                       "%H:%M").time()
+        stop_time = datetime.strptime(self.widgets.get('sync_stop_time'),
+                                      "%H:%M").time()
+
+        now_time = datetime.now().time()
+
+        if now_time < start_time or now_time > stop_time:
+            logger.info('Not within syncing time window')
+            return
+
+        logger.info('Beginning scan sync')
+
+        raise Exception
 
         # Get today's date
         self.today_date = datetime.now().date()
