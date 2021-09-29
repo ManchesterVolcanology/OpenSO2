@@ -160,8 +160,8 @@ def main_loop():
     # Report fitting parameters
     logger.info(params.pretty_print(cols=['name', 'value', 'vary', 'xpath']))
 
-    # Read in the wavelength calibration
-    wl_calib = np.loadtxt(f'Station/{spectro.serial_number}_wl_calib.txt')
+    # Read a spectrum to get the wavelenghth calibration
+    [wl_calib, spec], info = spectro.get_spectrum()
 
 # =============================================================================
 #   Begin the scanning loop
