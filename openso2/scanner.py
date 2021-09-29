@@ -130,7 +130,7 @@ class Scanner:
         # Once home set the motor position to 0 and set the home angle
         self.position = 0
         self.angle = self.home_angle
-        
+
         return i
 
 # =============================================================================
@@ -344,7 +344,6 @@ class VScanner:
         home_angle : float, optional
             The angular position (deg) of the scanner when home. Default is 180
         """
-
         # Connect to the virtual micro switch
         self.uswitch = VSwitch()
 
@@ -374,7 +373,6 @@ class VScanner:
 
     def find_home(self):
         """Rotate the scanner head to the home position."""
-
         # Create a counter for the number of steps taken
         i = 0
 
@@ -416,7 +414,6 @@ class VScanner:
         -------
         None
         """
-
         # Perform steps
         for i in range(steps):
 
@@ -462,17 +459,24 @@ class VScanner:
 
 
 class VSwitch():
+    """Virtual swith."""
+
     def __init__(self):
+        """Initialise."""
         self.value = False
 
 
 class VMotorKit():
+    """Virtual motor class."""
 
     def __init__(self):
+        """Initialise."""
         pass
 
     def onestep(self):
+        """Take one step."""
         time.sleep(0.1)
 
     def release(self):
+        """Release the motor."""
         pass

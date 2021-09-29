@@ -1,3 +1,5 @@
+"""Contains GPS functions."""
+
 import gps
 import logging
 import subprocess
@@ -9,7 +11,7 @@ class GPS(object):
     """GPS class used to listen to GPS signals."""
 
     def __init__(self):
-
+        """Initialise."""
         # Turn on the GPS daemon
         logger.info('Activating GPS daemon')
         subprocess.call('sudo systemctl stop gpsd.socket', shell=True)

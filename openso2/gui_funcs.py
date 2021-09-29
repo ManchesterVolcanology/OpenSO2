@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 class MyLog(QObject):
     """Signal for logs."""
+
     signal = Signal(str)
 
 

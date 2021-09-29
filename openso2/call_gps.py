@@ -1,3 +1,5 @@
+"""Function to sync the system time with the GPS time."""
+
 import sys
 import logging
 import subprocess

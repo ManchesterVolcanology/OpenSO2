@@ -26,7 +26,7 @@ class Station:
     """
 
     def __init__(self, name, com_info, loc_info):
-
+        """Initialise."""
         # Set the connection and location information for this station
         self.name = name
         self.com_info = com_info
