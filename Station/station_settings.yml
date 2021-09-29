@@ -22,10 +22,9 @@ target_int: 50000
 # Scanner settings
 home_angle: 180
 switch_pin: 21
-max_steps_home: 4000
+max_steps_home: 800
 steps_to_start: 100
 step_type: double
 steps_per_spec: 2
 specs_per_scan: 100
 angle_per_step: 0.9
-home_offset: 100
