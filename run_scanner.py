@@ -26,7 +26,7 @@ from multiprocessing import Process
 
 from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
-from ifit.spectrometers import VSpectrometer
+from ifit.spectrometers import Spectrometer
 
 from openso2.scanner import Scanner, acquire_scan
 from openso2.analyse_scan import analyse_scan, update_int_time
@@ -100,7 +100,7 @@ sys.excepthook = exception_handler
 # =============================================================================
 
 def main_loop():
-    """Primary control loop."""
+    """Run control loop."""
     log_status('Idle')
     logger.info('Station awake')
 
@@ -116,8 +116,8 @@ def main_loop():
     with open('Station/station_settings.yml', 'r') as ymlfile:
         settings = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
-    spectro = VSpectrometer(integration_time=settings['start_int_time'],
-                            coadds=settings['start_coadds'])
+    spectro = Spectrometer(integration_time=settings['start_int_time'],
+                           coadds=settings['start_coadds'])
 
 # =============================================================================
 #   Set up iFit analyser
