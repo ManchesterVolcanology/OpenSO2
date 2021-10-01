@@ -23,7 +23,7 @@ class Scanner:
 
     # Initialise
     def __init__(self, switch_pin=24, step_type='single', angle_per_step=1.8,
-                 home_angle=180, max_steps_home=1000):
+                 home_angle=180, max_steps_home=1000, spectrometer=None):
         """Initialise.
 
         Parameters
@@ -76,6 +76,9 @@ class Scanner:
 
         # Create a counter for the scan number
         self.scan_number = 0
+
+        # Add the spectrometer
+        self.spectrometer = spectrometer
 
 # =============================================================================
 #   Find Home
@@ -213,6 +216,103 @@ class Scanner:
 
         return self.angle
 
+# =============================================================================
+# Acquire Scan
+# =============================================================================
+
+    def acquire_scan(self, settings, save_path):
+        """Acquire a scan.
+
+        Perform a scan, measuring a dark spectrum then spectra from horizon to
+        horizon as defined in the settings.
+
+        Parameters
+        ----------
+        scanner : OpenSO2 Scanner object
+            The scanner used to take the scan
+
+        spectro : iFit Spectrometer object
+            The spectrometer to acquire the spectra in the scan
+
+        settings : dict
+            Holds the settings for the scan
+
+        save_path : str
+            The folder to hold the scan results
+
+        Returns
+        -------
+        fpath : str
+            File path to the saved scan
+        """
+        # Create array to hold scan data
+        scan_data = np.zeros((settings['specs_per_scan'],
+                              self.spectrometer.pixels+8))
+
+        # Return the scanner position to home
+        logger.info('Returning to home position...')
+        self.find_home()
+
+        # Get time
+        dt = datetime.now()
+
+        # Form the filename of the scan file
+        fname = f'{dt.year}{dt.month:02d}{dt.day:02d}_'           # yyyymmdd
+        fname += f'{dt.hour:02d}{dt.minute:02d}{dt.second:02d}_'  # Time HHMMSS
+        fname += f'{settings["station_name"]}_'                   # Name
+        fname += f'{settings["version"]}_'                        # Version
+        fname += f'Scan{self.scan_number:03d}.npy'             # Scan no
+
+        # Take the dark spectrum
+        logger.info('Acquiring dark spectrum')
+        dark_spec, info = self.spectrometer.get_spectrum()
+        dark_data = np.array([0,  # Step number
+                              dt.hour, dt.minute, dt.second,  # Time
+                              self.position,  # Scanner position
+                              self.angle,  # Scan angle
+                              info['coadds'],  # Coadds
+                              info['integration_time']  # Integration time
+                              ])
+        scan_data[0] = np.append(dark_data, dark_spec[1])
+
+        # Move scanner to start position
+        logger.info('Moving to start position')
+        self.step(steps=settings['steps_to_start'])
+
+        # Begin stepping through the scan
+        logger.info('Begin main scan')
+        for step_no in range(1, settings['specs_per_scan']):
+
+            # Acquire the spectrum
+            spectrum, info = self.spectrometer.get_spectrum()
+
+            # Get the time
+            t = info['time']
+
+            # Add the data to the array
+            spec_data = np.array([step_no,  # Step number
+                                  t.hour, t.minute, t.second,  # Time
+                                  self.position,  # Scanner pos
+                                  self.angle,  # Scan angle
+                                  self.spectrometer.coadds,   # Coadds
+                                  self.spectrometer.integration_time  # I time
+                                  ])
+            scan_data[step_no] = np.append(spec_data, spectrum[1])
+
+            # Step the scanner
+            self.step(settings['steps_per_spec'])
+
+        # Scan complete
+        logger.info('Scan complete')
+
+        # Save the scan data
+        fpath = f'{save_path}spectra/{fname}'
+
+        np.save(fpath, scan_data.astype('float16'))
+
+        # Return the filepath to the saved scan
+        return fpath
+
 
 # =============================================================================
 # Acquire Scan
@@ -282,7 +382,6 @@ def acquire_scan(scanner, spectro, settings, save_path):
     for step_no in range(1, settings['specs_per_scan']):
 
         # Acquire the spectrum
-        spectro.fpath = 'Station/spectrum_00227.txt'  # #######################
         spectrum, info = spectro.get_spectrum()
 
         # Get the time
@@ -456,6 +555,103 @@ class VScanner:
                 raise Exception(msg)
 
         return self.angle
+
+# =============================================================================
+# Acquire Scan
+# =============================================================================
+
+    def acquire_scan(self, settings, save_path):
+        """Acquire a scan.
+
+        Perform a scan, measuring a dark spectrum then spectra from horizon to
+        horizon as defined in the settings.
+
+        Parameters
+        ----------
+        scanner : OpenSO2 Scanner object
+            The scanner used to take the scan
+
+        spectro : iFit Spectrometer object
+            The spectrometer to acquire the spectra in the scan
+
+        settings : dict
+            Holds the settings for the scan
+
+        save_path : str
+            The folder to hold the scan results
+
+        Returns
+        -------
+        fpath : str
+            File path to the saved scan
+        """
+        # Create array to hold scan data
+        scan_data = np.zeros((settings['specs_per_scan'],
+                              self.spectrometer.pixels+8))
+
+        # Return the scanner position to home
+        logger.info('Returning to home position...')
+        self.find_home()
+
+        # Get time
+        dt = datetime.now()
+
+        # Form the filename of the scan file
+        fname = f'{dt.year}{dt.month:02d}{dt.day:02d}_'           # yyyymmdd
+        fname += f'{dt.hour:02d}{dt.minute:02d}{dt.second:02d}_'  # Time HHMMSS
+        fname += f'{settings["station_name"]}_'                   # Name
+        fname += f'{settings["version"]}_'                        # Version
+        fname += f'Scan{self.scan_number:03d}.npy'             # Scan no
+
+        # Take the dark spectrum
+        logger.info('Acquiring dark spectrum')
+        dark_spec, info = self.spectrometer.get_spectrum()
+        dark_data = np.array([0,  # Step number
+                              dt.hour, dt.minute, dt.second,  # Time
+                              self.position,  # Scanner position
+                              self.angle,  # Scan angle
+                              info['coadds'],  # Coadds
+                              info['integration_time']  # Integration time
+                              ])
+        scan_data[0] = np.append(dark_data, dark_spec[1])
+
+        # Move scanner to start position
+        logger.info('Moving to start position')
+        self.step(steps=settings['steps_to_start'])
+
+        # Begin stepping through the scan
+        logger.info('Begin main scan')
+        for step_no in range(1, settings['specs_per_scan']):
+
+            # Acquire the spectrum
+            spectrum, info = self.spectrometer.get_spectrum()
+
+            # Get the time
+            t = info['time']
+
+            # Add the data to the array
+            spec_data = np.array([step_no,  # Step number
+                                  t.hour, t.minute, t.second,  # Time
+                                  self.position,  # Scanner pos
+                                  self.angle,  # Scan angle
+                                  self.spectrometer.coadds,   # Coadds
+                                  self.spectrometer.integration_time  # I time
+                                  ])
+            scan_data[step_no] = np.append(spec_data, spectrum[1])
+
+            # Step the scanner
+            self.step(settings['steps_per_spec'])
+
+        # Scan complete
+        logger.info('Scan complete')
+
+        # Save the scan data
+        fpath = f'{save_path}spectra/{fname}'
+
+        np.save(fpath, scan_data.astype('float16'))
+
+        # Return the filepath to the saved scan
+        return fpath
 
 
 class VSwitch():
