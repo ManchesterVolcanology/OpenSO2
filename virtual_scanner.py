@@ -27,7 +27,7 @@ from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
 from ifit.spectrometers import VSpectrometer
 
-from openso2.scanner import VScanner, acquire_scan
+from openso2.scanner import VScanner
 from openso2.analyse_scan import analyse_scan, update_int_time
 from openso2.call_gps import sync_gps_time
 
@@ -160,7 +160,6 @@ def main_loop():
     logger.info(params.pretty_print(cols=['name', 'value', 'vary', 'xpath']))
 
     # Read a spectrum to get the wavelenghth calibration
-    spectro.fpath = 'Station/spectrum_00005.txt'
     [wl_calib, spec], info = spectro.get_spectrum()
 
 # =============================================================================
@@ -188,7 +187,8 @@ def main_loop():
                        step_type=settings['step_type'],
                        angle_per_step=settings['angle_per_step'],
                        home_angle=settings['home_angle'],
-                       max_steps_home=settings['max_steps_home'])
+                       max_steps_home=settings['max_steps_home'],
+                       spectrometer=spectro)
     logger.info('Scanner connected')
 
     # Begin loop
@@ -199,7 +199,7 @@ def main_loop():
         logger.info(f'Begin scan {scanner.scan_number}')
 
         # Scan!
-        scan_fname = acquire_scan(scanner, spectro, settings, results_fpath)
+        scan_fname = scanner.acquire_scan(settings, results_fpath)
 
         # Log scan completion
         logger.info(f'Scan {scanner.scan_number} complete')
