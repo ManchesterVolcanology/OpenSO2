@@ -160,6 +160,7 @@ def main_loop():
     logger.info(params.pretty_print(cols=['name', 'value', 'vary', 'xpath']))
 
     # Read a spectrum to get the wavelenghth calibration
+    spectro.fpath = 'Station/spectrum_00005.txt'
     [wl_calib, spec], info = spectro.get_spectrum()
 
 # =============================================================================
