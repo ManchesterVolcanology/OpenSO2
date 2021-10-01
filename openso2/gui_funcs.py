@@ -8,11 +8,11 @@ import numpy as np
 import pandas as pd
 from scipy.signal import savgol_filter
 from datetime import datetime, timedelta
-from PySide2.QtGui import QFont
-from PySide2.QtCore import Qt, QObject, Signal, Slot, QRunnable
-from PySide2.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
-                               QSpinBox, QCheckBox, QDateTimeEdit,
-                               QPlainTextEdit)
+from PyQt5.QtGui import QFont
+from PyQt5.QtCore import Qt, QObject, pyqtSignal, pyqtSlot, QRunnable
+from PyQt5.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
+                             QSpinBox, QCheckBox, QDateTimeEdit,
+                             QPlainTextEdit)
 
 from openso2.plume import calc_plume_altitude, calc_scan_flux
 
@@ -24,29 +24,53 @@ logger = logging.getLogger(__name__)
 # Logging text box
 # =============================================================================
 
-class MyLog(QObject):
-    """Signal for logs."""
+# class MyLog(QObject):
+#     """Signal for logs."""
+#
+#     signal = pyqtSignal(str)
+#
+#
+# class QTextEditLogger(logging.Handler):
+#     """Record logs to the GUI."""
+#
+#     def __init__(self, parent):
+#         """Initialise."""
+#         super().__init__()
+#         self.log = MyLog()
+#         self.widget = QPlainTextEdit(parent)
+#         self.widget.setReadOnly(True)
+#         self.widget.setFont(QFont('Courier', 10))
+#         self.log.signal.connect(self.widget.appendPlainText)
+#
+#     @pyqtSlot()
+#     def emit(self, record):
+#         """Emit the log."""
+#         msg = self.format(record)
+#         self.log.signal.emit(msg)
 
-    signal = Signal(str)
 
+# =============================================================================
+# Logging text box
+# =============================================================================
 
-class QTextEditLogger(logging.Handler):
+class QTextEditLogger(logging.Handler, QObject):
     """Record logs to the GUI."""
+
+    appendPlainText = pyqtSignal(str)
 
     def __init__(self, parent):
         """Initialise."""
         super().__init__()
-        self.log = MyLog()
+        QObject.__init__(self)
         self.widget = QPlainTextEdit(parent)
         self.widget.setReadOnly(True)
         self.widget.setFont(QFont('Courier', 10))
-        self.log.signal.connect(self.widget.appendPlainText)
+        self.appendPlainText.connect(self.widget.appendPlainText)
 
-    @Slot()
     def emit(self, record):
         """Emit the log."""
         msg = self.format(record)
-        self.log.signal.emit(msg)
+        self.appendPlainText.emit(msg)
 
 
 # =============================================================================
@@ -58,11 +82,16 @@ class SyncWorker(QObject):
     """Handle station syncing."""
 
     # Define signals
-    finished = Signal()
-    updateLog = Signal(str, list)
+    error = pyqtSignal(tuple)
+    finished = pyqtSignal()
+    updateLog = pyqtSignal(str, list)
+    updateStationStatus = pyqtSignal(str, str, str)
+    updateGuiStatus = pyqtSignal(str)
+    updatePlots = pyqtSignal(str, str)
+    updateFluxPlot = pyqtSignal()
 
     def __init__(self, stations, today_date, volc_loc, default_alt,
-                 default_az):
+                 default_az, scan_pair_time, scan_pair_flag):
         """Initialize."""
         super(QObject, self).__init__()
         self.stations = stations
@@ -70,6 +99,8 @@ class SyncWorker(QObject):
         self.volc_loc = volc_loc
         self.default_alt = default_alt
         self.default_az = default_az
+        self.scan_pair_time = scan_pair_time
+        self.scan_pair_flag = scan_pair_flag
 
     def run(self):
         """Launch worker task."""
@@ -82,20 +113,72 @@ class SyncWorker(QObject):
         self.finished.emit()
 
     def _run(self):
-        pass
+        """Sync the station logs and scans."""
+        # Generate an empty dictionary to hold the scans
+        scans = {}
+
+        # Sync each station
+        for station in self.stations.values():
+
+            logging.info(f'Syncing {station.name} station...')
+
+            # Sync the station status and log
+            time, status, err = station.pull_status()
+
+            # Update the station status
+            self.updateStationStatus.emit(station.name, time, status)
+
+            # Pull the station logs
+            fname, err = station.pull_log()
+
+            # Read the log file
+            if fname is not None:
+                with open(fname, 'r') as r:
+                    log_text = r.readlines()
+
+                # Send signal with log text
+                self.updateLog.emit(station.name, log_text)
+
+            # Sync SO2 files
+            local_dir = f'Results/{self.today_date}/{station.name}/so2/'
+            if not os.path.isdir(local_dir):
+                os.makedirs(local_dir)
+            remote_dir = f'/home/pi/open_so2/Results/{self.today_date}/so2/'
+            new_fnames, err = station.sync(local_dir, remote_dir)
+            logging.info(f'Synced {len(new_fnames)} scans from {station.name}')
+
+            # Add the scans to the dictionary
+            scans[station.name] = new_fnames
+
+            # Plot last scan
+            if len(new_fnames) != 0:
+                self.updatePlots.emit(station.name, local_dir + new_fnames[-1])
+
+        # Calculate the fluxes
+        self.updateGuiStatus.emit('Calculating fluxes')
+        calculate_fluxes(self.stations, scans, self.today_date, self.vent_loc,
+                         self.default_alt, self.default_az,
+                         self.scan_pair_time, self.scan_pair_flag)
+
+        # Plot the fluxes on the GUI
+        self.updateFluxPlot.emit()
+
+        logger.info('Sync complete')
+
+        self.updateGuiStatus.emit('Ready')
 
 
 # Create a worker signals object to handle worker signals
 class WorkerSignals(QObject):
     """Define the signals available from a running worker thread."""
 
-    finished = Signal()
-    plot = Signal(str, str)
-    log = Signal(str, list)
-    flux = Signal()
-    gui_status = Signal(str)
-    stat_status = Signal(str, str, str)
-    error = Signal(tuple)
+    finished = pyqtSignal()
+    plot = pyqtSignal(str, str)
+    log = pyqtSignal(str, list)
+    flux = pyqtSignal()
+    gui_status = pyqtSignal(str)
+    stat_status = pyqtSignal(str, str, str)
+    error = pyqtSignal(tuple)
 
 
 # Create a worker to handle QThreads
@@ -125,7 +208,7 @@ class Worker(QRunnable):
         self.kwargs['gui_status_callback'] = self.signals.gui_status
         self.kwargs['stat_status_callback'] = self.signals.stat_status
 
-    @Slot()
+    @pyqtSlot()
     def run(self):
         """Initialise the runner function with passed args, kwargs."""
         # Retrieve args/kwargs here; and fire processing using them
@@ -140,7 +223,7 @@ class Worker(QRunnable):
         self.signals.finished.emit()
 
 
-def sync_stations(worker, widgets, stations, today_date, vent_loc, default_alt,
+def sync_stations(worker, stations, today_date, vent_loc, default_alt,
                   default_az, scan_pair_time, scan_pair_flag, log_callback,
                   plot_callback, flux_callback, gui_status_callback,
                   stat_status_callback):
