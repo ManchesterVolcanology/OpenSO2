@@ -6,7 +6,6 @@ import os
 import sys
 import yaml
 import logging
-import PySide2
 import traceback
 import numpy as np
 import pandas as pd
@@ -15,22 +14,22 @@ from datetime import datetime
 from functools import partial
 from collections import OrderedDict
 from logging.handlers import RotatingFileHandler
-from PySide2.QtGui import QPalette, QColor, QFont, QIcon
-from PySide2.QtCore import Qt, QThreadPool, QTimer, Slot
-from PySide2.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
-                               QMessageBox, QLabel, QLineEdit, QPushButton,
-                               QFrame, QSplitter, QTabWidget, QFileDialog,
-                               QScrollArea, QToolBar, QPlainTextEdit,
-                               QFormLayout, QDialog, QAction, QDateTimeEdit,
-                               QSpinBox, QDoubleSpinBox, QCheckBox)
+from PyQt5.QtGui import QPalette, QColor, QFont, QIcon
+from PyQt5.QtCore import Qt, QThreadPool, QTimer, pyqtSlot, QThread
+from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
+                             QMessageBox, QLabel, QLineEdit, QPushButton,
+                             QFrame, QSplitter, QTabWidget, QFileDialog,
+                             QScrollArea, QToolBar, QPlainTextEdit,
+                             QFormLayout, QDialog, QAction, QDateTimeEdit,
+                             QSpinBox, QDoubleSpinBox, QCheckBox)
 
 from openso2.station import Station
-from openso2.gui_funcs import Worker, sync_stations, Widgets, QTextEditLogger
+from openso2.gui_funcs import SyncWorker, Widgets, QTextEditLogger
 
 __version__ = '1.2'
 __author__ = 'Ben Esse'
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # Set up logging
@@ -41,8 +40,6 @@ fh.setLevel(logging.INFO)
 fmt = '%(asctime)s %(levelname)s %(module)s %(funcName)s %(message)s'
 fh.setFormatter(logging.Formatter(fmt))
 logger.addHandler(fh)
-
-logger.debug(f'Qt version: PySide2 {PySide2.__version__}')
 
 
 class MainWindow(QMainWindow):
@@ -281,36 +278,14 @@ class MainWindow(QMainWindow):
         layout = QGridLayout(self.outputFrame)
         layout.setAlignment(Qt.AlignTop)
 
-        # Generate the log box
+        # Create a textbox to display the program logs
         self.logBox = QTextEditLogger(self)
-        formatter = logging.Formatter('%(asctime)s - %(message)s', '%H:%M:%S')
-        self.logBox.setFormatter(formatter)
+        self.logBox.setFormatter(logging.Formatter('%(message)s'))
         logger.addHandler(self.logBox)
         logger.setLevel(logging.INFO)
         layout.addWidget(self.logBox.widget, 3, 0, 1, 6)
-        msg = 'Welcome to OpenSO2! Written by Ben Esse'
+        msg = f'Welcome to OpenSO2 v{__version__}! Written by Ben Esse'
         self.logBox.widget.appendPlainText(msg)
-
-        # # Generate the log box
-        # self.logBox = QPlainTextEdit()
-        # self.logBox.setReadOnly(True)
-        # self.logBox.setFont(QFont('Courier', 10))
-        #
-        # # Add the handler
-        # handler = QtHandler(self.update_log)
-        # date_fmt = '%H:%M:%S'
-        # formatter = logging.Formatter('%(asctime)s - %(message)s', date_fmt)
-        # handler.setFormatter(formatter)
-        # logger.addHandler(handler)
-
-        # layout.addWidget(self.logBox, 0, 0)
-        # msg = 'Welcome to OpenSO2! Written by Ben Esse'
-        # self.logBox.appendPlainText(msg)
-
-    # @Slot(str, logging.LogRecord)
-    def update_log(self, msg, record):
-        """Catch logs from threads."""
-        self.logBox.appendPlainText(msg)
 
 # =============================================================================
 #   Create program results
@@ -524,6 +499,13 @@ class MainWindow(QMainWindow):
 
     def _station_sync(self):
 
+        try:
+            print(self.syncThread.isRunning())
+            if self.syncThread.isRunning():
+                return
+        except AttributeError:
+            print('MARK')
+
         # Check that the program is within the syncing time
         start_time = datetime.strptime(self.widgets.get('sync_start_time'),
                                        "%H:%M").time()
@@ -554,38 +536,60 @@ class MainWindow(QMainWindow):
         scan_pair_flag = self.widgets.get('scan_pair_flag')
 
         self.statusBar().showMessage('Syncing...')
-        self.sync_worker = Worker(sync_stations, self.stations,
-                                  self.today_date, volc_loc, default_alt,
-                                  default_az, scan_pair_time, scan_pair_flag)
-        self.sync_worker.signals.log.connect(self.update_station_log)
-        self.sync_worker.signals.plot.connect(self.update_scan_plot)
-        self.sync_worker.signals.flux.connect(self.update_flux_plots)
-        self.sync_worker.signals.gui_status.connect(self.update_gui_status)
-        self.sync_worker.signals.stat_status.connect(self.update_stat_status)
-        self.threadpool.start(self.sync_worker)
+
+        # Initialise the sync thread
+        self.syncThread = QThread()
+        self.syncWorker = SyncWorker(self.stations, self.today_date, volc_loc,
+                                     default_alt, default_az, scan_pair_time,
+                                     scan_pair_flag)
+
+        # Move the worker to the thread
+        self.syncWorker.moveToThread(self.syncThread)
+
+        # Connect the signals
+        self.syncThread.started.connect(self.syncWorker.run)
+        self.syncWorker.finished.connect(self.sync_finished)
+        self.syncWorker.error.connect(self.update_error)
+        self.syncWorker.updateLog.connect(self.update_station_log)
+        self.syncWorker.updateStationStatus.connect(self.update_stat_status)
+        self.syncWorker.updateGuiStatus.connect(self.update_gui_status)
+        self.syncWorker.updatePlots.connect(self.update_scan_plot)
+        self.syncWorker.updateFluxPlot.connect(self.update_flux_plots)
+
+        # Start the flag
+        self.syncThread.start()
 
 # =============================================================================
 #   Gui Slots
 # =============================================================================
 
-    @Slot()
+    def update_error(self, error):
+        """Slot to update error messages from the worker."""
+        exctype, value, trace = error
+        logger.warning(f'Uncaught exception!\n{trace}')
+
+    def sync_finished(self):
+        """Signal end of sync."""
+        logger.info('Sync complete')
+
+    # @pyqtSlot()
     def update_gui_status(self, status):
         """Update the status."""
         self.statusBar().showMessage(status)
 
-    @Slot()
+    # @pyqtSlot()
     def update_stat_status(self, name, time, status):
         """Update the station staus."""
         self.station_status[name].setText(f'Status: {status}')
 
-    @Slot()
+    # @pyqtSlot()
     def update_station_log(self, station, log_text):
         """Slot to update the station logs."""
         text = self.station_log[station].toPlainText().split('\n')
         for line in log_text[len(text):]:
             self.station_log[station].appendPlainText(line.strip())
 
-    @Slot()
+    # @pyqtSlot()
     def update_scan_plot(self, s, fname):
         """Update the plots."""
         # Load the scan file, unpacking the angle and SO2 data
@@ -603,7 +607,7 @@ class MainWindow(QMainWindow):
 
         self.plot_lines[s][0].setData(x=plotx, y=ploty)
 
-    @Slot()
+    # @pyqtSlot()
     def update_flux_plots(self):
         """Display the calculated fluxes."""
         # Cycle through the stations
@@ -713,7 +717,7 @@ class MainWindow(QMainWindow):
             self.changeThemeLight()
             self.theme = 'Light'
 
-    @Slot()
+    @pyqtSlot()
     def changeThemeDark(self):
         """Change theme to dark."""
         darkpalette = QPalette()
@@ -747,7 +751,7 @@ class MainWindow(QMainWindow):
                 ax.getAxis('left').setTextPen(pen)
                 ax.getAxis('bottom').setTextPen(pen)
 
-    @Slot()
+    @pyqtSlot()
     def changeThemeLight(self):
         """Change theme to light."""
         QApplication.instance().setPalette(self.style().standardPalette())
