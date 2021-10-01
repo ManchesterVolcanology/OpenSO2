@@ -20,7 +20,6 @@ import sys
 import time
 import yaml
 import logging
-import numpy as np
 from datetime import datetime
 from multiprocessing import Process
 
@@ -28,7 +27,7 @@ from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
 from ifit.spectrometers import Spectrometer
 
-from openso2.scanner import Scanner, acquire_scan
+from openso2.scanner import Scanner
 from openso2.analyse_scan import analyse_scan, update_int_time
 from openso2.call_gps import sync_gps_time
 
@@ -188,7 +187,8 @@ def main_loop():
                       step_type=settings['step_type'],
                       angle_per_step=settings['angle_per_step'],
                       home_angle=settings['home_angle'],
-                      max_steps_home=settings['max_steps_home'])
+                      max_steps_home=settings['max_steps_home'],
+                      spectrometer=spectro)
     logger.info('Scanner connected')
 
     # Begin loop
@@ -199,7 +199,7 @@ def main_loop():
         logger.info(f'Begin scan {scanner.scan_number}')
 
         # Scan!
-        scan_fname = acquire_scan(scanner, spectro, settings, results_fpath)
+        scan_fname = scanner.acquire_scan(settings, results_fpath)
 
         # Log scan completion
         logger.info(f'Scan {scanner.scan_number} complete')
@@ -207,7 +207,7 @@ def main_loop():
         # Update the spectrometer integration time
         new_int_time = update_int_time(scan_fname, spectro.integration_time,
                                        settings)
-        # spectro.update_integration_time(new_int_time)
+        spectro.update_integration_time(new_int_time)
         logger.info(f'Integration time updated to {int(new_int_time)}')
 
         # Clear any finished processes from the processes list
