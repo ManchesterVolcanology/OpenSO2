@@ -280,7 +280,9 @@ class MainWindow(QMainWindow):
 
         # Create a textbox to display the program logs
         self.logBox = QTextEditLogger(self)
-        self.logBox.setFormatter(logging.Formatter('%(message)s'))
+        fmt = logging.Formatter('%(asctime)s - %(message)s',
+                                '%Y/%m/%d %H:%M:%S')
+        self.logBox.setFormatter(fmt)
         logger.addHandler(self.logBox)
         logger.setLevel(logging.INFO)
         layout.addWidget(self.logBox.widget, 3, 0, 1, 6)
