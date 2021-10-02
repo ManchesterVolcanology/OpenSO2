@@ -24,35 +24,6 @@ logger = logging.getLogger(__name__)
 # Logging text box
 # =============================================================================
 
-# class MyLog(QObject):
-#     """Signal for logs."""
-#
-#     signal = pyqtSignal(str)
-#
-#
-# class QTextEditLogger(logging.Handler):
-#     """Record logs to the GUI."""
-#
-#     def __init__(self, parent):
-#         """Initialise."""
-#         super().__init__()
-#         self.log = MyLog()
-#         self.widget = QPlainTextEdit(parent)
-#         self.widget.setReadOnly(True)
-#         self.widget.setFont(QFont('Courier', 10))
-#         self.log.signal.connect(self.widget.appendPlainText)
-#
-#     @pyqtSlot()
-#     def emit(self, record):
-#         """Emit the log."""
-#         msg = self.format(record)
-#         self.log.signal.emit(msg)
-
-
-# =============================================================================
-# Logging text box
-# =============================================================================
-
 class QTextEditLogger(logging.Handler, QObject):
     """Record logs to the GUI."""
 
@@ -122,6 +93,10 @@ class SyncWorker(QObject):
 
             logging.info(f'Syncing {station.name} station...')
 
+            stat_dir = f'Results/{self.today_date}/{station.name}/'
+            if not os.path.isdir(stat_dir):
+                os.makedirs(stat_dir)
+
             # Sync the station status and log
             time, status, err = station.pull_status()
 
@@ -156,127 +131,14 @@ class SyncWorker(QObject):
 
         # Calculate the fluxes
         self.updateGuiStatus.emit('Calculating fluxes')
-        calculate_fluxes(self.stations, scans, self.today_date, self.vent_loc,
+        calculate_fluxes(self.stations, scans, self.today_date, self.volc_loc,
                          self.default_alt, self.default_az,
                          self.scan_pair_time, self.scan_pair_flag)
 
         # Plot the fluxes on the GUI
         self.updateFluxPlot.emit()
 
-        logger.info('Sync complete')
-
         self.updateGuiStatus.emit('Ready')
-
-
-# Create a worker signals object to handle worker signals
-class WorkerSignals(QObject):
-    """Define the signals available from a running worker thread."""
-
-    finished = pyqtSignal()
-    plot = pyqtSignal(str, str)
-    log = pyqtSignal(str, list)
-    flux = pyqtSignal()
-    gui_status = pyqtSignal(str)
-    stat_status = pyqtSignal(str, str, str)
-    error = pyqtSignal(tuple)
-
-
-# Create a worker to handle QThreads
-class Worker(QRunnable):
-    """Worker thread.
-
-    Inherits from QRunnable to handler worker thread setup, signals and wrap-up
-
-    Parameters
-    ----------
-    fn : function
-        The function to run on the worker thread
-    """
-
-    def __init__(self, fn, *args, **kwargs):
-        """Initialize."""
-        super(Worker, self).__init__()
-
-        # Store constructor arguments (re-used for processing)
-        self.fn = fn
-        self.args = args
-        self.kwargs = kwargs
-        self.signals = WorkerSignals()
-        self.kwargs['log_callback'] = self.signals.log
-        self.kwargs['plot_callback'] = self.signals.plot
-        self.kwargs['flux_callback'] = self.signals.flux
-        self.kwargs['gui_status_callback'] = self.signals.gui_status
-        self.kwargs['stat_status_callback'] = self.signals.stat_status
-
-    @pyqtSlot()
-    def run(self):
-        """Initialise the runner function with passed args, kwargs."""
-        # Retrieve args/kwargs here; and fire processing using them
-        try:
-            self.fn(self, *self.args, **self.kwargs)
-        except Exception:
-            traceback.print_exc()
-            exctype, value = sys.exc_info()[:2]
-            self.signals.error.emit((exctype, value, traceback.format_exc()))
-
-        # Done
-        self.signals.finished.emit()
-
-
-def sync_stations(worker, stations, today_date, vent_loc, default_alt,
-                  default_az, scan_pair_time, scan_pair_flag, log_callback,
-                  plot_callback, flux_callback, gui_status_callback,
-                  stat_status_callback):
-    """Sync the station logs and scans."""
-    # Generate an empty dictionary to hold the scans
-    scans = {}
-
-    # Sync each station
-    for station in stations.values():
-
-        logging.info(f'Syncing {station.name} station...')
-
-        # Sync the station status and log
-        time, status, err = station.pull_status()
-        fname, err = station.pull_log()
-
-        # Update the station status
-        stat_status_callback.emit(station.name, time, status)
-
-        # Read the log file
-        if fname is not None:
-            with open(fname, 'r') as r:
-                log_text = r.readlines()
-
-            # Send signal with log text
-            log_callback.emit(station.name, log_text)
-
-        # Sync SO2 files
-        local_dir = f'Results/{today_date}/{station.name}/so2/'
-        if not os.path.isdir(local_dir):
-            os.makedirs(local_dir)
-        remote_dir = f'/home/pi/open_so2/Results/{today_date}/so2/'
-        new_fnames, err = station.sync(local_dir, remote_dir)
-        logging.info(f'Synced {len(new_fnames)} scans from {station.name}')
-
-        # Add the scans to the dictionary
-        scans[station.name] = new_fnames
-
-        # Plot last scan
-        if len(new_fnames) != 0:
-            plot_callback.emit(station.name, local_dir + new_fnames[-1])
-
-    # Calculate the fluxes
-    gui_status_callback.emit('Calculating fluxes')
-    calculate_fluxes(stations, scans, today_date, vent_loc, default_alt,
-                     default_az, scan_pair_time, scan_pair_flag)
-
-    # Plot the fluxes on the GUI
-    flux_callback.emit()
-
-    logger.info('Sync complete')
-
-    gui_status_callback.emit('Ready')
 
 
 def calculate_fluxes(stations, scans, today_date, vent_loc, default_alt,
@@ -386,7 +248,9 @@ def filter_scan(scan_df, min_scd, max_scd, plume_scd, good_scan_lim,
     if len(np.where(mask)[0]) > good_scan_lim*len(scan_df['SO2']):
         return None, None, 'Not enough good spectra'
 
-    masked_scan_df = scan_df.mask(mask)
+    masked_scan_df = scan_df.loc[(scan_df['fit_quality'] != 1)
+                                 & (scan_df['SO2'] < min_scd)
+                                 & (scan_df['SO2'] > max_scd)]
     so2_scd_masked = masked_scan_df['SO2']
 
     # Count the number of 'plume' spectra
