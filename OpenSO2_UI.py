@@ -512,12 +512,12 @@ class MainWindow(QMainWindow):
 
     def _station_sync(self):
 
+        # If the previous sync thread is still running, wait a cycle
         try:
-            print(self.syncThread.isRunning())
             if self.syncThread.isRunning():
                 return
         except AttributeError:
-            print('MARK')
+            pass
 
         # Check that the program is within the syncing time
         start_time = datetime.strptime(self.widgets.get('sync_start_time'),
@@ -531,7 +531,7 @@ class MainWindow(QMainWindow):
             logger.info('Not within syncing time window')
             return
 
-        logger.info('Beginning scan sync')
+        logger.info('Beginning scanner sync')
 
         # Get today's date
         self.today_date = datetime.now().date()
@@ -568,6 +568,7 @@ class MainWindow(QMainWindow):
         self.syncWorker.updateGuiStatus.connect(self.update_gui_status)
         self.syncWorker.updatePlots.connect(self.update_scan_plot)
         self.syncWorker.updateFluxPlot.connect(self.update_flux_plots)
+        self.syncWorker.finished.connect(self.syncThread.quit)
 
         # Start the flag
         self.syncThread.start()

@@ -9,7 +9,7 @@ import pandas as pd
 from scipy.signal import savgol_filter
 from datetime import datetime, timedelta
 from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt, QObject, pyqtSignal, pyqtSlot, QRunnable
+from PyQt5.QtCore import Qt, QObject, pyqtSignal
 from PyQt5.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
                              QSpinBox, QCheckBox, QDateTimeEdit,
                              QPlainTextEdit)
