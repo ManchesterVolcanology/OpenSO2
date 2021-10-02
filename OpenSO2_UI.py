@@ -41,6 +41,9 @@ fmt = '%(asctime)s %(levelname)s %(module)s %(funcName)s %(message)s'
 fh.setFormatter(logging.Formatter(fmt))
 logger.addHandler(fh)
 
+COLORS = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b',
+          '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+
 
 class MainWindow(QMainWindow):
     """View for the OpenSO2 GUI."""
@@ -330,15 +333,17 @@ class MainWindow(QMainWindow):
         ax0.setLabel('left', 'Plume Altitude [m]')
         ax1.setLabel('left', 'Plume Direction [deg]')
         ax2.setLabel('left', 'SO2 Flux [kg/s]')
+        self.flux_legend = ax2.addLegend()
 
         graph_layout.addWidget(graphwin)
 
         # Initialise dictionaries to hold the station widgets
         self.station_log = {}
-        self.plot_lines = {}
-        self.plot_axes = {}
+        self.station_plot_lines = {}
+        self.station_axes = {}
         self.station_status = {}
         self.station_graphwin = {}
+        self.flux_lines = {}
 
         # Add station tabs
         self.stationTabs = OrderedDict()
@@ -413,9 +418,9 @@ class MainWindow(QMainWindow):
         x_axis = pg.DateAxisItem(utcOffset=0)
         ax1 = self.station_graphwin[name].addPlot(row=0, col=1,
                                                   axisItems={'bottom': x_axis})
-        self.plot_axes[name] = [ax0, ax1]
+        self.station_axes[name] = [ax0, ax1]
 
-        for ax in self.plot_axes[name]:
+        for ax in self.station_axes[name]:
             ax.setDownsampling(mode='peak')
             ax.setClipToView(True)
             ax.showGrid(x=True, y=True)
@@ -432,12 +437,15 @@ class MainWindow(QMainWindow):
         l1 = pg.ErrorBarItem(pen=p0, beam=1000)
         ax0.addItem(l0)
         ax1.addItem(l1)
+        self.station_plot_lines[name] = [l0, l1]
 
-        self.plot_lines[name] = [l0, l1]
-
-        # Add flux plot lines
-        # fl0 = pg.ErrorBarItem()
-        # fl1 =
+        # Add overview plot lines
+        pen = pg.mkPen(color=COLORS[len(self.stations.keys())-1], width=1.0)
+        fl0 = pg.ErrorBarItem(pen=pen)
+        fl1 = pg.ErrorBarItem(pen=pen)
+        fl2 = pg.ErrorBarItem(pen=pen)
+        self.flux_lines[name] = [fl0, fl1, fl2]
+        self.flux_legend.addItem(fl0, name)
 
         # Create a textbox to hold the station logs
         self.station_log[name] = QPlainTextEdit(self)
@@ -463,6 +471,9 @@ class MainWindow(QMainWindow):
 
         # Remove the station from the stations dictionary
         self.stations.pop(name)
+
+        # Remove the station from the flux legend
+        self.flux_legend.removeItem(name)
 
     def new_station(self):
         """Input new information for a station."""
@@ -604,10 +615,10 @@ class MainWindow(QMainWindow):
         if np.nanmax(ploty) > 1e6:
             order = int(np.ceil(np.log10(np.nanmax(ploty)))) - 1
             ploty = ploty / 10**order
-            self.plot_axes[s][0].setLabel('left',
-                                          f'SO2 SCD (1e{order} molec/cm2)')
+            self.station_axes[s][0].setLabel('left',
+                                             f'SO2 SCD (1e{order} molec/cm2)')
 
-        self.plot_lines[s][0].setData(x=plotx, y=ploty)
+        self.station_plot_lines[s][0].setData(x=plotx, y=ploty)
 
     # @pyqtSlot()
     def update_flux_plots(self):
@@ -628,7 +639,8 @@ class MainWindow(QMainWindow):
             xdata = np.array([t.timestamp() for t in flux_df['Time [UTC]']])
             ydata = flux_df['Flux [kg/s]'].to_numpy()
             yerr = flux_df['Flux Err [kg/s]'].to_numpy()
-            self.plot_lines[name][1].setData(x=xdata, y=ydata, height=yerr)
+            self.station_plot_lines[name][1].setData(x=xdata, y=ydata,
+                                                     height=yerr)
 
 # =============================================================================
 #   Configuratuion Controls
@@ -743,9 +755,18 @@ class MainWindow(QMainWindow):
         QApplication.instance().setPalette(darkpalette)
 
         pen = pg.mkPen('w', width=1)
+
+        for ax in self.flux_axes:
+            ax.getAxis('left').setPen(pen)
+            ax.getAxis('right').setPen(pen)
+            ax.getAxis('top').setPen(pen)
+            ax.getAxis('bottom').setPen(pen)
+            ax.getAxis('left').setTextPen(pen)
+            ax.getAxis('bottom').setTextPen(pen)
+
         for name, station in self.stations.items():
             self.station_graphwin[name].setBackground('k')
-            for ax in self.plot_axes[name]:
+            for ax in self.station_axes[name]:
                 ax.getAxis('left').setPen(pen)
                 ax.getAxis('right').setPen(pen)
                 ax.getAxis('top').setPen(pen)
@@ -758,30 +779,24 @@ class MainWindow(QMainWindow):
         """Change theme to light."""
         QApplication.instance().setPalette(self.style().standardPalette())
         pen = pg.mkPen('k', width=1)
+
+        for ax in self.flux_axes:
+            ax.getAxis('left').setPen(pen)
+            ax.getAxis('right').setPen(pen)
+            ax.getAxis('top').setPen(pen)
+            ax.getAxis('bottom').setPen(pen)
+            ax.getAxis('left').setTextPen(pen)
+            ax.getAxis('bottom').setTextPen(pen)
+
         for name, station in self.stations.items():
             self.station_graphwin[name].setBackground('w')
-            for ax in self.plot_axes[name]:
+            for ax in self.station_axes[name]:
                 ax.getAxis('left').setPen(pen)
                 ax.getAxis('right').setPen(pen)
                 ax.getAxis('top').setPen(pen)
                 ax.getAxis('bottom').setPen(pen)
                 ax.getAxis('left').setTextPen(pen)
                 ax.getAxis('bottom').setTextPen(pen)
-        # self.graphwin.setBackground('w')
-        # self.scopewin.setBackground('w')
-        # pen = pg.mkPen('k', width=1)
-        #
-        # for ax in self.plot_axes:
-        #     ax.getAxis('left').setPen(pen)
-        #     ax.getAxis('right').setPen(pen)
-        #     ax.getAxis('top').setPen(pen)
-        #     ax.getAxis('bottom').setPen(pen)
-        #     ax.getAxis('left').setTextPen(pen)
-        #     ax.getAxis('bottom').setTextPen(pen)
-        # self.scope_ax.getAxis('left').setPen(pen)
-        # self.scope_ax.getAxis('right').setPen(pen)
-        # self.scope_ax.getAxis('top').setPen(pen)
-        # self.scope_ax.getAxis('bottom').setPen(pen)
 
 
 class NewStationWizard(QDialog):
