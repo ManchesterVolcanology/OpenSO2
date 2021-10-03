@@ -55,7 +55,7 @@ class MainWindow(QMainWindow):
         # Set the window properties
         self.setWindowTitle(f'OpenSO2 {__version__}')
         self.statusBar().showMessage('Ready')
-        self.setGeometry(40, 40, 1200, 600)
+        self.setGeometry(40, 40, 1200, 700)
         self.setWindowIcon(QIcon('bin/icons/main.png'))
 
         # Set the window layout
@@ -247,29 +247,49 @@ class MainWindow(QMainWindow):
         layout.addWidget(QHLine(), nrow, 0, 1, 10)
         nrow += 1
 
-        header = QLabel('Scanner Syncing Settings')
-        header.setAlignment(Qt.AlignLeft)
-        header.setFont(QFont('Ariel', 12))
-        layout.addWidget(header, nrow, 0, 1, 2)
-        nrow += 1
+        # Form the tab widget
+        analysisTabHolder = QTabWidget()
+        syncTab = QWidget()
+        analysisTabHolder.addTab(syncTab, 'Station Sync Controls')
+        postTab = QWidget()
+        analysisTabHolder.addTab(postTab, 'Post Analysis')
+
+        layout.addWidget(analysisTabHolder, nrow, 0, 1, 2)
+
+        # Add syncing controls
+        sync_layout = QGridLayout(syncTab)
 
         # Create widgets for the start and stop scan times
-        layout.addWidget(QLabel('Sync Start Time\n(HH:MM):'), nrow, 0)
+        sync_layout.addWidget(QLabel('Sync Start Time\n(HH:MM):'), 0, 0)
         self.widgets['sync_start_time'] = QDateTimeEdit(displayFormat='HH:mm')
-        layout.addWidget(self.widgets['sync_start_time'], nrow, 1)
-        nrow += 1
+        sync_layout.addWidget(self.widgets['sync_start_time'], 0, 1)
 
-        layout.addWidget(QLabel('Sync Stop Time\n(HH:MM):'), nrow, 0)
+        sync_layout.addWidget(QLabel('Sync Stop Time\n(HH:MM):'), 1, 0)
         self.widgets['sync_stop_time'] = QDateTimeEdit(displayFormat='HH:mm')
-        layout.addWidget(self.widgets['sync_stop_time'], nrow, 1)
-        nrow += 1
+        sync_layout.addWidget(self.widgets['sync_stop_time'], 1, 1)
 
-        layout.addWidget(QLabel('Sync Time\nInterval (s):'), nrow, 0)
+        sync_layout.addWidget(QLabel('Sync Time\nInterval (s):'), 2, 0)
         self.widgets['sync_interval'] = QSpinBox()
         self.widgets['sync_interval'].setRange(0, 86400)
         self.widgets['sync_interval'].setValue(30)
-        layout.addWidget(self.widgets['sync_interval'], nrow, 1)
-        nrow += 1
+        sync_layout.addWidget(self.widgets['sync_interval'], 2, 1)
+
+        # Add a button to control syncing
+        self.sync_button = QPushButton('Syncing OFF')
+        self.sync_button.setStyleSheet("background-color: red")
+        self.sync_button.clicked.connect(self._toggle_sync)
+        self.sync_button.setFixedSize(150, 25)
+        self.syncing = False
+        sync_layout.addWidget(self.sync_button, 3, 0, 1, 2)
+
+        # Add post analysis controls
+        post_layout = QGridLayout(postTab)
+
+        # File path to the data
+        post_layout.addWidget(QLabel('Date to Analyse:'), 0, 0)
+        self.widgets['date_to_analyse'] = QDateEdit(displayFormat='yyyy-MM-dd')
+        self.widgets['date_to_analyse'].setCalendarPopup(True)
+        post_layout.addWidget(self.widgets['date_to_analyse'], 0, 1)
 
 # =============================================================================
 #   Generate the program outputs
