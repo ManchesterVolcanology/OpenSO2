@@ -130,8 +130,8 @@ def calc_scan_flux(angles, scan_so2, station, vent_location, windspeed,
     plume_phi = np.radians(plume_azimuth)
     phi = np.radians(angles)
 
-    arc_radius = calc_arc_radius(station, vent_location,
-                                 plume_altitude, plume_azimuth)
+    arc_radius = calc_arc_radius(station, vent_location, plume_altitude,
+                                 plume_azimuth)
 
     # Calculate the delta angle of each spectrum
     dphi = np.diff(phi)

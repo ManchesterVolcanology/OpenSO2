@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, QObject, pyqtSignal
 from PyQt5.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
-                             QSpinBox, QCheckBox, QDateTimeEdit,
+                             QSpinBox, QCheckBox, QDateTimeEdit, QDateEdit,
                              QPlainTextEdit)
 
 from openso2.plume import calc_plume_altitude, calc_scan_flux
@@ -48,7 +48,6 @@ class QTextEditLogger(logging.Handler, QObject):
 # Station Sync Worker
 # =============================================================================
 
-
 class SyncWorker(QObject):
     """Handle station syncing."""
 
@@ -61,12 +60,13 @@ class SyncWorker(QObject):
     updatePlots = pyqtSignal(str, str)
     updateFluxPlot = pyqtSignal()
 
-    def __init__(self, stations, today_date, volc_loc, default_alt,
+    def __init__(self, stations, today_date, sync_mode, volc_loc, default_alt,
                  default_az, scan_pair_time, scan_pair_flag):
         """Initialize."""
         super(QObject, self).__init__()
         self.stations = stations
         self.today_date = today_date
+        self.sync_mode = sync_mode
         self.volc_loc = volc_loc
         self.default_alt = default_alt
         self.default_az = default_az
@@ -114,11 +114,13 @@ class SyncWorker(QObject):
                 # Send signal with log text
                 self.updateLog.emit(station.name, log_text)
 
-            # Sync SO2 files
-            local_dir = f'Results/{self.today_date}/{station.name}/so2/'
+            # Sync files
+            local_dir = f'Results/{self.today_date}/{station.name}/' \
+                        + f'{self.sync_mode}/'
             if not os.path.isdir(local_dir):
                 os.makedirs(local_dir)
-            remote_dir = f'/home/pi/open_so2/Results/{self.today_date}/so2/'
+            remote_dir = f'/home/pi/open_so2/Results/{self.today_date}/' \
+                         + f'{self.sync_mode}/'
             new_fnames, err = station.sync(local_dir, remote_dir)
             logging.info(f'Synced {len(new_fnames)} scans from {station.name}')
 
@@ -129,11 +131,85 @@ class SyncWorker(QObject):
             if len(new_fnames) != 0:
                 self.updatePlots.emit(station.name, local_dir + new_fnames[-1])
 
+        # Get all local files to recalculate flux with updated scans
+        fpath = f'Results/{self.today_date}'
+        all_scans, scan_times = get_local_scans(self.stations, fpath)
+
+        nscans = np.array([len(s) for s in scans.values()])
+
+        # Calculate the fluxesif there are any new scans
+        if nscans.any():
+            self.updateGuiStatus.emit('Calculating fluxes')
+            flux_results = calculate_fluxes(self.stations, all_scans, fpath,
+                                            self.volc_loc, self.default_alt,
+                                            self.default_az,
+                                            self.scan_pair_time,
+                                            self.scan_pair_flag)
+
+            # Format the file name of the flux output file
+            for name, flux_df in flux_results.items():
+                flux_df.to_csv(f'{fpath}/{name}/{self.today_date}_{name}_'
+                               + 'fluxes.csv')
+
+            # Plot the fluxes on the GUI
+            self.updateFluxPlot.emit()
+
+        self.updateGuiStatus.emit('Ready')
+
+
+# =============================================================================
+# Post Analysis Worker
+# =============================================================================
+
+class PostAnalysisWorker(QObject):
+    """Handle flux post analysis."""
+
+    # Define signals
+    error = pyqtSignal(tuple)
+    finished = pyqtSignal()
+    updateGuiStatus = pyqtSignal(str)
+    updateFluxPlot = pyqtSignal()
+
+    def __init__(self, stations, date_to_analyse, volc_loc, default_alt,
+                 default_az, scan_pair_time, scan_pair_flag):
+        """Initialize."""
+        super(QObject, self).__init__()
+        self.stations = stations
+        self.date_to_analyse = date_to_analyse
+        self.volc_loc = volc_loc
+        self.default_alt = default_alt
+        self.default_az = default_az
+        self.scan_pair_time = scan_pair_time
+        self.scan_pair_flag = scan_pair_flag
+
+    def run(self):
+        """Launch worker task."""
+        try:
+            self._run()
+        except Exception:
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.error.emit((exctype, value, traceback.format_exc()))
+        self.finished.emit()
+
+    def _run(self):
+        """Calculate fluxes from locally stored scans."""
+        # Get all local files to recalculate flux with updated scans
+        fpath = f'Results/{self.date_to_analyse}'
+        all_scans, scan_times = get_local_scans(self.stations, fpath)
+
         # Calculate the fluxes
         self.updateGuiStatus.emit('Calculating fluxes')
-        calculate_fluxes(self.stations, scans, self.today_date, self.volc_loc,
-                         self.default_alt, self.default_az,
-                         self.scan_pair_time, self.scan_pair_flag)
+        flux_results = calculate_fluxes(self.stations, all_scans, fpath,
+                                        self.volc_loc, self.default_alt,
+                                        self.default_az,
+                                        self.scan_pair_time,
+                                        self.scan_pair_flag)
+
+        # Format the file name of the flux output file
+        for name, flux_df in flux_results.items():
+            flux_df.to_csv(f'{fpath}/{name}/{self.date_to_analyse}_{name}_'
+                           + 'fluxes.csv')
 
         # Plot the fluxes on the GUI
         self.updateFluxPlot.emit()
@@ -141,99 +217,121 @@ class SyncWorker(QObject):
         self.updateGuiStatus.emit('Ready')
 
 
-def calculate_fluxes(stations, scans, today_date, vent_loc, default_alt,
-                     default_az, scan_pair_time, scan_pair_flag, min_scd=-1e17,
+def calculate_fluxes(stations, scans, fpath, vent_loc, default_alt, default_az,
+                     scan_pair_time, scan_pair_flag, min_scd=-1e17,
                      max_scd=1e20, plume_scd=1e17, good_scan_lim=0.2,
                      sg_window=11, sg_polyn=3):
     """Calculate the flux from a set of scans."""
     # Get the existing scan database
-    scan_fnames, scan_times = get_local_scans(stations, today_date)
+    scan_fnames, scan_times = get_local_scans(stations, fpath)
+
+    # Create a dictionary to hold the flux results
+    flux_results = {}
 
     # For each station calculate fluxes
     for name, station in stations.items():
 
         logger.info(f'Calculating fluxes for {name}')
 
-        # Set filepath to scan data
-        fpath = f'Results/{today_date}/{name}/so2/'
+        cols = ['Time [UTC]', 'Scan File', 'Pair Station', 'Pair File',
+                'Flux [kg/s]', 'Flux Err [kg/s]', 'Plume Altitude [m]',
+                'Plume Direction [deg]']
+        flux_df = pd.DataFrame(index=np.arange(len(scans[name])), columns=cols)
 
-        for scan_fname in scans[name]:
+        for i, scan_fname in enumerate(scans[name]):
 
             # Read in the scan
-            scan_df = pd.read_csv(fpath + scan_fname)
+            scan_df = pd.read_csv(scan_fname)
 
             # Filter the scan
             msk_scan_df, peak, msg = filter_scan(scan_df, min_scd, max_scd,
                                                  plume_scd, good_scan_lim,
                                                  sg_window, sg_polyn)
 
-            if msk_scan_df is None:
-                logger.info(f'Scan {scan_fname} not analysed. {msg}')
-                continue
-
             # Pull the scan time from the filename
             scan_time = datetime.strptime(os.path.split(scan_fname)[1][:14],
                                           '%Y%m%d_%H%M%S')
 
-            # Find the nearest scan from other stations
-            near_fname, near_ts, alt_name = find_nearest_scan(name, scan_time,
-                                                              scan_fnames,
-                                                              scan_times)
+            if msk_scan_df is None:
+                logger.info(f'Scan {scan_fname} not analysed. {msg}')
+                row = [scan_time, os.path.split(scan_fname)[1], None, None,
+                       None, None, None, None]
+                flux_df.iloc[i] = row
+                continue
 
-            # Calculate the time difference
-            time_diff = scan_time - near_ts
-            delta_time = timedelta(minutes=scan_pair_time)
-            if time_diff < delta_time and scan_pair_flag:
-
-                # Read in the scan
-                alt_scan_df = pd.read_csv(near_fname)
-
-                # Filter the scan
-                alt_msk_df, alt_peak, msg = filter_scan(alt_scan_df, min_scd,
-                                                        max_scd, plume_scd,
-                                                        good_scan_lim,
-                                                        sg_window, sg_polyn)
-
-                # If the alt scan is good, calculate the plume altitude
-                if alt_msk_df is None:
-                    plume_alt = default_alt
-                    plume_az = default_az
-                else:
-                    alt_station = stations[alt_name]
-                    plume_alt, plume_az = calc_plume_altitude(station,
-                                                              alt_station,
-                                                              peak,
-                                                              alt_peak,
-                                                              vent_loc,
-                                                              default_alt)
-
-            # If scans are too far appart, use default values
+            if scan_pair_flag:
+                # Find the nearest scan from other stations
+                near_fname, near_ts, alt_name = find_nearest_scan(name,
+                                                                  scan_time,
+                                                                  scan_fnames,
+                                                                  scan_times)
             else:
+                near_fname, near_ts, alt_name = None, None, None
+
+            if near_fname is None:
+                near_fname = 'None'
+                alt_station_name = None
                 plume_alt = default_alt
                 plume_az = default_az
 
+            else:
+                # Calculate the time difference
+                time_diff = scan_time - near_ts
+                delta_time = timedelta(minutes=scan_pair_time)
+                if time_diff < delta_time and scan_pair_flag:
+
+                    # Read in the scan
+                    alt_scan_df = pd.read_csv(near_fname)
+
+                    # Filter the scan
+                    alt_msk_df, alt_peak, msg = filter_scan(
+                        alt_scan_df, min_scd, max_scd, plume_scd,
+                        good_scan_lim, sg_window, sg_polyn)
+
+                    # If the alt scan is good, calculate the plume altitude
+                    if alt_msk_df is None:
+                        near_fname = 'None'
+                        alt_station_name = None
+                        plume_alt = default_alt
+                        plume_az = default_az
+                    else:
+                        alt_station = stations[alt_name]
+                        plume_alt, plume_az = calc_plume_altitude(station,
+                                                                  alt_station,
+                                                                  peak,
+                                                                  alt_peak,
+                                                                  vent_loc,
+                                                                  default_alt)
+                        alt_station_name = alt_station.name
+
+                # If scans are too far appart, use default values
+                else:
+                    near_fname = 'None'
+                    alt_station_name = None
+                    plume_alt = default_alt
+                    plume_az = default_az
+
             # Calculate the scan flux
-            flux_amt, flux_err = calc_scan_flux(angles=scan_df['Angle'],
-                                                scan_so2=[scan_df['SO2'],
-                                                          scan_df['SO2_err']],
-                                                station_info=station.loc_info,
-                                                volcano_location=vent_loc,
-                                                windspeed=1,
-                                                plume_altitude=plume_alt,
-                                                plume_azimuth=plume_az)
+            flux_amt, flux_err = calc_scan_flux(
+                angles=msk_scan_df['Angle'],
+                scan_so2=[msk_scan_df['SO2'],
+                          msk_scan_df['SO2_err']],
+                station=station,
+                vent_location=vent_loc,
+                windspeed=1,
+                plume_altitude=plume_alt,
+                plume_azimuth=plume_az
+            )
 
-            # Format the file name of the flux output file
-            flux_fname = f'Results/{today_date}/{name}/' \
-                         + f'{today_date}_{name}_fluxes.csv'
+            # Add the row to the results dataframe
+            row = [scan_time, os.path.split(scan_fname)[1], alt_station_name,
+                   os.path.split(near_fname)[1], flux_amt, flux_err, plume_alt,
+                   plume_az]
+            flux_df.iloc[i] = row
 
-            # Check the file exists
-            if not os.path.exists(flux_fname):
-                with open(flux_fname, 'w') as w:
-                    w.write('Time [UTC],Flux [kg/s],Flux Err [kg/s]')
+        flux_results[name] = flux_df
 
-            # Write the results to the file
-            with open(flux_fname, 'a') as w:
-                w.write(f'\n{scan_time},{flux_amt},{flux_err}')
+    return flux_results
 
 
 def filter_scan(scan_df, min_scd, max_scd, plume_scd, good_scan_lim,
@@ -260,23 +358,23 @@ def filter_scan(scan_df, min_scd, max_scd, plume_scd, good_scan_lim,
         return None, None, 'Not enough plume spectra'
 
     # Determine the peak scan angle
-    x = scan_df['Angle'][~mask].to_numpy()
-    y = scan_df['SO2'][~mask].to_numpy()
+    x = masked_scan_df['Angle'].to_numpy()
+    y = masked_scan_df['SO2'].to_numpy()
     so2_filtered = savgol_filter(y, sg_window, sg_polyn, mode='nearest')
     peak_angle = x[so2_filtered.argmax()]
 
     return masked_scan_df, peak_angle, 'Scan analysed'
 
 
-def get_local_scans(stations, today_date):
+def get_local_scans(stations, fpath):
     """Find all the scans for the given day for all stations.
 
     Parameters
     ----------
     stations : dict
         Holds the openso2 Station objects.
-    today_date : dateimte date
-        The date of the analysis in question
+    fpath : str
+        Path to the folder holding the scan data
 
     Returns
     -------
@@ -285,8 +383,6 @@ def get_local_scans(stations, today_date):
     scan_times : dict
         Dictionary of the scan timestamps ofr each scanner
     """
-    # Set the results filepath
-    fpath = f'Results/{today_date}'
 
     # Initialise empty dictionaries for the file names and timestamps
     scan_fnames = {}
@@ -294,10 +390,10 @@ def get_local_scans(stations, today_date):
 
     # For each station find the available scans and there timestamps
     for name, station in stations.items():
-        scan_fnames[station] = [f'{fpath}/{name}/so2/{f}'
-                                for f in os.listdir(f'{fpath}/{name}/so2/')]
-        scan_times = [datetime.strptime(f[:14], '%Y%m%d_%H%M%S')
-                      for f in os.listdir(f'{fpath}/{name}/so2/')]
+        scan_fnames[name] = [f'{fpath}/{name}/so2/{f}'
+                             for f in os.listdir(f'{fpath}/{name}/so2/')]
+        scan_times[name] = [datetime.strptime(f[:14], '%Y%m%d_%H%M%S')
+                            for f in os.listdir(f'{fpath}/{name}/so2/')]
 
     return scan_fnames, scan_times
 
@@ -326,12 +422,13 @@ def find_nearest_scan(station_name, scan_time, scan_fnames, scan_times):
     # Initialise empty lists to hold the results
     nearest_scan_times = []
     nearest_scan_fnames = []
+    nearest_scan_stations = []
 
     # search through the dictionary of station scans
     for name, fnames in scan_fnames.items():
 
-        # Skip if this is the same station
-        if name == station_name:
+        # Skip if this is the same station or if there are no scans
+        if name == station_name or len(fnames) == 0:
             continue
 
         # Find the time difference
@@ -344,13 +441,19 @@ def find_nearest_scan(station_name, scan_time, scan_fnames, scan_times):
         # Record the nearest scan for that station
         nearest_scan_times.append(scan_times[name][min_idx])
         nearest_scan_fnames.append(fnames[min_idx])
+        nearest_scan_stations.append(name)
 
     # Now find the nearest of the nearest scans
-    idx = np.argmin(nearest_scan_times)
-    nearest_fname = nearest_scan_fnames[idx]
-    nearest_timestamp = nearest_scan_times[idx]
+    if len(nearest_scan_times) != 0:
+        idx = np.argmin(nearest_scan_times)
+        nearest_fname = nearest_scan_fnames[idx]
+        nearest_timestamp = nearest_scan_times[idx]
+        nearest_station = nearest_scan_stations[idx]
 
-    return nearest_fname, nearest_timestamp
+        return nearest_fname, nearest_timestamp, nearest_station
+
+    else:
+        return None, None, None
 
 
 # =============================================================================
@@ -399,7 +502,7 @@ class Widgets(dict):
             return str(self[key].currentText())
         elif type(self[key]) == QCheckBox:
             return self[key].isChecked()
-        elif type(self[key]) == QDateTimeEdit:
+        elif type(self[key]) in [QDateEdit, QDateTimeEdit]:
             return self[key].textFromDateTime(self[key].dateTime())
         elif type(self[key]) in [SpinBox, DSpinBox, QSpinBox, QDoubleSpinBox]:
             return self[key].value()
@@ -414,7 +517,7 @@ class Widgets(dict):
                 self[key].setCurrentIndex(index)
         if type(self[key]) == QCheckBox:
             self[key].setChecked(value)
-        if type(self[key]) == QDateTimeEdit:
+        if type(self[key]) in [QDateEdit, QDateTimeEdit]:
             self[key].setDateTime(self[key].dateTimeFromText(value))
         if type(self[key]) in [SpinBox, DSpinBox, QSpinBox, QDoubleSpinBox]:
             self[key].setValue(value)

@@ -63,8 +63,6 @@ class Station:
 
                 # Get the file names in the local directory
                 local_files = os.listdir(local_dir)
-                # local_files = glob.glob(local_dir + '*')
-                # local_files = [fn.split('\\')[-1] for fn in local_files]
 
                 # Get the file names in the remote directory
                 remote_files = sftp.listdir(remote_dir)
@@ -90,7 +88,7 @@ class Station:
             err = [False, '']
 
         # Handle the error is the connection is refused
-        except SSHException as e:
+        except (SSHException, FileNotFoundError) as e:
             logger.info(f'Error with station {self.name} communication',
                         exc_info=True)
             new_fnames = []

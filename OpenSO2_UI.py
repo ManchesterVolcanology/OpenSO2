@@ -21,10 +21,11 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QFrame, QSplitter, QTabWidget, QFileDialog,
                              QScrollArea, QToolBar, QPlainTextEdit,
                              QFormLayout, QDialog, QAction, QDateTimeEdit,
-                             QSpinBox, QDoubleSpinBox, QCheckBox)
+                             QDateEdit, QSpinBox, QDoubleSpinBox, QCheckBox)
 
 from openso2.station import Station
 from openso2.gui_funcs import SyncWorker, Widgets, QTextEditLogger
+from openso2.plume import calc_end_point
 
 __version__ = '1.2'
 __author__ = 'Ben Esse'
@@ -329,19 +330,20 @@ class MainWindow(QMainWindow):
         # Add plots for overall results
         # Create the graphs
         graph_layout = QGridLayout(resultsTab)
-        graphwin = pg.GraphicsLayoutWidget(show=True)
+        self.flux_graphwin = pg.GraphicsLayoutWidget(show=True)
         pg.setConfigOptions(antialias=True)
 
         # Make the graphs
         x_axis = pg.DateAxisItem(utcOffset=0)
-        ax0 = graphwin.addPlot(row=1, col=0, axisItems={'bottom': x_axis})
+        ax0 = self.flux_graphwin.addPlot(row=0, col=0, colspan=2,
+                                         axisItems={'bottom': x_axis})
         x_axis = pg.DateAxisItem(utcOffset=0)
-        ax1 = graphwin.addPlot(row=1, col=1, axisItems={'bottom': x_axis})
+        ax1 = self.flux_graphwin.addPlot(row=1, col=0,
+                                         axisItems={'bottom': x_axis})
         x_axis = pg.DateAxisItem(utcOffset=0)
-        ax2 = graphwin.addPlot(row=0, col=0, colspan=2,
-                               axisItems={'bottom': x_axis})
+        ax2 = self.flux_graphwin.addPlot(row=1, col=1,
+                                         axisItems={'bottom': x_axis})
         self.flux_axes = [ax0, ax1, ax2]
-        self.flux_plots = {}
 
         for ax in self.flux_axes:
             ax.setDownsampling(mode='peak')
@@ -350,12 +352,51 @@ class MainWindow(QMainWindow):
             ax.setLabel('bottom', 'Time')
 
         # Add axis labels
-        ax0.setLabel('left', 'Plume Altitude [m]')
-        ax1.setLabel('left', 'Plume Direction [deg]')
-        ax2.setLabel('left', 'SO2 Flux [kg/s]')
-        self.flux_legend = ax2.addLegend()
+        ax0.setLabel('left', 'SO2 Flux [kg/s]')
+        ax1.setLabel('left', 'Plume Altitude [m]')
+        ax2.setLabel('left', 'Plume Direction [deg]')
+        self.flux_legend = ax0.addLegend()
 
-        graph_layout.addWidget(graphwin)
+        graph_layout.addWidget(self.flux_graphwin)
+
+        # Add a tab for the map
+        mapTab = QWidget()
+        self.stationTabHolder.addTab(mapTab, 'Station Map')
+
+        # Create the map axes
+        map_layout = QGridLayout(mapTab)
+        self.map_graphwin = pg.GraphicsLayoutWidget(show=True)
+        self.map_ax = self.map_graphwin.addPlot(row=0, col=0)
+        self.map_ax.setAspectLocked()
+        self.map_ax.setDownsampling(mode='peak')
+        self.map_ax.setClipToView(True)
+        self.map_ax.showGrid(x=True, y=True)
+        self.map_ax.setLabel('bottom', 'Time')
+
+        # Create the plot of the volcano
+        scatter = pg.ScatterPlotItem(size=20, pen=pg.mkPen(COLORS[7]),
+                                     brush=pg.mkBrush(COLORS[3]))
+        scatter.setToolTip("Volcano")
+        line = pg.PlotCurveItem(pen=pg.mkPen(COLORS[3], width=2))
+        arrow = pg.ArrowItem(pen=pg.mkPen(COLORS[3], width=2), tipAngle=45,
+                             baseAngle=25, brush=pg.mkBrush(COLORS[3]))
+        line.setToolTip("Plume")
+        arrow.setToolTip("Plume")
+        self.map_ax.addItem(line)
+        self.map_ax.addItem(arrow)
+        self.map_ax.addItem(scatter)
+        self.map_plots = {'volcano': [scatter, line, arrow]}
+
+        # Connect changes in the volcano location to the plot
+        self.widgets['vlat'].textChanged.connect(self.update_map)
+        self.widgets['vlon'].textChanged.connect(self.update_map)
+        self.widgets['plume_dir'].valueChanged.connect(self.update_map)
+
+        # Add axis labels
+        self.map_ax.setLabel('left', 'Latitude [deg]')
+        self.map_ax.setLabel('bottom', 'Longitude [deg]')
+
+        map_layout.addWidget(self.map_graphwin)
 
         # Initialise dictionaries to hold the station widgets
         self.station_log = {}
@@ -364,6 +405,7 @@ class MainWindow(QMainWindow):
         self.station_status = {}
         self.station_graphwin = {}
         self.flux_lines = {}
+        self.station_widgets = {}
 
         # Add station tabs
         self.stationTabs = OrderedDict()
@@ -371,19 +413,25 @@ class MainWindow(QMainWindow):
             self.add_station(station)
         layout.addWidget(self.stationTabHolder, 0, 0, 1, 10)
 
-        # Add a button to control syncing
-        self.sync_button = QPushButton('Syncing OFF')
-        self.sync_button.setStyleSheet("background-color: red")
-        self.sync_button.clicked.connect(self._toggle_sync)
-        self.sync_button.setFixedSize(150, 25)
-        self.syncing = False
-        layout.addWidget(self.sync_button, 1, 0)
-
         # Add a button to add a station
         self.add_station_btn = QPushButton('Add Station')
         self.add_station_btn.setFixedSize(150, 25)
         self.add_station_btn.clicked.connect(self.new_station)
-        layout.addWidget(self.add_station_btn, 1, 1)
+        layout.addWidget(self.add_station_btn, 1, 0)
+
+    def update_map(self):
+        """Update the volcano location."""
+        try:
+            x = float(self.widgets.get('vlon'))
+            y = float(self.widgets.get('vlat'))
+            az = self.widgets.get('plume_dir')
+            ay, ax = calc_end_point([y, x], 5000, az)
+            self.map_plots['volcano'][0].setData([x], [y])
+            self.map_plots['volcano'][1].setData([x, ax], [y, ay])
+            self.map_plots['volcano'][2].setPos(ax, ay)
+            self.map_plots['volcano'][2].setStyle(angle=az+90)
+        except ValueError:
+            pass
 
 # =============================================================================
 #   Add Scanning Stations
@@ -404,7 +452,10 @@ class MainWindow(QMainWindow):
 
         # Add a status notifier
         self.station_status[name] = QLabel('Status: -')
-        layout.addWidget(self.station_status[name], 0, 0)
+        coln = 0
+        layout.addWidget(self.station_status[name], 0, coln)
+        layout.addWidget(QVLine(), 0, coln+1)
+        coln += 2
 
         # Add the station location
         stat_lat = f'{abs(loc_info["latitude"])}'
@@ -417,17 +468,38 @@ class MainWindow(QMainWindow):
             stat_lon += u"\N{DEGREE SIGN}E"
         else:
             stat_lon += u"\N{DEGREE SIGN}W"
-        layout.addWidget(QLabel(f'Location: {stat_lat}, {stat_lon}'), 0, 1)
+        stat_loc = QLabel(f'Location: {stat_lat}, {stat_lon}')
+        layout.addWidget(stat_loc, 0, coln)
+        layout.addWidget(QVLine(), 0, coln+1)
+        coln += 2
+
+        # Add the station altitude
+        stat_alt = QLabel(f'Altitude: {loc_info["altitude"]} m')
+        layout.addWidget(stat_alt, 0, coln)
+        layout.addWidget(QVLine(), 0, coln+1)
+        coln += 2
 
         # Add the station orientation
-        az = loc_info["azimuth"]
-        layout.addWidget(QLabel(f'Orientation: {az}' + u"\N{DEGREE SIGN}"),
-                         0, 2)
+        stat_az = QLabel(f'Orientation: {loc_info["azimuth"]}'
+                         + u"\N{DEGREE SIGN}")
+        layout.addWidget(stat_az, 0, coln)
+        layout.addWidget(QVLine(), 0, coln+1)
+        coln += 2
 
-        # Add button to delete the tab
+        # Add button to edit the station
+        edit_btn = QPushButton('Edit Station')
+        edit_btn.clicked.connect(lambda: self.edit_station(name))
+        layout.addWidget(edit_btn, 0, coln)
+        coln += 1
+
+        # Add button to delete the station
         close_btn = QPushButton('Delete Station')
         close_btn.clicked.connect(lambda: self.del_station(name))
-        layout.addWidget(close_btn, 0, 3)
+        layout.addWidget(close_btn, 0, coln)
+        coln += 1
+
+        # Add the station widgets to a dictionary
+        self.station_widgets[name] = {'loc': stat_loc, 'az': stat_az}
 
         # Create the graphs
         self.station_graphwin[name] = pg.GraphicsLayoutWidget(show=True)
@@ -453,35 +525,57 @@ class MainWindow(QMainWindow):
 
         # Initialise the lines
         p0 = pg.mkPen(color='#1f77b4', width=1.0)
-        l0 = pg.ErrorBarItem(pen=p0)
-        l1 = pg.ErrorBarItem(pen=p0, beam=1000)
+        l0 = pg.PlotCurveItem(pen=p0)
+        e1 = pg.ErrorBarItem(pen=p0)
+        l1 = pg.PlotCurveItem(pen=p0)
         ax0.addItem(l0)
+        ax1.addItem(e1)
         ax1.addItem(l1)
-        self.station_plot_lines[name] = [l0, l1]
-
-        # Add overview plot lines
-        pen = pg.mkPen(color=COLORS[len(self.stations.keys())-1], width=1.0)
-        fl0 = pg.ErrorBarItem(pen=pen)
-        fl1 = pg.ErrorBarItem(pen=pen)
-        fl2 = pg.ErrorBarItem(pen=pen)
-        self.flux_lines[name] = [fl0, fl1, fl2]
-        self.flux_legend.addItem(fl0, name)
+        self.station_plot_lines[name] = [l0, e1, l1]
 
         # Create a textbox to hold the station logs
         self.station_log[name] = QPlainTextEdit(self)
         self.station_log[name].setReadOnly(True)
         self.station_log[name].setFont(QFont('Courier', 10))
 
+        # Add overview plot lines
+        pen = pg.mkPen(color=COLORS[len(self.stations.keys())-1], width=1.0)
+        fe0 = pg.ErrorBarItem(pen=pen)
+        fl0 = pg.PlotCurveItem(pen=pen)
+        fl1 = pg.PlotCurveItem(pen=pen)
+        fl2 = pg.PlotCurveItem(pen=pen)
+        self.flux_axes[0].addItem(fe0)
+        self.flux_axes[0].addItem(fl0)
+        self.flux_axes[1].addItem(fl1)
+        self.flux_axes[2].addItem(fl2)
+        self.flux_lines[name] = [fe0, fl0, fl1, fl2]
+        self.flux_legend.addItem(fl0, name)
+
+        # Add station to map plot
+        scatter = pg.ScatterPlotItem(x=[loc_info['longitude']],
+                                     y=[loc_info['latitude']],
+                                     size=15, brush=pg.mkBrush(COLORS[0]))
+        line = pg.PlotCurveItem(pen=pg.mkPen(COLORS[0], width=2))
+        arrow = pg.ArrowItem(baseAngle=25, brush=pg.mkBrush(COLORS[0]))
+        scatter.setToolTip(name)
+        self.map_ax.addItem(scatter)
+        self.map_ax.addItem(line)
+        self.map_ax.addItem(arrow)
+        self.map_plots[name] = [scatter, line, arrow]
+        self.update_station_map(name)
+
         splitter = QSplitter(Qt.Vertical)
         splitter.addWidget(self.station_graphwin[name])
         splitter.addWidget(self.station_log[name])
-        layout.addWidget(splitter, 1, 0, 1, 4)
+        layout.addWidget(splitter, 1, 0, 1, coln)
+
+        logger.info(f'Added {name} station')
 
     def del_station(self, name):
         """Remove a station tab."""
         # Get the index of the station tab
         station_idx = [i for i, key in enumerate(self.stationTabs.keys())
-                       if name == key][0] + 1
+                       if name == key][0] + 2
 
         # Remove the tab from the GUI
         self.stationTabHolder.removeTab(station_idx)
@@ -495,11 +589,63 @@ class MainWindow(QMainWindow):
         # Remove the station from the flux legend
         self.flux_legend.removeItem(name)
 
+        # Remove the station from the map
+        for item in self.map_plots[name]:
+            self.map_ax.removeItem(item)
+        self.map_plots.pop(name)
+
+        logger.info(f'Removed {name} station')
+
     def new_station(self):
         """Input new information for a station."""
-        dialog = NewStationWizard()
+        dialog = NewStationWizard(self)
         if dialog.exec_():
             self.add_station(**dialog.station_info)
+
+    def edit_station(self, name):
+        """Edit information for a station."""
+        station = self.stations[name]
+        dialog = EditStationWizard(self, station)
+        if dialog.exec_():
+            # Edit the station object
+            self.stations[name] = dialog.station
+
+            # Edit the text on the station tab
+            loc_info = station.loc_info
+            stat_lat = f'{abs(loc_info["latitude"])}'
+            if loc_info["latitude"] >= 0:
+                stat_lat += u"\N{DEGREE SIGN}N"
+            else:
+                stat_lat += u"\N{DEGREE SIGN}S"
+            stat_lon = f'{abs(loc_info["longitude"])}'
+            if loc_info["longitude"] >= 0:
+                stat_lon += u"\N{DEGREE SIGN}E"
+            else:
+                stat_lon += u"\N{DEGREE SIGN}W"
+            self.station_widgets[name]['loc'].setText(f'Location: {stat_lat}, '
+                                                      + f'{stat_lon}')
+            self.station_widgets[name]['az'].setText('Orientation: '
+                                                     + f'{loc_info["azimuth"]}'
+                                                     + u"\N{DEGREE SIGN}")
+
+            # Update the station map
+            self.update_station_map(name)
+
+            logger.info(f'{name} station updated')
+
+    def update_station_map(self, name):
+        """Update station on the map."""
+        loc_info = self.stations[name].loc_info
+
+        x = loc_info['longitude']
+        y = loc_info['latitude']
+        az = loc_info['azimuth']
+        y0, x0 = calc_end_point([y, x], 2500, az-90)
+        y1, x1 = calc_end_point([y, x], 2500, az+90)
+        self.map_plots[name][0].setData(x=[x], y=[y])
+        self.map_plots[name][1].setData([x0, x1], [y0, y1])
+        self.map_plots[name][2].setPos(x, y)
+        self.map_plots[name][2].setStyle(angle=az+90)
 
 # =============================================================================
 #   Syncing Controls
@@ -547,6 +693,8 @@ class MainWindow(QMainWindow):
 
         now_time = datetime.now().time()
 
+        sync_mode = 'so2'
+
         if now_time < start_time or now_time > stop_time:
             logger.info('Not within syncing time window')
             return
@@ -572,9 +720,9 @@ class MainWindow(QMainWindow):
 
         # Initialise the sync thread
         self.syncThread = QThread()
-        self.syncWorker = SyncWorker(self.stations, self.today_date, volc_loc,
-                                     default_alt, default_az, scan_pair_time,
-                                     scan_pair_flag)
+        self.syncWorker = SyncWorker(self.stations, self.today_date, sync_mode,
+                                     volc_loc, default_alt, default_az,
+                                     scan_pair_time, scan_pair_flag)
 
         # Move the worker to the thread
         self.syncWorker.moveToThread(self.syncThread)
@@ -655,13 +803,24 @@ class MainWindow(QMainWindow):
             try:
                 flux_df = pd.read_csv(flux_fpath, parse_dates=['Time [UTC]'])
             except FileNotFoundError:
+                logger.warning(f'Flux file not found for {name}!')
                 continue
+
             # Extract the data, converting to UNIX time for the x-axis
             xdata = np.array([t.timestamp() for t in flux_df['Time [UTC]']])
-            ydata = flux_df['Flux [kg/s]'].to_numpy()
-            yerr = flux_df['Flux Err [kg/s]'].to_numpy()
-            self.station_plot_lines[name][1].setData(x=xdata, y=ydata,
-                                                     height=yerr)
+            flux = flux_df['Flux [kg/s]'].to_numpy()
+            flux_err = flux_df['Flux Err [kg/s]'].to_numpy()
+            plume_alt = flux_df['Plume Altitude [m]'].to_numpy()
+            plume_dir = flux_df['Plume Direction [deg]'].to_numpy()
+            self.station_plot_lines[name][1].setData(x=xdata, y=flux,
+                                                     height=flux_err)
+            self.station_plot_lines[name][2].setData(x=xdata, y=flux)
+
+            # Also update the flux plots
+            self.flux_lines[name][0].setData(x=xdata, y=flux, height=flux_err)
+            self.flux_lines[name][1].setData(x=xdata, y=flux)
+            self.flux_lines[name][2].setData(x=xdata, y=plume_alt)
+            self.flux_lines[name][3].setData(x=xdata, y=plume_dir)
 
 # =============================================================================
 #   Configuratuion Controls
@@ -777,7 +936,9 @@ class MainWindow(QMainWindow):
 
         pen = pg.mkPen('w', width=1)
 
-        for ax in self.flux_axes:
+        self.flux_graphwin.setBackground('k')
+        self.map_graphwin.setBackground('k')
+        for ax in self.flux_axes + [self.map_ax]:
             ax.getAxis('left').setPen(pen)
             ax.getAxis('right').setPen(pen)
             ax.getAxis('top').setPen(pen)
@@ -801,7 +962,9 @@ class MainWindow(QMainWindow):
         QApplication.instance().setPalette(self.style().standardPalette())
         pen = pg.mkPen('k', width=1)
 
-        for ax in self.flux_axes:
+        self.flux_graphwin.setBackground('w')
+        self.map_graphwin.setBackground('w')
+        for ax in self.flux_axes + [self.map_ax]:
             ax.getAxis('left').setPen(pen)
             ax.getAxis('right').setPen(pen)
             ax.getAxis('top').setPen(pen)
@@ -880,15 +1043,89 @@ class NewStationWizard(QDialog):
             msg.exec_()
             return
 
-        for key, item in self.widgets.items():
-            self.station_info = {'name': self.widgets['Name'].text(),
-                                 'loc_info': loc_info,
-                                 'com_info': com_info}
+        self.station_info = {'name': self.widgets['Name'].text(),
+                             'loc_info': loc_info,
+                             'com_info': com_info}
         self.accept()
 
     def cancel_action(self):
         """Close the window without creating a new station."""
         self.station_info = {}
+        self.close()
+
+
+class EditStationWizard(QDialog):
+    """Opens a wizard to define a new station."""
+
+    def __init__(self, parent=None, station=None):
+        """Initialise the window."""
+        super(EditStationWizard, self).__init__(parent)
+
+        # Set the window properties
+        self.setWindowTitle(f'Edit {station.name} station')
+        self.station = station
+        self.loc_info = station.loc_info
+        self.com_info = station.com_info
+        self.station_data = {}
+
+        self._createApp()
+
+    def _createApp(self):
+        # Set the layout
+        layout = QFormLayout()
+
+        # Setup entry widgets
+        self.widgets = {
+            'Name': QLineEdit(str(self.station.name)),
+            'Latitude': QLineEdit(str(self.loc_info['latitude'])),
+            'Longitude': QLineEdit(str(self.loc_info['longitude'])),
+            'Altitude': QLineEdit(str(self.loc_info['altitude'])),
+            'Azimuth': QLineEdit(str(self.loc_info['azimuth'])),
+            'Host': QLineEdit(str(self.com_info['host'])),
+            'Username': QLineEdit(str(self.com_info['username'])),
+            'Password': QLineEdit(str(self.com_info['password']))}
+        for key, item in self.widgets.items():
+            layout.addRow(key + ':', item)
+
+        # Add cancel and accept buttons
+        cancel_btn = QPushButton('Cancel')
+        cancel_btn.clicked.connect(self.cancel_action)
+        accept_btn = QPushButton('Accept')
+        accept_btn.clicked.connect(self.accept_action)
+        layout.addRow(cancel_btn, accept_btn)
+
+        self.setLayout(layout)
+
+    def accept_action(self):
+        """Record the station data and exit."""
+        try:
+            loc_info = {}
+            loc_info['latitude'] = float(self.widgets['Latitude'].text())
+            loc_info['longitude'] = float(self.widgets['Longitude'].text())
+            loc_info['altitude'] = float(self.widgets['Altitude'].text())
+            loc_info['azimuth'] = float(self.widgets['Azimuth'].text())
+
+            com_info = {}
+            com_info['host'] = self.widgets['Host'].text()
+            com_info['username'] = self.widgets['Username'].text()
+            com_info['password'] = self.widgets['Password'].text()
+        except ValueError:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("Error adding station, please check input fields.")
+            msg.setWindowTitle("Error!")
+            msg.setDetailedText(traceback.format_exc())
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.exec_()
+            return
+
+        self.station.name = self.widgets['Name'].text()
+        self.station.loc_info = loc_info
+        self.station.com_info = com_info
+        self.accept()
+
+    def cancel_action(self):
+        """Close the window without editing the station."""
         self.close()
 
 
@@ -899,6 +1136,16 @@ class QHLine(QFrame):
         """Initialize."""
         super(QHLine, self).__init__()
         self.setFrameShape(QFrame.HLine)
+        self.setFrameShadow(QFrame.Sunken)
+
+
+class QVLine(QFrame):
+    """Horizontal line widget."""
+
+    def __init__(self):
+        """Initialize."""
+        super(QVLine, self).__init__()
+        self.setFrameShape(QFrame.VLine)
         self.setFrameShadow(QFrame.Sunken)
 
 
