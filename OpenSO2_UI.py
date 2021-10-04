@@ -24,7 +24,8 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QDateEdit, QSpinBox, QDoubleSpinBox, QCheckBox)
 
 from openso2.station import Station
-from openso2.gui_funcs import SyncWorker, Widgets, QTextEditLogger
+from openso2.gui_funcs import (SyncWorker, PostAnalysisWorker, Widgets,
+                               QTextEditLogger)
 from openso2.plume import calc_end_point
 
 __version__ = '1.2'
@@ -291,6 +292,12 @@ class MainWindow(QMainWindow):
         self.widgets['date_to_analyse'] = QDateEdit(displayFormat='yyyy-MM-dd')
         self.widgets['date_to_analyse'].setCalendarPopup(True)
         post_layout.addWidget(self.widgets['date_to_analyse'], 0, 1)
+
+        # Add a button to control syncing
+        self.post_button = QPushButton('Run Post Analysis')
+        self.post_button.clicked.connect(self._flux_post_analysis)
+        self.post_button.setFixedSize(150, 25)
+        post_layout.addWidget(self.post_button, 1, 0, 1, 2)
 
 # =============================================================================
 #   Generate the program outputs
@@ -702,7 +709,7 @@ class MainWindow(QMainWindow):
         logger.info('Beginning scanner sync')
 
         # Get today's date
-        self.today_date = datetime.now().date()
+        self.analysis_date = datetime.now().date()
 
         # Get the volcano location
         volc_loc = [float(self.widgets.get('vlat')),
@@ -720,9 +727,10 @@ class MainWindow(QMainWindow):
 
         # Initialise the sync thread
         self.syncThread = QThread()
-        self.syncWorker = SyncWorker(self.stations, self.today_date, sync_mode,
-                                     volc_loc, default_alt, default_az,
-                                     scan_pair_time, scan_pair_flag)
+        self.syncWorker = SyncWorker(self.stations, self.analysis_date,
+                                     sync_mode, volc_loc, default_alt,
+                                     default_az, scan_pair_time,
+                                     scan_pair_flag)
 
         # Move the worker to the thread
         self.syncWorker.moveToThread(self.syncThread)
@@ -742,6 +750,53 @@ class MainWindow(QMainWindow):
         self.syncThread.start()
 
 # =============================================================================
+# Flux Post Analysis
+# =============================================================================
+
+    def _flux_post_analysis(self):
+
+        # If the previous sync thread is still running, wait a cycle
+        try:
+            if self.postThread.isRunning():
+                return
+        except AttributeError:
+            pass
+
+        self.analysis_date = self.widgets.get('date_to_analyse')
+
+        # Get the volcano location
+        volc_loc = [float(self.widgets.get('vlat')),
+                    float(self.widgets.get('vlon'))]
+
+        # Get the default altitude and azimuth
+        default_alt = float(self.widgets.get('plume_alt'))
+        default_az = float(self.widgets.get('plume_dir'))
+
+        # Get the scan pair time
+        scan_pair_time = self.widgets.get('scan_pair_time')
+        scan_pair_flag = self.widgets.get('scan_pair_flag')
+
+        # Initialise the sync thread
+        self.postThread = QThread()
+        self.postWorker = PostAnalysisWorker(self.stations, self.analysis_date,
+                                             volc_loc, default_alt, default_az,
+                                             scan_pair_time, scan_pair_flag)
+
+        # Move the worker to the thread
+        self.postWorker.moveToThread(self.postThread)
+
+        # Connect the signals
+        self.postThread.started.connect(self.postWorker.run)
+        self.postWorker.finished.connect(self.post_finished)
+        self.postWorker.error.connect(self.update_error)
+        self.postWorker.updateGuiStatus.connect(self.update_gui_status)
+        self.postWorker.updateFluxPlot.connect(self.update_flux_plots)
+        self.postWorker.finished.connect(self.postThread.quit)
+
+        # Start the flag
+        self.postThread.start()
+
+# =============================================================================
 #   Gui Slots
 # =============================================================================
 
@@ -754,24 +809,23 @@ class MainWindow(QMainWindow):
         """Signal end of sync."""
         logger.info('Sync complete')
 
-    # @pyqtSlot()
+    def post_finished(self):
+        """Signal end of post analysis."""
+
     def update_gui_status(self, status):
         """Update the status."""
         self.statusBar().showMessage(status)
 
-    # @pyqtSlot()
     def update_stat_status(self, name, time, status):
         """Update the station staus."""
         self.station_status[name].setText(f'Status: {status}')
 
-    # @pyqtSlot()
     def update_station_log(self, station, log_text):
         """Slot to update the station logs."""
         text = self.station_log[station].toPlainText().split('\n')
         for line in log_text[len(text):]:
             self.station_log[station].appendPlainText(line.strip())
 
-    # @pyqtSlot()
     def update_scan_plot(self, s, fname):
         """Update the plots."""
         # Load the scan file, unpacking the angle and SO2 data
@@ -796,8 +850,8 @@ class MainWindow(QMainWindow):
         for name, station in self.stations.items():
 
             # Get the flux output file
-            flux_fpath = f'Results/{self.today_date}/{name}/' \
-                         + f'{self.today_date}_{name}_fluxes.csv'
+            flux_fpath = f'Results/{self.analysis_date}/{name}/' \
+                         + f'{self.analysis_date}_{name}_fluxes.csv'
 
             # Read the flux file
             try:
