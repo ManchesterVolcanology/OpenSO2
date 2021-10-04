@@ -261,7 +261,7 @@ class Scanner:
         fname += f'{dt.hour:02d}{dt.minute:02d}{dt.second:02d}_'  # Time HHMMSS
         fname += f'{settings["station_name"]}_'                   # Name
         fname += f'{settings["version"]}_'                        # Version
-        fname += f'Scan{self.scan_number:03d}.npy'             # Scan no
+        fname += f'Scan{self.scan_number:03d}.npy'                # Scan no
 
         # Take the dark spectrum
         logger.info('Acquiring dark spectrum')
@@ -281,7 +281,7 @@ class Scanner:
 
         # Begin stepping through the scan
         logger.info('Begin main scan')
-        for step_no in range(1, settings['specs_per_scan']):
+        for step_no in range(1, settings['specs_per_scan']+1):
 
             # Acquire the spectrum
             spectrum, info = self.spectrometer.get_spectrum()
@@ -559,7 +559,7 @@ class VScanner:
 
         # Begin stepping through the scan
         logger.info('Begin main scan')
-        for step_no in range(1, settings['specs_per_scan']):
+        for step_no in range(1, settings['specs_per_scan']+1):
 
             # Acquire the spectrum
             self.spectrometer.fpath = 'Station/spectrum_00227.txt'
