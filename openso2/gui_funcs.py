@@ -383,7 +383,6 @@ def get_local_scans(stations, fpath):
     scan_times : dict
         Dictionary of the scan timestamps ofr each scanner
     """
-
     # Initialise empty dictionaries for the file names and timestamps
     scan_fnames = {}
     scan_times = {}
