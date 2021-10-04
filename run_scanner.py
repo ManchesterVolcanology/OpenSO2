@@ -31,6 +31,8 @@ from openso2.scanner import Scanner
 from openso2.analyse_scan import analyse_scan, update_int_time
 from openso2.call_gps import sync_gps_time
 
+__version__ = 'v_1_2'
+
 # =============================================================================
 # Set up logging
 # =============================================================================
@@ -114,9 +116,16 @@ def main_loop():
     # Read in the station operation settings file
     with open('Station/station_settings.yml', 'r') as ymlfile:
         settings = yaml.load(ymlfile, Loader=yaml.FullLoader)
+    settings['version'] = __version__
+
+    msg = 'Scanner Settings:'
+    for key, value in settings.items():
+        msg += f'\n{key}\t{value}'
+    logger.info(msg)
 
     spectro = Spectrometer(integration_time=settings['start_int_time'],
                            coadds=settings['start_coadds'])
+    logger.info(f'Spectrometer {spectro.serial_number} connected')
 
 # =============================================================================
 #   Set up iFit analyser
