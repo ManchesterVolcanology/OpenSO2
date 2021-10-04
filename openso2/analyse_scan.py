@@ -107,8 +107,8 @@ def analyse_scan(scan_fname, analyser, wl_calib, save_fname=None):
 
                 # Get the spectrum time and angle
                 hours = info_block[i+1][1]
-                minutes = info_block[i+1][1]
-                seconds = info_block[i+1][1]
+                minutes = info_block[i+1][2]
+                seconds = info_block[i+1][3]
                 scan_time = hours + minutes/60 + seconds/3600
                 scan_angle = info_block[i+1][5]
 
