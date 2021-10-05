@@ -243,9 +243,9 @@ class MainWindow(QMainWindow):
 
         # Create input for the plume altitude
         volc_layout.addWidget(QLabel('Plume Altitude\n[m a.s.l.]:'), nrow, 0)
-        self.widgets['plume_alt'] = QDoubleSpinBox()
-        self.widgets['plume_alt'].setRange(0, 100000)
-        self.widgets['plume_alt'].setValue(1000)
+        self.widgets['plume_alt'] = QLineEdit('3000')  # QDoubleSpinBox()
+        # self.widgets['plume_alt'].setRange(0, 100000)
+        # self.widgets['plume_alt'].setValue(1000)
         volc_layout.addWidget(self.widgets['plume_alt'], nrow, 1)
         nrow += 1
 
