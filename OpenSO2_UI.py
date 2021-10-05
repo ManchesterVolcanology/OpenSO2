@@ -19,7 +19,7 @@ from PyQt5.QtCore import Qt, QThreadPool, QTimer, pyqtSlot, QThread
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QMessageBox, QLabel, QLineEdit, QPushButton,
                              QFrame, QSplitter, QTabWidget, QFileDialog,
-                             QScrollArea, QToolBar, QPlainTextEdit,
+                             QScrollArea, QToolBar, QPlainTextEdit, QComboBox,
                              QFormLayout, QDialog, QAction, QDateTimeEdit,
                              QDateEdit, QSpinBox, QDoubleSpinBox, QCheckBox)
 
@@ -234,6 +234,11 @@ class MainWindow(QMainWindow):
         self.widgets['plume_dir'].setRange(0, 360)
         self.widgets['plume_dir'].setValue(0.0)
         volc_layout.addWidget(self.widgets['plume_dir'], nrow, 1)
+
+        self.widgets['scan_pair_flag'] = QCheckBox('Calc Plume\nLocation?')
+        self.widgets['scan_pair_flag'].setToolTip(
+            'Toggle whether plume location is calculated from paired scans')
+        volc_layout.addWidget(self.widgets['scan_pair_flag'], nrow, 2, 2, 1)
         nrow += 1
 
         # Create input for the plume altitude
@@ -249,12 +254,6 @@ class MainWindow(QMainWindow):
         self.widgets['scan_pair_time'].setRange(0, 1440)
         self.widgets['scan_pair_time'].setValue(10)
         volc_layout.addWidget(self.widgets['scan_pair_time'], nrow, 1)
-        nrow += 1
-
-        self.widgets['scan_pair_flag'] = QCheckBox('Calc Plume\nLocation?')
-        self.widgets['scan_pair_flag'].setToolTip(
-            'Toggle whether plume location is calculated from paired scans')
-        volc_layout.addWidget(self.widgets['scan_pair_flag'], nrow, 0)
         nrow += 1
 
         # Add controls for the scan quality control
@@ -324,13 +323,17 @@ class MainWindow(QMainWindow):
         self.widgets['sync_interval'].setValue(30)
         sync_layout.addWidget(self.widgets['sync_interval'], 2, 1)
 
+        sync_layout.addWidget(QLabel('Sync Mode:'), 3, 0)
+        self.widgets['sync_mode'] = QComboBox()
+        self.widgets['sync_mode'].addItems(['so2', 'spectra'])
+        sync_layout.addWidget(self.widgets['sync_mode'], 3, 1)
+
         # Add a button to control syncing
         self.sync_button = QPushButton('Syncing OFF')
         self.sync_button.setStyleSheet("background-color: red")
         self.sync_button.clicked.connect(self._toggle_sync)
-        self.sync_button.setFixedSize(150, 25)
         self.syncing = False
-        sync_layout.addWidget(self.sync_button, 3, 0, 1, 2)
+        sync_layout.addWidget(self.sync_button, 4, 0, 1, 2)
 
         # Add post analysis controls
         post_layout = QGridLayout(postTab)
@@ -748,7 +751,7 @@ class MainWindow(QMainWindow):
 
         now_time = datetime.now().time()
 
-        sync_mode = 'so2'
+        sync_mode = self.widgets.get('sync_mode')
 
         if now_time < start_time or now_time > stop_time:
             logger.info('Not within syncing time window')

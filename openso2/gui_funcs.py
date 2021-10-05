@@ -134,33 +134,33 @@ class SyncWorker(QObject):
             scans[station.name] = new_fnames
 
             # Plot last scan
-            if len(new_fnames) != 0:
+            if self.sync_mode == 'so2' and len(new_fnames) != 0:
                 self.updatePlots.emit(station.name, local_dir + new_fnames[-1])
 
-        # Get all local files to recalculate flux with updated scans
-        fpath = f'Results/{self.today_date}'
-        all_scans, scan_times = get_local_scans(self.stations, fpath)
+        if self.sync_mode == 'so2':
 
-        nscans = np.array([len(s) for s in scans.values()])
+            # Get all local files to recalculate flux with updated scans
+            fpath = f'Results/{self.today_date}'
+            all_scans, scan_times = get_local_scans(self.stations, fpath)
 
-        # Calculate the fluxesif there are any new scans
-        if nscans.any():
-            self.updateGuiStatus.emit('Calculating fluxes')
-            flux_results = calculate_fluxes(self.stations, all_scans, fpath,
-                                            self.volc_loc, self.default_alt,
-                                            self.default_az, self.wind_speed,
-                                            self.scan_pair_time,
-                                            self.scan_pair_flag, self.min_scd,
-                                            self.max_scd, self.min_int,
-                                            self.max_int)
+            nscans = np.array([len(s) for s in scans.values()])
 
-            # Format the file name of the flux output file
-            for name, flux_df in flux_results.items():
-                flux_df.to_csv(f'{fpath}/{name}/{self.today_date}_{name}_'
-                               + 'fluxes.csv')
+            # Calculate the fluxesif there are any new scans
+            if nscans.any():
+                self.updateGuiStatus.emit('Calculating fluxes')
+                flux_results = calculate_fluxes(
+                    self.stations, all_scans, fpath, self.volc_loc,
+                    self.default_alt, self.default_az, self.wind_speed,
+                    self.scan_pair_time, self.scan_pair_flag, self.min_scd,
+                    self.max_scd, self.min_int, self.max_int)
 
-            # Plot the fluxes on the GUI
-            self.updateFluxPlot.emit()
+                # Format the file name of the flux output file
+                for name, flux_df in flux_results.items():
+                    flux_df.to_csv(f'{fpath}/{name}/{self.today_date}_{name}_'
+                                   + 'fluxes.csv')
+
+                # Plot the fluxes on the GUI
+                self.updateFluxPlot.emit()
 
         self.updateGuiStatus.emit('Ready')
 
