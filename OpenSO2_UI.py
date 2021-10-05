@@ -587,8 +587,8 @@ class MainWindow(QMainWindow):
         e1 = pg.ErrorBarItem(pen=p0)
         l1 = pg.PlotCurveItem(pen=p0)
         ax0.addItem(l0)
-        ax1.addItem(e1)
         ax1.addItem(l1)
+        ax1.addItem(e1)
         self.station_plot_lines[name] = [l0, e1, l1]
 
         # Create a textbox to hold the station logs
@@ -777,6 +777,9 @@ class MainWindow(QMainWindow):
         scan_pair_time = self.widgets.get('scan_pair_time')
         scan_pair_flag = self.widgets.get('scan_pair_flag')
 
+        # Get the auto-quality check flag
+        auto_quality_flag = self.widgets.get('use_auto_quality')
+
         # Get the min/max scd and intensity values
         min_scd = float(self.widgets.get('lo_scd_lim'))
         max_scd = float(self.widgets.get('hi_scd_lim'))
@@ -790,8 +793,8 @@ class MainWindow(QMainWindow):
         self.syncWorker = SyncWorker(self.stations, self.analysis_date,
                                      sync_mode, volc_loc, default_alt,
                                      default_az, wind_speed, scan_pair_time,
-                                     scan_pair_flag, min_scd, max_scd, min_int,
-                                     max_int)
+                                     scan_pair_flag, auto_quality_flag,
+                                     min_scd, max_scd, min_int, max_int)
 
         # Move the worker to the thread
         self.syncWorker.moveToThread(self.syncThread)
@@ -840,12 +843,21 @@ class MainWindow(QMainWindow):
         scan_pair_time = self.widgets.get('scan_pair_time')
         scan_pair_flag = self.widgets.get('scan_pair_flag')
 
+        # Get the auto-quality check flag
+        auto_quality_flag = self.widgets.get('use_auto_quality')
+
+        # Get the min/max scd and intensity values
+        min_scd = float(self.widgets.get('lo_scd_lim'))
+        max_scd = float(self.widgets.get('hi_scd_lim'))
+        min_int = float(self.widgets.get('lo_int_lim'))
+        max_int = float(self.widgets.get('hi_int_lim'))
+
         # Initialise the sync thread
         self.postThread = QThread()
-        self.postWorker = PostAnalysisWorker(self.stations, self.analysis_date,
-                                             volc_loc, default_alt, default_az,
-                                             wind_speed, scan_pair_time,
-                                             scan_pair_flag)
+        self.postWorker = PostAnalysisWorker(
+            self.stations, self.analysis_date, volc_loc, default_alt,
+            default_az, wind_speed, scan_pair_time, scan_pair_flag,
+            auto_quality_flag, min_scd, max_scd, min_int, max_int)
 
         # Move the worker to the thread
         self.postWorker.moveToThread(self.postThread)

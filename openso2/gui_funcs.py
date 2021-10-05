@@ -62,7 +62,7 @@ class SyncWorker(QObject):
 
     def __init__(self, stations, today_date, sync_mode, volc_loc, default_alt,
                  default_az, wind_speed, scan_pair_time, scan_pair_flag,
-                 min_scd, max_scd, min_int, max_int):
+                 auto_quality_flag, min_scd, max_scd, min_int, max_int):
         """Initialize."""
         super(QObject, self).__init__()
         self.stations = stations
@@ -180,7 +180,7 @@ class PostAnalysisWorker(QObject):
 
     def __init__(self, stations, date_to_analyse, volc_loc, default_alt,
                  default_az, wind_speed, scan_pair_time, scan_pair_flag,
-                 min_scd, max_scd, min_int, max_int):
+                 auto_quality_flag, min_scd, max_scd, min_int, max_int):
         """Initialize."""
         super(QObject, self).__init__()
         self.stations = stations
