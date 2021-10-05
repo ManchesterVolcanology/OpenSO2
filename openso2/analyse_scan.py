@@ -91,7 +91,7 @@ def analyse_scan(scan_fname, analyser, wl_calib, save_fname=None):
         cols = ['Number', 'Time', 'Angle']
         for par in analyser.params:
             cols += [par, f'{par}_err']
-        cols += ['fit_quality', 'int_lo', 'int_hi', 'int_av']
+        cols += ['fit_quality', 'int_lo', 'int_hi', 'int_av', 'max_resid']
 
         # Create a dataframe to hold the results
         fit_df = pd.DataFrame(index=np.arange(len(corr_spec_block)),
@@ -101,7 +101,7 @@ def analyse_scan(scan_fname, analyser, wl_calib, save_fname=None):
             try:
                 fit = analyser.fit_spectrum(spectrum=[wl_calib, spec],
                                             update_params=True,
-                                            resid_limit=10,
+                                            resid_limit=20,
                                             int_limit=[0, 60000],
                                             interp_method='linear')
 
@@ -117,7 +117,7 @@ def analyse_scan(scan_fname, analyser, wl_calib, save_fname=None):
                 for par in fit.params.values():
                     row += [par.fit_val, par.fit_err]
                 row += [fit.nerr, fit.int_lo, fit.int_hi,
-                        fit.int_av]
+                        fit.int_av, np.nanmax(fit.resid)]
                 fit_df.loc[i] = row
 
             except ValueError as msg:

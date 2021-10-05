@@ -679,7 +679,7 @@ class FitResult():
 
             # Check the fit quality
             if resid_limit is not None and max(abs(self.resid)) > resid_limit:
-                logger.info('High residual detected')
+                logger.debug('High residual detected')
                 self.nerr = 2
 
             # Check for spectrum light levels
@@ -687,12 +687,12 @@ class FitResult():
 
                 # Check for low intensity
                 if min(self.spec) <= int_limit[0]:
-                    logger.info('Low intensity detected')
+                    logger.debug('Low intensity detected')
                     self.nerr = 2
 
                 # Check for high intensity
                 elif max(self.spec) >= int_limit[1]:
-                    logger.info('High intensity detected')
+                    logger.debug('High intensity detected')
                     self.nerr = 2
 
             # Calculate optical depth spectra

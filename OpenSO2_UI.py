@@ -181,72 +181,120 @@ class MainWindow(QMainWindow):
         layout.setAlignment(Qt.AlignTop)
         nrow = 0
 
+        # Form the tab widget
+        controlTabHolder = QTabWidget()
+        volcTab = QWidget()
+        controlTabHolder.addTab(volcTab, 'Volcano/Plume')
+        qualTab = QWidget()
+        controlTabHolder.addTab(qualTab, 'Quality Control')
+        layout.addWidget(controlTabHolder, 0, 0)
+
+        # Add voclano and plume controls
+        volc_layout = QGridLayout(volcTab)
+        nrow = 0
+
         header = QLabel('Volcano')
         header.setAlignment(Qt.AlignLeft)
         header.setFont(QFont('Ariel', 12))
-        layout.addWidget(header, nrow, 0, 1, 2)
+        volc_layout.addWidget(header, nrow, 0, 1, 2)
         nrow += 1
 
         # Create inputs for the volcano latitude
-        layout.addWidget(QLabel('Volcano\nLatitude:'), nrow, 0)
+        volc_layout.addWidget(QLabel('Volcano\nLatitude:'), nrow, 0)
         self.widgets['vlat'] = QLineEdit()
-        layout.addWidget(self.widgets['vlat'], nrow, 1)
+        volc_layout.addWidget(self.widgets['vlat'], nrow, 1)
         nrow += 1
 
         # Create inputs for the volcano longitude
-        layout.addWidget(QLabel('Volcano\nLongitutde:'), nrow, 0)
+        volc_layout.addWidget(QLabel('Volcano\nLongitutde:'), nrow, 0)
         self.widgets['vlon'] = QLineEdit()
-        layout.addWidget(self.widgets['vlon'], nrow, 1)
+        volc_layout.addWidget(self.widgets['vlon'], nrow, 1)
         nrow += 1
 
-        layout.addWidget(QHLine(), nrow, 0, 1, 10)
+        volc_layout.addWidget(QHLine(), nrow, 0, 1, 10)
         nrow += 1
 
         header = QLabel('Default Plume Settings')
         header.setAlignment(Qt.AlignLeft)
         header.setFont(QFont('Ariel', 12))
-        layout.addWidget(header, nrow, 0, 1, 2)
+        volc_layout.addWidget(header, nrow, 0, 1, 2)
         nrow += 1
 
         # Create input for the plume speed
-        layout.addWidget(QLabel('Plume Speed\n[m/s]:'), nrow, 0)
+        volc_layout.addWidget(QLabel('Plume Speed\n[m/s]:'), nrow, 0)
         self.widgets['plume_speed'] = QDoubleSpinBox()
         self.widgets['plume_speed'].setRange(0, 1000)
         self.widgets['plume_speed'].setValue(1.0)
-        layout.addWidget(self.widgets['plume_speed'], nrow, 1)
+        volc_layout.addWidget(self.widgets['plume_speed'], nrow, 1)
         nrow += 1
 
         # Create input for the plume direction
-        layout.addWidget(QLabel('Plume Direction\n[degrees]:'), nrow, 0)
+        volc_layout.addWidget(QLabel('Plume Direction\n[degrees]:'), nrow, 0)
         self.widgets['plume_dir'] = QDoubleSpinBox()
         self.widgets['plume_dir'].setRange(0, 360)
         self.widgets['plume_dir'].setValue(0.0)
-        layout.addWidget(self.widgets['plume_dir'], nrow, 1)
+        volc_layout.addWidget(self.widgets['plume_dir'], nrow, 1)
         nrow += 1
 
         # Create input for the plume altitude
-        layout.addWidget(QLabel('Plume Altitude\n[m a.s.l.]:'), nrow, 0)
+        volc_layout.addWidget(QLabel('Plume Altitude\n[m a.s.l.]:'), nrow, 0)
         self.widgets['plume_alt'] = QDoubleSpinBox()
         self.widgets['plume_alt'].setRange(0, 100000)
         self.widgets['plume_alt'].setValue(1000)
-        layout.addWidget(self.widgets['plume_alt'], nrow, 1)
+        volc_layout.addWidget(self.widgets['plume_alt'], nrow, 1)
         nrow += 1
 
-        layout.addWidget(QLabel('Scan Pair Time\nLimit (min):'), nrow, 0)
+        volc_layout.addWidget(QLabel('Scan Pair Time\nLimit (min):'), nrow, 0)
         self.widgets['scan_pair_time'] = QSpinBox()
         self.widgets['scan_pair_time'].setRange(0, 1440)
         self.widgets['scan_pair_time'].setValue(10)
-        layout.addWidget(self.widgets['scan_pair_time'], nrow, 1)
+        volc_layout.addWidget(self.widgets['scan_pair_time'], nrow, 1)
         nrow += 1
 
         self.widgets['scan_pair_flag'] = QCheckBox('Calc Plume\nLocation?')
-        self.widgets['scan_pair_flag'].setToolTip('Toggle whether plume '
-                                                  + 'location is calculated '
-                                                  + 'from paired scans')
-        layout.addWidget(self.widgets['scan_pair_flag'], nrow, 0)
+        self.widgets['scan_pair_flag'].setToolTip(
+            'Toggle whether plume location is calculated from paired scans')
+        volc_layout.addWidget(self.widgets['scan_pair_flag'], nrow, 0)
         nrow += 1
 
-        layout.addWidget(QHLine(), nrow, 0, 1, 10)
+        # Add controls for the scan quality control
+        qual_layout = QGridLayout(qualTab)
+        nrow = 0
+
+        # Create toggle to decide whether to use the quality check from the pi
+        self.widgets['use_auto_quality'] = QCheckBox(
+            'Automatic Quality\nCheck?')
+        qual_layout.addWidget(self.widgets['use_auto_quality'], nrow, 0)
+        nrow += 1
+
+        # Create input for the lower intensity limit
+        qual_layout.addWidget(QLabel('Low Intensity limit:'), nrow, 0)
+        self.widgets['lo_int_lim'] = QSpinBox()
+        self.widgets['lo_int_lim'].setRange(0, 100000)
+        self.widgets['lo_int_lim'].setValue(1000)
+        qual_layout.addWidget(self.widgets['lo_int_lim'], nrow, 1)
+        nrow += 1
+
+        # Create input for the upper intensity limit
+        qual_layout.addWidget(QLabel('High Intensity limit:'), nrow, 0)
+        self.widgets['hi_int_lim'] = QSpinBox()
+        self.widgets['hi_int_lim'].setRange(0, 100000)
+        self.widgets['hi_int_lim'].setValue(60000)
+        qual_layout.addWidget(self.widgets['hi_int_lim'], nrow, 1)
+        nrow += 1
+
+        # Create input for the lower SCD limit
+        qual_layout.addWidget(QLabel('Low SO<sub>2</sub>\nSCD limit:'),
+                              nrow, 0)
+        self.widgets['lo_scd_lim'] = QLineEdit('-1e17')
+        qual_layout.addWidget(self.widgets['lo_scd_lim'], nrow, 1)
+        nrow += 1
+
+        # Create input for the upper SCD limit
+        qual_layout.addWidget(QLabel('High SO<sub>2</sub>\nSCD limit:'),
+                              nrow, 0)
+        self.widgets['hi_scd_lim'] = QLineEdit('1e20')
+        qual_layout.addWidget(self.widgets['hi_scd_lim'], nrow, 1)
         nrow += 1
 
         # Form the tab widget
@@ -312,7 +360,7 @@ class MainWindow(QMainWindow):
         # Create a textbox to display the program logs
         self.logBox = QTextEditLogger(self)
         fmt = logging.Formatter('%(asctime)s - %(message)s',
-                                '%Y/%m/%d %H:%M:%S')
+                                '%Y-%m-%d %H:%M:%S')
         self.logBox.setFormatter(fmt)
         logger.addHandler(self.logBox)
         logger.setLevel(logging.INFO)
@@ -715,6 +763,9 @@ class MainWindow(QMainWindow):
         volc_loc = [float(self.widgets.get('vlat')),
                     float(self.widgets.get('vlon'))]
 
+        # Get the wind speed
+        wind_speed = self.widgets.get('plume_speed')
+
         # Get the default altitude and azimuth
         default_alt = float(self.widgets.get('plume_alt'))
         default_az = float(self.widgets.get('plume_dir'))
@@ -723,14 +774,21 @@ class MainWindow(QMainWindow):
         scan_pair_time = self.widgets.get('scan_pair_time')
         scan_pair_flag = self.widgets.get('scan_pair_flag')
 
+        # Get the min/max scd and intensity values
+        min_scd = float(self.widgets.get('lo_scd_lim'))
+        max_scd = float(self.widgets.get('hi_scd_lim'))
+        min_int = float(self.widgets.get('lo_int_lim'))
+        max_int = float(self.widgets.get('hi_int_lim'))
+
         self.statusBar().showMessage('Syncing...')
 
         # Initialise the sync thread
         self.syncThread = QThread()
         self.syncWorker = SyncWorker(self.stations, self.analysis_date,
                                      sync_mode, volc_loc, default_alt,
-                                     default_az, scan_pair_time,
-                                     scan_pair_flag)
+                                     default_az, wind_speed, scan_pair_time,
+                                     scan_pair_flag, min_scd, max_scd, min_int,
+                                     max_int)
 
         # Move the worker to the thread
         self.syncWorker.moveToThread(self.syncThread)
@@ -768,6 +826,9 @@ class MainWindow(QMainWindow):
         volc_loc = [float(self.widgets.get('vlat')),
                     float(self.widgets.get('vlon'))]
 
+        # Get the wind speed
+        wind_speed = self.widgets.get('plume_speed')
+
         # Get the default altitude and azimuth
         default_alt = float(self.widgets.get('plume_alt'))
         default_az = float(self.widgets.get('plume_dir'))
@@ -780,7 +841,8 @@ class MainWindow(QMainWindow):
         self.postThread = QThread()
         self.postWorker = PostAnalysisWorker(self.stations, self.analysis_date,
                                              volc_loc, default_alt, default_az,
-                                             scan_pair_time, scan_pair_flag)
+                                             wind_speed, scan_pair_time,
+                                             scan_pair_flag)
 
         # Move the worker to the thread
         self.postWorker.moveToThread(self.postThread)

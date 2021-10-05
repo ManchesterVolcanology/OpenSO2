@@ -38,7 +38,7 @@ __version__ = 'v_1_2'
 # =============================================================================
 
 # Get the logger
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 
 # Setup logger to standard output
 logger.setLevel(logging.INFO)

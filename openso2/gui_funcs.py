@@ -61,7 +61,8 @@ class SyncWorker(QObject):
     updateFluxPlot = pyqtSignal()
 
     def __init__(self, stations, today_date, sync_mode, volc_loc, default_alt,
-                 default_az, scan_pair_time, scan_pair_flag):
+                 default_az, wind_speed, scan_pair_time, scan_pair_flag,
+                 min_scd, max_scd, min_int, max_int):
         """Initialize."""
         super(QObject, self).__init__()
         self.stations = stations
@@ -70,8 +71,13 @@ class SyncWorker(QObject):
         self.volc_loc = volc_loc
         self.default_alt = default_alt
         self.default_az = default_az
+        self.wind_speed = wind_speed
         self.scan_pair_time = scan_pair_time
         self.scan_pair_flag = scan_pair_flag
+        self.min_scd = min_scd
+        self.max_scd = max_scd
+        self.min_int = min_int
+        self.max_int = max_int
 
     def run(self):
         """Launch worker task."""
@@ -142,9 +148,11 @@ class SyncWorker(QObject):
             self.updateGuiStatus.emit('Calculating fluxes')
             flux_results = calculate_fluxes(self.stations, all_scans, fpath,
                                             self.volc_loc, self.default_alt,
-                                            self.default_az,
+                                            self.default_az, self.wind_speed,
                                             self.scan_pair_time,
-                                            self.scan_pair_flag)
+                                            self.scan_pair_flag, self.min_scd,
+                                            self.max_scd, self.min_int,
+                                            self.max_int)
 
             # Format the file name of the flux output file
             for name, flux_df in flux_results.items():
@@ -171,7 +179,8 @@ class PostAnalysisWorker(QObject):
     updateFluxPlot = pyqtSignal()
 
     def __init__(self, stations, date_to_analyse, volc_loc, default_alt,
-                 default_az, scan_pair_time, scan_pair_flag):
+                 default_az, wind_speed, scan_pair_time, scan_pair_flag,
+                 min_scd, max_scd, min_int, max_int):
         """Initialize."""
         super(QObject, self).__init__()
         self.stations = stations
@@ -179,8 +188,13 @@ class PostAnalysisWorker(QObject):
         self.volc_loc = volc_loc
         self.default_alt = default_alt
         self.default_az = default_az
+        self.wind_speed = wind_speed
         self.scan_pair_time = scan_pair_time
         self.scan_pair_flag = scan_pair_flag
+        self.min_scd = min_scd
+        self.max_scd = max_scd
+        self.min_int = min_int
+        self.max_int = max_int
 
     def run(self):
         """Launch worker task."""
@@ -202,9 +216,11 @@ class PostAnalysisWorker(QObject):
         self.updateGuiStatus.emit('Calculating fluxes')
         flux_results = calculate_fluxes(self.stations, all_scans, fpath,
                                         self.volc_loc, self.default_alt,
-                                        self.default_az,
+                                        self.default_az, self.wind_speed,
                                         self.scan_pair_time,
-                                        self.scan_pair_flag)
+                                        self.scan_pair_flag, self.min_scd,
+                                        self.max_scd, self.min_int,
+                                        self.max_int)
 
         # Format the file name of the flux output file
         for name, flux_df in flux_results.items():
@@ -218,9 +234,9 @@ class PostAnalysisWorker(QObject):
 
 
 def calculate_fluxes(stations, scans, fpath, vent_loc, default_alt, default_az,
-                     scan_pair_time, scan_pair_flag, min_scd=-1e17,
-                     max_scd=1e20, plume_scd=1e17, good_scan_lim=0.2,
-                     sg_window=11, sg_polyn=3):
+                     wind_speed, scan_pair_time, scan_pair_flag, min_scd=-1e17,
+                     max_scd=1e20, min_int=500, max_int=60000, plume_scd=1e17,
+                     good_scan_lim=0.2, sg_window=11, sg_polyn=3):
     """Calculate the flux from a set of scans."""
     # Get the existing scan database
     scan_fnames, scan_times = get_local_scans(stations, fpath)
@@ -245,8 +261,9 @@ def calculate_fluxes(stations, scans, fpath, vent_loc, default_alt, default_az,
 
             # Filter the scan
             msk_scan_df, peak, msg = filter_scan(scan_df, min_scd, max_scd,
-                                                 plume_scd, good_scan_lim,
-                                                 sg_window, sg_polyn)
+                                                 min_int, max_int, plume_scd,
+                                                 good_scan_lim, sg_window,
+                                                 sg_polyn)
 
             # Pull the scan time from the filename
             scan_time = datetime.strptime(os.path.split(scan_fname)[1][:14],
@@ -285,8 +302,8 @@ def calculate_fluxes(stations, scans, fpath, vent_loc, default_alt, default_az,
 
                     # Filter the scan
                     alt_msk_df, alt_peak, msg = filter_scan(
-                        alt_scan_df, min_scd, max_scd, plume_scd,
-                        good_scan_lim, sg_window, sg_polyn)
+                        alt_scan_df, min_scd, max_scd, min_int, max_int,
+                        plume_scd, good_scan_lim, sg_window, sg_polyn)
 
                     # If the alt scan is good, calculate the plume altitude
                     if alt_msk_df is None:
@@ -313,12 +330,12 @@ def calculate_fluxes(stations, scans, fpath, vent_loc, default_alt, default_az,
 
             # Calculate the scan flux
             flux_amt, flux_err = calc_scan_flux(
-                angles=msk_scan_df['Angle'],
-                scan_so2=[msk_scan_df['SO2'],
-                          msk_scan_df['SO2_err']],
+                angles=msk_scan_df['Angle'].to_numpy(),
+                scan_so2=[msk_scan_df['SO2'].to_numpy(),
+                          msk_scan_df['SO2_err'].to_numpy()],
                 station=station,
                 vent_location=vent_loc,
-                windspeed=1,
+                windspeed=wind_speed,
                 plume_altitude=plume_alt,
                 plume_azimuth=plume_az
             )
@@ -334,27 +351,31 @@ def calculate_fluxes(stations, scans, fpath, vent_loc, default_alt, default_az,
     return flux_results
 
 
-def filter_scan(scan_df, min_scd, max_scd, plume_scd, good_scan_lim,
-                sg_window, sg_polyn):
+def filter_scan(scan_df, min_scd, max_scd, min_int, max_int, plume_scd,
+                good_scan_lim, sg_window, sg_polyn):
     """Filter scans for quality and find the centre."""
     # Filter the points for quality
-    mask = np.row_stack([scan_df['fit_quality'] != 1,
-                         scan_df['SO2'] < min_scd,
-                         scan_df['SO2'] > max_scd
+    mask = np.row_stack([scan_df['SO2'] < min_scd,
+                         scan_df['SO2'] > max_scd,
+                         scan_df['int_av'] < min_int,
+                         scan_df['int_av'] > max_int
                          ]).any(axis=0)
 
     if len(np.where(mask)[0]) > good_scan_lim*len(scan_df['SO2']):
         return None, None, 'Not enough good spectra'
 
-    masked_scan_df = scan_df.loc[(scan_df['fit_quality'] != 1)
-                                 & (scan_df['SO2'] < min_scd)
-                                 & (scan_df['SO2'] > max_scd)]
+    masked_scan_df = scan_df.loc[(scan_df['SO2'] > min_scd)
+                                 & (scan_df['SO2'] < max_scd)
+                                 & (scan_df['int_av'] > min_int)
+                                 & (scan_df['int_av'] < max_int)]
     so2_scd_masked = masked_scan_df['SO2']
 
     # Count the number of 'plume' spectra
     nplume = sum(so2_scd_masked > plume_scd)
 
     if nplume < 10:
+        print(so2_scd_masked)
+        print(nplume)
         return None, None, 'Not enough plume spectra'
 
     # Determine the peak scan angle
