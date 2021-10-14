@@ -582,14 +582,12 @@ class MainWindow(QMainWindow):
         ax1.setLabel('bottom', 'Time [UTC]')
 
         # Initialise the lines
-        p0 = pg.mkPen(color='#1f77b4', width=1.0)
-        l0 = pg.PlotCurveItem(pen=p0)
-        e1 = pg.ErrorBarItem(pen=p0)
-        l1 = pg.PlotCurveItem(pen=p0)
-        ax0.addItem(l0)
+        pen = pg.mkPen(color='#1f77b4', width=2)
+        e1 = pg.ErrorBarItem(pen=pen)
+        l1 = pg.PlotCurveItem(pen=pen)
         ax1.addItem(l1)
         ax1.addItem(e1)
-        self.station_plot_lines[name] = [l0, e1, l1]
+        self.station_plot_lines[name] = [e1, l1]
 
         # Create a textbox to hold the station logs
         self.station_log[name] = QPlainTextEdit(self)
@@ -597,7 +595,7 @@ class MainWindow(QMainWindow):
         self.station_log[name].setFont(QFont('Courier', 10))
 
         # Add overview plot lines
-        pen = pg.mkPen(color=COLORS[len(self.stations.keys())-1], width=1.0)
+        pen = pg.mkPen(color=COLORS[len(self.stations.keys())-1], width=2)
         fe0 = pg.ErrorBarItem(pen=pen)
         fl0 = pg.PlotCurveItem(pen=pen)
         fl1 = pg.PlotCurveItem(pen=pen)
@@ -868,6 +866,7 @@ class MainWindow(QMainWindow):
         self.postWorker.error.connect(self.update_error)
         self.postWorker.updateGuiStatus.connect(self.update_gui_status)
         self.postWorker.updateFluxPlot.connect(self.update_flux_plots)
+        self.postWorker.updatePlots.connect(self.update_scan_plot)
         self.postWorker.finished.connect(self.postThread.quit)
 
         # Start the flag
@@ -903,24 +902,47 @@ class MainWindow(QMainWindow):
         for line in log_text[len(text):]:
             self.station_log[station].appendPlainText(line.strip())
 
-    def update_scan_plot(self, s, fname):
+    def update_scan_plot(self, name, fpath):
         """Update the plots."""
-        # Load the scan file, unpacking the angle and SO2 data
-        scan_df = pd.read_csv(fname)
-        plotx = scan_df['Angle'].dropna().to_numpy()
-        ploty = scan_df['SO2'].dropna().to_numpy()
+        # Get the scans in the directory
+        scan_fnames = os.listdir(f'{fpath}/{name}/so2')
 
-        # Check for large numbers in the ydata. This is due to a
-        # bug in pyqtgraph not displaying large numbers
-        if np.nanmax(ploty) > 1e6:
-            order = int(np.ceil(np.log10(np.nanmax(ploty)))) - 1
-            ploty = ploty / 10**order
-            self.station_axes[s][0].setLabel('left',
-                                             f'SO2 SCD (1e{order} molec/cm2)')
+        # Clear the axes
+        self.station_axes[name][0].clear()
 
-        self.station_plot_lines[s][0].setData(x=plotx, y=ploty)
+        # Add a legend
+        legend = self.station_axes[name][0].addLegend()
 
-    # @pyqtSlot()
+        # Read in the last 10 and plot
+        for i, fname in enumerate(scan_fnames[-5:][::-1]):
+
+            if i == 0:
+                width = 4
+            else:
+                width = 2
+
+            # Load the scan file, unpacking the angle and SO2 data
+            scan_df = pd.read_csv(f'{fpath}/{name}/so2/{fname}')
+            plotx = scan_df['Angle'].dropna().to_numpy()
+            ploty = scan_df['SO2'].dropna().to_numpy()
+
+            # Check for large numbers in the ydata. This is due to a
+            # bug in pyqtgraph not displaying large numbers
+            if np.nanmax(ploty) > 1e6:
+                order = int(np.ceil(np.log10(np.nanmax(ploty)))) - 1
+                ploty = ploty / 10**order
+                self.station_axes[name][0].setLabel(
+                    'left', f'SO2 SCD (1e{order} molec/cm2)')
+
+            # Get the scan time from the filename to use as a label
+            label = f'{fname[9:11]}:{fname[11:13]}'
+
+            # Plot the line
+            line = pg.PlotCurveItem(plotx, ploty,
+                                    pen=pg.mkPen(color=COLORS[i], width=width))
+            self.station_axes[name][0].addItem(line)
+            legend.addItem(line, label)
+
     def update_flux_plots(self):
         """Display the calculated fluxes."""
         # Cycle through the stations
@@ -943,9 +965,9 @@ class MainWindow(QMainWindow):
             flux_err = flux_df['Flux Err [kg/s]'].to_numpy()
             plume_alt = flux_df['Plume Altitude [m]'].to_numpy()
             plume_dir = flux_df['Plume Direction [deg]'].to_numpy()
-            self.station_plot_lines[name][1].setData(x=xdata, y=flux,
+            self.station_plot_lines[name][0].setData(x=xdata, y=flux,
                                                      height=flux_err)
-            self.station_plot_lines[name][2].setData(x=xdata, y=flux)
+            self.station_plot_lines[name][1].setData(x=xdata, y=flux)
 
             # Also update the flux plots
             self.flux_lines[name][0].setData(x=xdata, y=flux, height=flux_err)
@@ -1065,7 +1087,7 @@ class MainWindow(QMainWindow):
                              Qt.darkGray)
         QApplication.instance().setPalette(darkpalette)
 
-        pen = pg.mkPen('w', width=1)
+        pen = pg.mkPen('w', width=1.5)
 
         self.flux_graphwin.setBackground('k')
         self.map_graphwin.setBackground('k')
@@ -1091,7 +1113,7 @@ class MainWindow(QMainWindow):
     def changeThemeLight(self):
         """Change theme to light."""
         QApplication.instance().setPalette(self.style().standardPalette())
-        pen = pg.mkPen('k', width=1)
+        pen = pg.mkPen('k', width=1.5)
 
         self.flux_graphwin.setBackground('w')
         self.map_graphwin.setBackground('w')

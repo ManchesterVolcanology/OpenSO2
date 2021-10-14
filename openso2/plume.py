@@ -140,10 +140,10 @@ def calc_scan_flux(angles, scan_so2, station, vent_location, windspeed,
     dx = np.multiply(dphi, arc_radius)
 
     # Calculate the arc so2 between each spectrum
-    arc_so2 = [x*np.average([so2_amts[n], so2_amts[n+1]])
-               for n, x in enumerate(dx)]
-    arc_err = [x*np.average([so2_errs[n], so2_errs[n+1]])
-               for n, x in enumerate(dx)]
+    arc_so2 = np.array([x*np.average([so2_amts[n], so2_amts[n+1]])
+                        for n, x in enumerate(dx)])
+    arc_err = np.array([x*np.average([so2_errs[n], so2_errs[n+1]])
+                        for n, x in enumerate(dx)])
 
     # Add up the total SO2 in the scan, ignoring any nans
     total_so2 = np.nansum(arc_so2)
@@ -204,11 +204,11 @@ def calc_plume_azimuth(station, plume_loc, vent_location, plume_altitude):
     alpha = np.radians(plume_loc)
 
     # Calculate the bearing of the scan plane vector, depending on the plume
-    # position. If the plume is directly overhead, just return the voclano -
+    # position. If the plume is directly overhead, just return the volcano -
     # station bearing
     if alpha == 0:
         x, plume_azimth = haversine(vent_location, [lat, lon])
-        return plume_azimth
+        return np.degrees(plume_azimth)
     elif alpha > 0:
         phi = bearing_check(np.radians(az) - pi/2)
     else:
@@ -217,16 +217,16 @@ def calc_plume_azimuth(station, plume_loc, vent_location, plume_altitude):
     # Correct the plume altitude given the station altitude
     plume_height = plume_altitude - alt
 
-    # Calculate the distance from the staiton to the plume
+    # Calculate the distance from the station to the plume
     d = plume_height * np.tan(np.abs(alpha))
 
     # Calculate the location of the intersection point
-    intersect_point = calc_end_point([lat, lon], d, phi)
+    intersect_point = calc_end_point([lat, lon], d, np.degrees(phi))
 
     # Calculate th vector from the volcano to the intersect point
     dist, plume_azimuth = haversine(vent_location, intersect_point)
 
-    return plume_azimuth
+    return np.degrees(plume_azimuth)
 
 
 # =============================================================================
@@ -358,6 +358,8 @@ def calc_arc_radius(station, vent_location, plume_altitude, plume_azimuth):
         psi = scan_phi + pi/2
     elif plume_phi > mu_p:
         psi = scan_phi - pi/2
+    else:
+        return rel_plume_altitude
 
     # Calculate gamma, the internal angle between the scan plane and the
     # station-volcano vector

@@ -177,6 +177,7 @@ class PostAnalysisWorker(QObject):
     finished = pyqtSignal()
     updateGuiStatus = pyqtSignal(str)
     updateFluxPlot = pyqtSignal()
+    updatePlots = pyqtSignal(str, str)
 
     def __init__(self, stations, date_to_analyse, volc_loc, default_alt,
                  default_az, wind_speed, scan_pair_time, scan_pair_flag,
@@ -212,8 +213,12 @@ class PostAnalysisWorker(QObject):
         fpath = f'Results/{self.date_to_analyse}'
         all_scans, scan_times = get_local_scans(self.stations, fpath)
 
+        for name, station in self.stations.items():
+            self.updatePlots.emit(name, fpath)  # all_scans[name][-1])
+
         # Calculate the fluxes
         self.updateGuiStatus.emit('Calculating fluxes')
+
         flux_results = calculate_fluxes(self.stations, all_scans, fpath,
                                         self.volc_loc, self.default_alt,
                                         self.default_az, self.wind_speed,
