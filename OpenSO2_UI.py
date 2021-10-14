@@ -1027,6 +1027,9 @@ class MainWindow(QMainWindow):
         if fname is None:
             return {}
 
+        # Update the system settings file path
+        self.config_fname = fname
+
         # Open the config file
         try:
             with open(fname, 'r') as ymlfile:
@@ -1037,6 +1040,8 @@ class MainWindow(QMainWindow):
                     if key == 'theme':
                         self.theme = value
                     elif key == 'stations':
+                        for name in self.stations.copy().keys():
+                            self.del_station(name)
                         for name, info in value.items():
                             self.add_station(name, **info)
                     else:
@@ -1049,6 +1054,11 @@ class MainWindow(QMainWindow):
             config = {}
         self.config = config
         logger.info(f'Configuration loaded from {self.config_fname}')
+
+        # Record the path for next load
+        with open('bin/.config', 'w') as w:
+            w.write(self.config_fname)
+
         return config
 
 # =============================================================================
