@@ -568,6 +568,7 @@ class MainWindow(QMainWindow):
         x_axis = pg.DateAxisItem(utcOffset=0)
         ax1 = self.station_graphwin[name].addPlot(row=0, col=1,
                                                   axisItems={'bottom': x_axis})
+        # ax1 = self.station_graphwin[name].addPlot(row=0, col=1)
         self.station_axes[name] = [ax0, ax1]
 
         for ax in self.station_axes[name]:
@@ -577,17 +578,35 @@ class MainWindow(QMainWindow):
 
         # Add axis labels
         ax0.setLabel('left', 'SO2 SCD [molec/cm2]')
-        ax1.setLabel('left', 'SO2 Flux [kg/s]')
+        # ax1.setLabel('left', 'Scan Angle [deg]')
         ax0.setLabel('bottom', 'Scan Angle [deg]')
-        ax1.setLabel('bottom', 'Time [UTC]')
+        # ax1.setLabel('bottom', 'Time [UTC]')
 
         # Initialise the lines
-        pen = pg.mkPen(color='#1f77b4', width=2)
-        e1 = pg.ErrorBarItem(pen=pen)
-        l1 = pg.PlotCurveItem(pen=pen)
-        ax1.addItem(l1)
-        ax1.addItem(e1)
-        self.station_plot_lines[name] = [e1, l1]
+        # pen = pg.mkPen(color='#1f77b4', width=2)
+        # e1 = pg.ErrorBarItem(pen=pen)
+        # l1 = pg.PlotCurveItem(pen=pen)
+        # ax1.addItem(l1)
+        # ax1.addItem(e1)
+        x = np.array([[1, 1, 1, 1],
+                      [2, 2, 2, 2],
+                      [3, 3, 3, 3],
+                      [4, 4, 4, 4],
+                      [5, 5, 5, 5]])
+        y = np.array([[4, 8, 12, 16],
+                      [2, 4, 6, 8],
+                      [3, 6, 9, 12],
+                      [5, 10, 15, 20],
+                      [6, 12, 18, 24]])
+        z = np.array([[1e16, 2e16, 3e16],
+                      [5e16, 6e16, 7e16],
+                      [9e16, 10e16, 11e16],
+                      [13e16, 14e16, 15e16]])
+        so2_map = pg.PColorMeshItem(x, y, z)
+        ax1.addItem(so2_map)
+        # so2_map.setLabel(axis='left', text='Y-axis')
+        # so2_map.setLabel(axis='bottom', text='X-axis')
+        self.station_plot_lines[name] = so2_map
 
         # Create a textbox to hold the station logs
         self.station_log[name] = QPlainTextEdit(self)
@@ -621,7 +640,10 @@ class MainWindow(QMainWindow):
         self.update_station_map(name)
 
         splitter = QSplitter(Qt.Vertical)
+        # hsplitter = QSplitter(Qt.Horizontal)
         splitter.addWidget(self.station_graphwin[name])
+        # hsplitter.addWidget(so2_map)
+        # splitter.addWidget(hsplitter)
         splitter.addWidget(self.station_log[name])
         layout.addWidget(splitter, 1, 0, 1, coln)
 
@@ -912,36 +934,75 @@ class MainWindow(QMainWindow):
 
         # Add a legend
         legend = self.station_axes[name][0].addLegend()
+        labels = []
 
-        # Read in the last 10 and plot
+        # Read in the last 5 and plot
         for i, fname in enumerate(scan_fnames[-5:][::-1]):
+
+            # Load the scan file, unpacking the angle and SO2 data
+            scan_df = pd.read_csv(f'{fpath}/{name}/so2/{fname}')
+
+            if i == 0:
+                shape = [len(scan_fnames[-5:]), len(scan_df['Angle'])]
+                plotx = np.zeros(shape)
+                ploty = np.zeros(shape)
+            plotx[i] = scan_df['Angle'].dropna().to_numpy()
+            ploty[i] = scan_df['SO2'].dropna().to_numpy()
+
+            # Get the scan time from the filename to use as a label
+            labels.append(f'{fname[9:11]}:{fname[11:13]}')
+
+        # Check for large numbers in the ydata. This is due to a
+        # bug in pyqtgraph not displaying large numbers
+        if np.nanmax(ploty) > 1e6:
+            order = int(np.ceil(np.log10(np.nanmax(ploty)))) - 1
+            ploty = ploty / 10**order
+            self.station_axes[name][0].setLabel(
+                'left', f'SO2 SCD (1e{order} molec/cm2)')
+
+        for i in range(shape[0]):
 
             if i == 0:
                 width = 4
             else:
                 width = 2
 
-            # Load the scan file, unpacking the angle and SO2 data
-            scan_df = pd.read_csv(f'{fpath}/{name}/so2/{fname}')
-            plotx = scan_df['Angle'].dropna().to_numpy()
-            ploty = scan_df['SO2'].dropna().to_numpy()
-
-            # Check for large numbers in the ydata. This is due to a
-            # bug in pyqtgraph not displaying large numbers
-            if np.nanmax(ploty) > 1e6:
-                order = int(np.ceil(np.log10(np.nanmax(ploty)))) - 1
-                ploty = ploty / 10**order
-                self.station_axes[name][0].setLabel(
-                    'left', f'SO2 SCD (1e{order} molec/cm2)')
-
-            # Get the scan time from the filename to use as a label
-            label = f'{fname[9:11]}:{fname[11:13]}'
-
             # Plot the line
-            line = pg.PlotCurveItem(plotx, ploty,
+            line = pg.PlotCurveItem(plotx[i], ploty[i],
                                     pen=pg.mkPen(color=COLORS[i], width=width))
             self.station_axes[name][0].addItem(line)
-            legend.addItem(line, label)
+            legend.addItem(line, labels[i])
+
+        scan_angle = np.full([len(scan_fnames)+1, len(plotx[0])+1], np.nan)
+        scan_time = np.full([len(scan_fnames)+1, len(plotx[0])+1], np.nan)
+        scan_so2 = np.full([len(scan_fnames), len(plotx[0])], np.nan)
+
+        for i, fname in enumerate(scan_fnames):
+
+            # Load the scan file, unpacking the angle and SO2 data
+            scan_df = pd.read_csv(f'{fpath}/{name}/so2/{fname}')
+            scan_angle[i] = scan_df['Angle'].append(pd.Series(90))
+            st = np.array([pd.Timestamp(datetime.strptime(t, "%Y%m%d_%H%M%S")
+                                        ).timestamp()
+                           for t in [fname[:15]]*99])
+            dt = st[0]
+            scan_time[i] = np.append(st, dt)
+            scan_so2[i] = scan_df['SO2']
+
+        # Add the last row of times and angles
+        scan_angle[-1] = scan_angle[-2]
+        scan_time[-1] = scan_time[-2] + 300
+
+        self.station_plot_lines[name].setData(scan_time, scan_angle, scan_so2)
+
+        # self.station_axes[name][1].clear()
+        # so2_map = pg.ImageItem(image=scan_so2)
+        # self.station_axes[name][1].addItem(so2_map)
+        # self.station_plot_lines[name][0].setImage(scan_so2)
+        # self.station_plot_lines[name][1].setYRange(-100, 100)
+        # cm = pg.ColorMap.get('CET-L9')
+        # bar = pg.ColorBarItem(values=(0, 1e19), cmap=cm)
+        # bar.setImageItem(so2_map, insert_in=self.station_axes[name][1])
 
     def update_flux_plots(self):
         """Display the calculated fluxes."""
@@ -965,9 +1026,9 @@ class MainWindow(QMainWindow):
             flux_err = flux_df['Flux Err [kg/s]'].to_numpy()
             plume_alt = flux_df['Plume Altitude [m]'].to_numpy()
             plume_dir = flux_df['Plume Direction [deg]'].to_numpy()
-            self.station_plot_lines[name][0].setData(x=xdata, y=flux,
-                                                     height=flux_err)
-            self.station_plot_lines[name][1].setData(x=xdata, y=flux)
+            # self.station_plot_lines[name][0].setData(x=xdata, y=flux,
+            #                                          height=flux_err)
+            # self.station_plot_lines[name][1].setData(x=xdata, y=flux)
 
             # Also update the flux plots
             self.flux_lines[name][0].setData(x=xdata, y=flux, height=flux_err)
@@ -1036,18 +1097,18 @@ class MainWindow(QMainWindow):
                 config = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
             for key, value in config.items():
-                try:
-                    if key == 'theme':
-                        self.theme = value
-                    elif key == 'stations':
-                        for name in self.stations.copy().keys():
-                            self.del_station(name)
-                        for name, info in value.items():
-                            self.add_station(name, **info)
-                    else:
-                        self.widgets.set(key, value)
-                except Exception:
-                    logger.warning(f'Failed to load {key} from config file')
+                # try:
+                if key == 'theme':
+                    self.theme = value
+                elif key == 'stations':
+                    for name in self.stations.copy().keys():
+                        self.del_station(name)
+                    for name, info in value.items():
+                        self.add_station(name, **info)
+                else:
+                    self.widgets.set(key, value)
+                # except Exception:
+                #     logger.warning(f'Failed to load {key} from config file')
 
         except FileNotFoundError:
             logger.warning(f'Unable to load config file {self.config_fname}')
