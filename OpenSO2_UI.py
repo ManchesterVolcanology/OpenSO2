@@ -458,7 +458,7 @@ class MainWindow(QMainWindow):
 
         # Initialise dictionaries to hold the station widgets
         self.station_log = {}
-        self.station_plot_lines = {}
+        self.station_so2_map = {}
         self.station_axes = {}
         self.station_status = {}
         self.station_graphwin = {}
@@ -606,7 +606,7 @@ class MainWindow(QMainWindow):
         ax1.addItem(so2_map)
         # so2_map.setLabel(axis='left', text='Y-axis')
         # so2_map.setLabel(axis='bottom', text='X-axis')
-        self.station_plot_lines[name] = so2_map
+        self.station_so2_map[name] = so2_map
 
         # Create a textbox to hold the station logs
         self.station_log[name] = QPlainTextEdit(self)
@@ -993,16 +993,7 @@ class MainWindow(QMainWindow):
         scan_angle[-1] = scan_angle[-2]
         scan_time[-1] = scan_time[-2] + 300
 
-        self.station_plot_lines[name].setData(scan_time, scan_angle, scan_so2)
-
-        # self.station_axes[name][1].clear()
-        # so2_map = pg.ImageItem(image=scan_so2)
-        # self.station_axes[name][1].addItem(so2_map)
-        # self.station_plot_lines[name][0].setImage(scan_so2)
-        # self.station_plot_lines[name][1].setYRange(-100, 100)
-        # cm = pg.ColorMap.get('CET-L9')
-        # bar = pg.ColorBarItem(values=(0, 1e19), cmap=cm)
-        # bar.setImageItem(so2_map, insert_in=self.station_axes[name][1])
+        self.station_so2_map[name].setData(scan_time, scan_angle, scan_so2)
 
     def update_flux_plots(self):
         """Display the calculated fluxes."""
@@ -1026,9 +1017,6 @@ class MainWindow(QMainWindow):
             flux_err = flux_df['Flux Err [kg/s]'].to_numpy()
             plume_alt = flux_df['Plume Altitude [m]'].to_numpy()
             plume_dir = flux_df['Plume Direction [deg]'].to_numpy()
-            # self.station_plot_lines[name][0].setData(x=xdata, y=flux,
-            #                                          height=flux_err)
-            # self.station_plot_lines[name][1].setData(x=xdata, y=flux)
 
             # Also update the flux plots
             self.flux_lines[name][0].setData(x=xdata, y=flux, height=flux_err)
