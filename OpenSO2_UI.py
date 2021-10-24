@@ -223,7 +223,7 @@ class MainWindow(QMainWindow):
         # Create input for the plume speed
         volc_layout.addWidget(QLabel('Plume Speed\n[m/s]:'), nrow, 0)
         self.widgets['plume_speed'] = QDoubleSpinBox()
-        self.widgets['plume_speed'].setRange(0, 1000)
+        self.widgets['plume_speed'].setRange(-1000, 1000)
         self.widgets['plume_speed'].setValue(1.0)
         volc_layout.addWidget(self.widgets['plume_speed'], nrow, 1)
         nrow += 1
