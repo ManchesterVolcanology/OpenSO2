@@ -256,7 +256,7 @@ def calculate_fluxes(stations, scans, fpath, vent_loc, default_alt, default_az,
 
         cols = ['Time [UTC]', 'Scan File', 'Pair Station', 'Pair File',
                 'Flux [kg/s]', 'Flux Err [kg/s]', 'Plume Altitude [m]',
-                'Plume Direction [deg]']
+                'Plume Direction [deg]', 'Wind Speed [m/s]']
         flux_df = pd.DataFrame(index=np.arange(len(scans[name])), columns=cols)
 
         for i, scan_fname in enumerate(scans[name]):
@@ -277,7 +277,7 @@ def calculate_fluxes(stations, scans, fpath, vent_loc, default_alt, default_az,
             if msk_scan_df is None:
                 logger.info(f'Scan {scan_fname} not analysed. {msg}')
                 row = [scan_time, os.path.split(scan_fname)[1], None, None,
-                       None, None, None, None]
+                       None, None, None, None, None]
                 flux_df.iloc[i] = row
                 continue
 
@@ -348,7 +348,7 @@ def calculate_fluxes(stations, scans, fpath, vent_loc, default_alt, default_az,
             # Add the row to the results dataframe
             row = [scan_time, os.path.split(scan_fname)[1], alt_station_name,
                    os.path.split(near_fname)[1], flux_amt, flux_err, plume_alt,
-                   plume_az]
+                   plume_az, wind_speed]
             flux_df.iloc[i] = row
 
         flux_results[name] = flux_df
