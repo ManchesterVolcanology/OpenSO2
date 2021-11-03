@@ -297,7 +297,7 @@ class Scanner:
                                   self.spectrometer.coadds,   # Coadds
                                   self.spectrometer.integration_time  # I time
                                   ])
-            scan_data[step_no] = np.append(spec_data, spectrum[1])
+            scan_data[step_no-1] = np.append(spec_data, spectrum[1])
 
             # Step the scanner
             self.step(settings['steps_per_spec'])
