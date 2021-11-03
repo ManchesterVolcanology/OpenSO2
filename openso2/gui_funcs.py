@@ -12,7 +12,7 @@ from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, QObject, pyqtSignal
 from PyQt5.QtWidgets import (QComboBox, QTextEdit, QLineEdit, QDoubleSpinBox,
                              QSpinBox, QCheckBox, QDateTimeEdit, QDateEdit,
-                             QPlainTextEdit)
+                             QPlainTextEdit, QFileDialog)
 
 from openso2.plume import calc_plume_altitude, calc_scan_flux
 
@@ -546,3 +546,41 @@ class Widgets(dict):
             self[key].setDateTime(self[key].dateTimeFromText(value))
         if type(self[key]) in [SpinBox, DSpinBox, QSpinBox, QDoubleSpinBox]:
             self[key].setValue(value)
+
+
+def browse(gui, widget, mode='single', filter=None):
+    """Open native file dialogue."""
+    # Check if specified file extensions
+    if filter is not None:
+        filter = filter + ';;All Files (*)'
+
+    # Pick a single file to read
+    if mode == 'single':
+        fname, _ = QFileDialog.getOpenFileName(gui, 'Select File', '', filter)
+
+    elif mode == 'multi':
+        fname, _ = QFileDialog.getOpenFileNames(gui, 'Select Files', '',
+                                                filter)
+
+    elif mode == 'save':
+        fname, _ = QFileDialog.getSaveFileName(gui, 'Save As', '', filter)
+
+    elif mode == 'folder':
+        fname = QFileDialog.getExistingDirectory(gui, 'Select Folder')
+
+    # Get current working directory
+    cwd = os.getcwd() + '/'
+    cwd = cwd.replace("\\", "/")
+
+    # Update the relavant widget for a single file
+    if type(fname) == str and fname != '':
+        if cwd in fname:
+            fname = fname[len(cwd):]
+        widget.setText(fname)
+
+    # And for multiple files
+    elif type(fname) == list and fname != []:
+        for i, f in enumerate(fname):
+            if cwd in f:
+                fname[i] = f[len(cwd):]
+        widget.setText('\n'.join(fname))
