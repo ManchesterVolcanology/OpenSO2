@@ -25,7 +25,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
 
 from openso2.station import Station
 from openso2.gui_funcs import (SyncWorker, PostAnalysisWorker, Widgets,
-                               QTextEditLogger)
+                               QTextEditLogger, browse)
 from openso2.plume import calc_end_point
 
 __version__ = '1.2'
@@ -344,11 +344,20 @@ class MainWindow(QMainWindow):
         self.widgets['date_to_analyse'].setCalendarPopup(True)
         post_layout.addWidget(self.widgets['date_to_analyse'], 0, 1)
 
+        # Set the path to the results
+        post_layout.addWidget(QLabel('Data Folder:'), 1, 0)
+        self.widgets['dir_to_analyse'] = QLineEdit()
+        post_layout.addWidget(self.widgets['dir_to_analyse'], 1, 1)
+        btn = QPushButton('Browse')
+        btn.clicked.connect(partial(
+            browse, self, self.widgets['dir_to_analyse'], 'folder', None))
+        post_layout.addWidget(btn, 1, 2)
+
         # Add a button to control syncing
         self.post_button = QPushButton('Run Post Analysis')
         self.post_button.clicked.connect(self._flux_post_analysis)
         self.post_button.setFixedSize(150, 25)
-        post_layout.addWidget(self.post_button, 1, 0, 1, 2)
+        post_layout.addWidget(self.post_button, 2, 0, 1, 2)
 
 # =============================================================================
 #   Generate the program outputs
@@ -406,7 +415,7 @@ class MainWindow(QMainWindow):
         for ax in self.flux_axes:
             ax.setDownsampling(mode='peak')
             ax.setClipToView(True)
-            ax.showGrid(x=True, y=True)
+            # ax.showGrid(x=True, y=True)
             ax.setLabel('bottom', 'Time')
 
         # Add axis labels
@@ -455,6 +464,9 @@ class MainWindow(QMainWindow):
         self.map_ax.setLabel('bottom', 'Longitude [deg]')
 
         map_layout.addWidget(self.map_graphwin)
+
+        # Generate the colormap to use
+        self.cmap = pg.colormap.get('magma', source='matplotlib')
 
         # Initialise dictionaries to hold the station widgets
         self.station_log = {}
@@ -568,7 +580,6 @@ class MainWindow(QMainWindow):
         x_axis = pg.DateAxisItem(utcOffset=0)
         ax1 = self.station_graphwin[name].addPlot(row=0, col=1,
                                                   axisItems={'bottom': x_axis})
-        # ax1 = self.station_graphwin[name].addPlot(row=0, col=1)
         self.station_axes[name] = [ax0, ax1]
 
         for ax in self.station_axes[name]:
@@ -578,34 +589,13 @@ class MainWindow(QMainWindow):
 
         # Add axis labels
         ax0.setLabel('left', 'SO2 SCD [molec/cm2]')
-        # ax1.setLabel('left', 'Scan Angle [deg]')
+        ax1.setLabel('left', 'Scan Angle [deg]')
         ax0.setLabel('bottom', 'Scan Angle [deg]')
-        # ax1.setLabel('bottom', 'Time [UTC]')
+        ax1.setLabel('bottom', 'Time [UTC]')
 
-        # Initialise the lines
-        # pen = pg.mkPen(color='#1f77b4', width=2)
-        # e1 = pg.ErrorBarItem(pen=pen)
-        # l1 = pg.PlotCurveItem(pen=pen)
-        # ax1.addItem(l1)
-        # ax1.addItem(e1)
-        x = np.array([[1, 1, 1, 1],
-                      [2, 2, 2, 2],
-                      [3, 3, 3, 3],
-                      [4, 4, 4, 4],
-                      [5, 5, 5, 5]])
-        y = np.array([[4, 8, 12, 16],
-                      [2, 4, 6, 8],
-                      [3, 6, 9, 12],
-                      [5, 10, 15, 20],
-                      [6, 12, 18, 24]])
-        z = np.array([[1e16, 2e16, 3e16],
-                      [5e16, 6e16, 7e16],
-                      [9e16, 10e16, 11e16],
-                      [13e16, 14e16, 15e16]])
-        so2_map = pg.PColorMeshItem(x, y, z)
+        # Initialise the scatter plot
+        so2_map = pg.ScatterPlotItem()
         ax1.addItem(so2_map)
-        # so2_map.setLabel(axis='left', text='Y-axis')
-        # so2_map.setLabel(axis='bottom', text='X-axis')
         self.station_so2_map[name] = so2_map
 
         # Create a textbox to hold the station logs
@@ -640,10 +630,7 @@ class MainWindow(QMainWindow):
         self.update_station_map(name)
 
         splitter = QSplitter(Qt.Vertical)
-        # hsplitter = QSplitter(Qt.Horizontal)
         splitter.addWidget(self.station_graphwin[name])
-        # hsplitter.addWidget(so2_map)
-        # splitter.addWidget(hsplitter)
         splitter.addWidget(self.station_log[name])
         layout.addWidget(splitter, 1, 0, 1, coln)
 
@@ -847,6 +834,7 @@ class MainWindow(QMainWindow):
             pass
 
         self.analysis_date = self.widgets.get('date_to_analyse')
+        resfpath = self.widgets.get('dir_to_analyse')
 
         # Get the volcano location
         volc_loc = [float(self.widgets.get('vlat')),
@@ -875,7 +863,7 @@ class MainWindow(QMainWindow):
         # Initialise the sync thread
         self.postThread = QThread()
         self.postWorker = PostAnalysisWorker(
-            self.stations, self.analysis_date, volc_loc, default_alt,
+            self.stations, resfpath, self.analysis_date, volc_loc, default_alt,
             default_az, wind_speed, scan_pair_time, scan_pair_flag,
             auto_quality_flag, min_scd, max_scd, min_int, max_int)
 
@@ -929,6 +917,9 @@ class MainWindow(QMainWindow):
         # Get the scans in the directory
         scan_fnames = os.listdir(f'{fpath}/{name}/so2')
 
+        if len(scan_fnames) == 0:
+            return
+
         # Clear the axes
         self.station_axes[name][0].clear()
 
@@ -946,19 +937,14 @@ class MainWindow(QMainWindow):
                 shape = [len(scan_fnames[-5:]), len(scan_df['Angle'])]
                 plotx = np.zeros(shape)
                 ploty = np.zeros(shape)
-            plotx[i] = scan_df['Angle'].dropna().to_numpy()
-            ploty[i] = scan_df['SO2'].dropna().to_numpy()
+            plotx[i] = scan_df['Angle'].to_numpy()
+            ploty[i] = scan_df['SO2'].to_numpy()
 
             # Get the scan time from the filename to use as a label
             labels.append(f'{fname[9:11]}:{fname[11:13]}')
 
-        # Check for large numbers in the ydata. This is due to a
-        # bug in pyqtgraph not displaying large numbers
-        if np.nanmax(ploty) > 1e6:
-            order = int(np.ceil(np.log10(np.nanmax(ploty)))) - 1
-            ploty = ploty / 10**order
-            self.station_axes[name][0].setLabel(
-                'left', f'SO2 SCD (1e{order} molec/cm2)')
+        # Replace any nans with zeros
+        ploty = np.nan_to_num(ploty)
 
         for i in range(shape[0]):
 
@@ -973,35 +959,75 @@ class MainWindow(QMainWindow):
             self.station_axes[name][0].addItem(line)
             legend.addItem(line, labels[i])
 
-        scan_angle = np.full([len(scan_fnames)+1, len(plotx[0])+1], np.nan)
-        scan_time = np.full([len(scan_fnames)+1, len(plotx[0])+1], np.nan)
+        scan_angle = np.full([len(scan_fnames), len(plotx[0])], np.nan)
+        scan_time = np.full([len(scan_fnames), len(plotx[0])], np.nan)
         scan_so2 = np.full([len(scan_fnames), len(plotx[0])], np.nan)
 
         for i, fname in enumerate(scan_fnames):
 
+            # Pull year, month and day from file name
+            y = int(fname[:4])
+            m = int(fname[4:6])
+            d = int(fname[6:8])
+
             # Load the scan file, unpacking the angle and SO2 data
             scan_df = pd.read_csv(f'{fpath}/{name}/so2/{fname}')
-            scan_angle[i] = scan_df['Angle'].append(pd.Series(90))
-            st = np.array([pd.Timestamp(datetime.strptime(t, "%Y%m%d_%H%M%S")
-                                        ).timestamp()
-                           for t in [fname[:15]]*99])
-            dt = st[0]
-            scan_time[i] = np.append(st, dt)
-            scan_so2[i] = scan_df['SO2']
+            scan_angle[i] = scan_df['Angle'].to_numpy()
+            scan_so2[i] = scan_df['SO2'].to_numpy()
 
-        # Add the last row of times and angles
-        scan_angle[-1] = scan_angle[-2]
-        scan_time[-1] = scan_time[-2] + 300
+            # Pull the time and convert to a unix timestamp
+            for j, t in enumerate(scan_df['Time']):
+                try:
+                    H = int(t)
+                    M = int((t - H)*60)
+                    S = int((t-H-M/60))*3600
+                    ts = pd.Timestamp(year=y, month=m, day=d, hour=H, minute=M,
+                                      second=S)
+                    ds = pd.Timedelta('1s')
+                    ts_ux = (ts - pd.Timestamp("1970-01-01")) // ds
+                    scan_time[i, j] = ts_ux
+                except ValueError:
+                    pass
 
-        self.station_so2_map[name].setData(scan_time, scan_angle, scan_so2)
+        # Flatten the data
+        scan_angle = scan_angle.flatten()
+        scan_time = scan_time.flatten()
+        scan_so2 = scan_so2.flatten()
 
-    def update_flux_plots(self):
+        # Get the colormap limits
+        map_lo_lim = 0.0
+        map_hi_lim = 1.0e18
+
+        # Normalise the data and convert to colors
+        norm_values = (scan_so2 - map_lo_lim) / (map_hi_lim - map_lo_lim)
+        np.nan_to_num(norm_values, copy=False)
+        try:
+            pens = [pg.mkPen(color=self.cmap.map(val))
+                    for val in norm_values]
+            brushes = [pg.mkBrush(color=self.cmap.map(val))
+                       for val in norm_values]
+        except AttributeError:
+            pens = None
+            brushes = None
+
+        self.station_so2_map[name].setData(x=scan_time, y=scan_angle,
+                                           pens=pens, brushes=brushes)
+
+    def update_flux_plots(self, mode):
         """Display the calculated fluxes."""
+        if mode == 'RealTime':
+            resfpath = 'Results'
+        elif mode == 'Post':
+            resfpath = self.widgets.get('dir_to_analyse')
+
+        min_time = []
+        max_time = []
+
         # Cycle through the stations
         for name, station in self.stations.items():
 
             # Get the flux output file
-            flux_fpath = f'Results/{self.analysis_date}/{name}/' \
+            flux_fpath = f'{resfpath}/{self.analysis_date}/{name}/' \
                          + f'{self.analysis_date}_{name}_fluxes.csv'
 
             # Read the flux file
@@ -1023,6 +1049,15 @@ class MainWindow(QMainWindow):
             self.flux_lines[name][1].setData(x=xdata, y=flux)
             self.flux_lines[name][2].setData(x=xdata, y=plume_alt)
             self.flux_lines[name][3].setData(x=xdata, y=plume_dir)
+
+            min_time.append(np.nanmin(xdata))
+            max_time.append(np.nanmax(xdata))
+
+        # Scale the x-axis (avoids issues with stations without fluxes)
+        xlim_lo = min(min_time)
+        xlim_hi = min(max_time)
+        for ax in self.flux_axes:
+            ax.setXRange(xlim_lo, xlim_hi)
 
 # =============================================================================
 #   Configuratuion Controls
