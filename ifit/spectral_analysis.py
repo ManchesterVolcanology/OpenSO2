@@ -413,18 +413,24 @@ class Analyser():
         # Unpack the spectrum
         grid, spec = spectrum
 
-        # Fit the spectrum
-        try:
-            popt, pcov = curve_fit(self.fwd_model, grid, spec, self.p0)
+        if min(spec) > 0:
 
-            # Calculate the parameter error
-            perr = np.sqrt(np.diag(pcov))
+            # Fit the spectrum
+            try:
+                popt, pcov = curve_fit(self.fwd_model, grid, spec, self.p0)
 
-            # Set the success flag
-            nerr = 1
+                # Calculate the parameter error
+                perr = np.sqrt(np.diag(pcov))
 
-        # If the fit fails return nans
-        except RuntimeError:
+                # Set the success flag
+                nerr = 1
+
+            # If the fit fails return nans
+            except RuntimeError:
+                popt = np.full(len(self.p0), np.nan)
+                perr = np.full(len(self.p0), np.nan)
+                nerr = 0
+        else:
             popt = np.full(len(self.p0), np.nan)
             perr = np.full(len(self.p0), np.nan)
             nerr = 0
