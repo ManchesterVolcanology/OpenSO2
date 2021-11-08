@@ -67,22 +67,24 @@ class Station:
                 # Get the file names in the remote directory
                 remote_files = sftp.listdir(remote_dir)
 
-                # Iterate through and copy any that are missing in the host
-                #  directory
-                for fname in remote_files:
+                # FInd the files to sync
+                files_to_sync = [f for f in remote_files
+                                 if f not in local_files]
 
-                    # Check if in the local directory
-                    if fname not in local_files:
+                logger.info(f'Found {len(files_to_sync)} files to sync')
 
-                        # Copy the file across
-                        try:
-                            sftp.get(remote_dir + fname, local_dir + fname,
-                                     preserve_mtime=True)
-                        except OSError:
-                            pass
+                # Iterate through and download
+                for fname in files_to_sync:
+
+                    # Copy the file across
+                    try:
+                        sftp.get(remote_dir + fname, local_dir + fname,
+                                 preserve_mtime=True)
 
                         # Add file list
                         new_fnames.append(fname)
+                    except OSError:
+                        logger.warning(f'Error syncing {fname}')
 
             # Set error message as false
             err = [False, '']

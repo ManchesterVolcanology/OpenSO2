@@ -58,7 +58,7 @@ class SyncWorker(QObject):
     updateStationStatus = pyqtSignal(str, str, str)
     updateGuiStatus = pyqtSignal(str)
     updatePlots = pyqtSignal(str, str)
-    updateFluxPlot = pyqtSignal()
+    updateFluxPlot = pyqtSignal(str)
 
     def __init__(self, stations, today_date, sync_mode, volc_loc, default_alt,
                  default_az, wind_speed, scan_pair_time, scan_pair_flag,
@@ -109,6 +109,11 @@ class SyncWorker(QObject):
             # Update the station status
             self.updateStationStatus.emit(station.name, time, status)
 
+            # If the connection fails, skip
+            if err[0]:
+                logger.info(f'Connection to {station.name} failed')
+                continue
+
             # Pull the station logs
             fname, err = station.pull_log()
 
@@ -135,7 +140,8 @@ class SyncWorker(QObject):
 
             # Plot last scan
             if self.sync_mode == 'so2' and len(new_fnames) != 0:
-                self.updatePlots.emit(station.name, local_dir + new_fnames[-1])
+                self.updatePlots.emit(station.name,
+                                      f'Results/{self.today_date}')
 
         if self.sync_mode == 'so2':
 
@@ -156,11 +162,11 @@ class SyncWorker(QObject):
 
                 # Format the file name of the flux output file
                 for name, flux_df in flux_results.items():
-                    flux_df.to_csv(f'{fpath}/{name}/{self.today_date}_{name}_'
-                                   + 'fluxes.csv')
+                    flux_df.to_csv(
+                        f'{fpath}/{name}/{self.today_date}_{name}_fluxes.csv')
 
                 # Plot the fluxes on the GUI
-                self.updateFluxPlot.emit()
+                self.updateFluxPlot.emit('RealTime')
 
         self.updateGuiStatus.emit('Ready')
 
@@ -176,15 +182,17 @@ class PostAnalysisWorker(QObject):
     error = pyqtSignal(tuple)
     finished = pyqtSignal()
     updateGuiStatus = pyqtSignal(str)
-    updateFluxPlot = pyqtSignal()
+    updateFluxPlot = pyqtSignal(str)
     updatePlots = pyqtSignal(str, str)
 
-    def __init__(self, stations, date_to_analyse, volc_loc, default_alt,
-                 default_az, wind_speed, scan_pair_time, scan_pair_flag,
-                 auto_quality_flag, min_scd, max_scd, min_int, max_int):
+    def __init__(self, stations, resfpath, date_to_analyse, volc_loc,
+                 default_alt, default_az, wind_speed, scan_pair_time,
+                 scan_pair_flag, auto_quality_flag, min_scd, max_scd, min_int,
+                 max_int):
         """Initialize."""
         super(QObject, self).__init__()
         self.stations = stations
+        self.resfpath = resfpath
         self.date_to_analyse = date_to_analyse
         self.volc_loc = volc_loc
         self.default_alt = default_alt
@@ -210,7 +218,7 @@ class PostAnalysisWorker(QObject):
     def _run(self):
         """Calculate fluxes from locally stored scans."""
         # Get all local files to recalculate flux with updated scans
-        fpath = f'Results/{self.date_to_analyse}'
+        fpath = f'{self.resfpath}/{self.date_to_analyse}'
         all_scans, scan_times = get_local_scans(self.stations, fpath)
 
         for name, station in self.stations.items():
@@ -230,10 +238,10 @@ class PostAnalysisWorker(QObject):
         # Format the file name of the flux output file
         for name, flux_df in flux_results.items():
             flux_df.to_csv(f'{fpath}/{name}/{self.date_to_analyse}_{name}_'
-                           + 'fluxes.csv')
+                           + 'fluxes_reanalysed.csv')
 
         # Plot the fluxes on the GUI
-        self.updateFluxPlot.emit()
+        self.updateFluxPlot.emit('Post')
 
         self.updateGuiStatus.emit('Ready')
 
@@ -379,8 +387,6 @@ def filter_scan(scan_df, min_scd, max_scd, min_int, max_int, plume_scd,
     nplume = sum(so2_scd_masked > plume_scd)
 
     if nplume < 10:
-        print(so2_scd_masked)
-        print(nplume)
         return None, None, 'Not enough plume spectra'
 
     # Determine the peak scan angle
