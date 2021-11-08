@@ -438,7 +438,7 @@ class Analyser():
         if update_params and fit_result.nerr == 1:
             self.p0 = popt
         else:
-            logger.info('Resetting initial guess parameters')
+            logger.debug('Resetting initial guess parameters')
             self.p0 = self.params.fittedvalueslist()
 
         return fit_result
@@ -702,7 +702,7 @@ class FitResult():
 
         # If not then return nans
         else:
-            logger.warn('Fit failed!')
+            logger.debug('Fit failed!')
             self.fit = np.full(len(self.spec), np.nan)
             self.resid = np.full(len(self.spec), np.nan)
             for par in calc_od:
