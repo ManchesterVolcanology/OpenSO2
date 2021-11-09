@@ -62,7 +62,7 @@ class SyncWorker(QObject):
 
     def __init__(self, stations, today_date, sync_mode, volc_loc, default_alt,
                  default_az, wind_speed, scan_pair_time, scan_pair_flag,
-                 auto_quality_flag, min_scd, max_scd, min_int, max_int):
+                 min_scd, max_scd, min_int, max_int):
         """Initialize."""
         super(QObject, self).__init__()
         self.stations = stations
@@ -125,48 +125,57 @@ class SyncWorker(QObject):
                 # Send signal with log text
                 self.updateLog.emit(station.name, log_text)
 
-            # Sync files
-            local_dir = f'Results/{self.today_date}/{station.name}/' \
-                        + f'{self.sync_mode}/'
-            if not os.path.isdir(local_dir):
-                os.makedirs(local_dir)
-            remote_dir = f'/home/pi/open_so2/Results/{self.today_date}/' \
-                         + f'{self.sync_mode}/'
-            new_fnames, err = station.sync(local_dir, remote_dir)
-            logging.info(f'Synced {len(new_fnames)} scans from {station.name}')
+            # Sync spectra files
+            if self.sync_mode in ['spec', 'both']:
+                local_dir = f'Results/{self.today_date}/{station.name}/' \
+                            + 'spectra/'
+                if not os.path.isdir(local_dir):
+                    os.makedirs(local_dir)
+                remote_dir = f'/home/pi/open_so2/Results/{self.today_date}/' \
+                             + 'spectra/'
+                new_spec_fnames, err = station.sync(local_dir, remote_dir)
+                logging.info(f'Synced {len(new_spec_fnames)} spectra scans '
+                             + f'from {station.name}')
 
-            # Add the scans to the dictionary
-            scans[station.name] = new_fnames
+            # Sync so2 files
+            if self.sync_mode in ['so2', 'both']:
+                local_dir = f'Results/{self.today_date}/{station.name}/so2/'
+                if not os.path.isdir(local_dir):
+                    os.makedirs(local_dir)
+                remote_dir = f'/home/pi/open_so2/Results/{self.today_date}/' \
+                             + 'so2/'
+                new_so2_fnames, err = station.sync(local_dir, remote_dir)
+                logging.info(f'Synced {len(new_so2_fnames)} scans from '
+                             + f'{station.name}')
 
-            # Plot last scan
-            if self.sync_mode == 'so2' and len(new_fnames) != 0:
-                self.updatePlots.emit(station.name,
-                                      f'Results/{self.today_date}')
+                # Add the scans to the dictionary
+                scans[station.name] = new_so2_fnames
 
-        if self.sync_mode == 'so2':
+                # Update scan plots if new data is found
+                fpath = f'Results/{self.today_date}'
+                self.updatePlots.emit(station.name, fpath)
 
-            # Get all local files to recalculate flux with updated scans
-            fpath = f'Results/{self.today_date}'
-            all_scans, scan_times = get_local_scans(self.stations, fpath)
+        # Get all local files to recalculate flux with updated scans
+        all_scans, scan_times = get_local_scans(self.stations, fpath)
 
-            nscans = np.array([len(s) for s in scans.values()])
+        nscans = np.array([len(s) for s in scans.values()])
 
-            # Calculate the fluxesif there are any new scans
-            if nscans.any():
-                self.updateGuiStatus.emit('Calculating fluxes')
-                flux_results = calculate_fluxes(
-                    self.stations, all_scans, fpath, self.volc_loc,
-                    self.default_alt, self.default_az, self.wind_speed,
-                    self.scan_pair_time, self.scan_pair_flag, self.min_scd,
-                    self.max_scd, self.min_int, self.max_int)
+        # Calculate the fluxes if there are any new so2 scans
+        if nscans.any():
+            self.updateGuiStatus.emit('Calculating fluxes')
+            flux_results = calculate_fluxes(
+                self.stations, all_scans, fpath, self.volc_loc,
+                self.default_alt, self.default_az, self.wind_speed,
+                self.scan_pair_time, self.scan_pair_flag, self.min_scd,
+                self.max_scd, self.min_int, self.max_int)
 
-                # Format the file name of the flux output file
-                for name, flux_df in flux_results.items():
-                    flux_df.to_csv(
-                        f'{fpath}/{name}/{self.today_date}_{name}_fluxes.csv')
+            # Format the file name of the flux output file
+            for name, flux_df in flux_results.items():
+                flux_df.to_csv(
+                    f'{fpath}/{name}/{self.today_date}_{name}_fluxes.csv')
 
-                # Plot the fluxes on the GUI
-                self.updateFluxPlot.emit('RealTime')
+            # Plot the fluxes on the GUI
+            self.updateFluxPlot.emit('RealTime')
 
         self.updateGuiStatus.emit('Ready')
 
@@ -187,8 +196,7 @@ class PostAnalysisWorker(QObject):
 
     def __init__(self, stations, resfpath, date_to_analyse, volc_loc,
                  default_alt, default_az, wind_speed, scan_pair_time,
-                 scan_pair_flag, auto_quality_flag, min_scd, max_scd, min_int,
-                 max_int):
+                 scan_pair_flag, min_scd, max_scd, min_int, max_int):
         """Initialize."""
         super(QObject, self).__init__()
         self.stations = stations
