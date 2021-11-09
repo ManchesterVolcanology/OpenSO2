@@ -187,7 +187,13 @@ class MainWindow(QMainWindow):
         controlTabHolder.addTab(volcTab, 'Volcano/Plume')
         qualTab = QWidget()
         controlTabHolder.addTab(qualTab, 'Quality Control')
+        syncTab = QWidget()
+        controlTabHolder.addTab(syncTab, 'Sync Controls')
+        postTab = QWidget()
+        controlTabHolder.addTab(postTab, 'Post Analysis')
         layout.addWidget(controlTabHolder, 0, 0)
+
+        # Volcano =============================================================
 
         # Add voclano and plume controls
         volc_layout = QGridLayout(volcTab)
@@ -213,6 +219,8 @@ class MainWindow(QMainWindow):
 
         volc_layout.addWidget(QHLine(), nrow, 0, 1, 10)
         nrow += 1
+
+        # Plume ===============================================================
 
         header = QLabel('Default Plume Settings')
         header.setAlignment(Qt.AlignLeft)
@@ -256,15 +264,13 @@ class MainWindow(QMainWindow):
         volc_layout.addWidget(self.widgets['scan_pair_time'], nrow, 1)
         nrow += 1
 
+        volc_layout.setRowStretch(nrow, 10)
+
+        # Quality Control =====================================================
+
         # Add controls for the scan quality control
         qual_layout = QGridLayout(qualTab)
         nrow = 0
-
-        # Create toggle to decide whether to use the quality check from the pi
-        self.widgets['use_auto_quality'] = QCheckBox(
-            'Automatic Quality\nCheck?')
-        qual_layout.addWidget(self.widgets['use_auto_quality'], nrow, 0)
-        nrow += 1
 
         # Create input for the lower intensity limit
         qual_layout.addWidget(QLabel('Low Intensity limit:'), nrow, 0)
@@ -296,68 +302,94 @@ class MainWindow(QMainWindow):
         qual_layout.addWidget(self.widgets['hi_scd_lim'], nrow, 1)
         nrow += 1
 
-        # Form the tab widget
-        analysisTabHolder = QTabWidget()
-        syncTab = QWidget()
-        analysisTabHolder.addTab(syncTab, 'Station Sync Controls')
-        postTab = QWidget()
-        analysisTabHolder.addTab(postTab, 'Post Analysis')
+        qual_layout.setRowStretch(nrow, 10)
 
-        layout.addWidget(analysisTabHolder, nrow, 0, 1, 2)
+        # Sync Settings =======================================================
 
         # Add syncing controls
         sync_layout = QGridLayout(syncTab)
+        nrow = 0
+
+        header = QLabel('Analysed Scan Files')
+        header.setAlignment(Qt.AlignLeft)
+        header.setFont(QFont('Ariel', 12))
+        sync_layout.addWidget(header, nrow, 0, 1, 3)
+        nrow += 1
 
         # Create widgets for the start and stop scan times
-        sync_layout.addWidget(QLabel('Sync Start Time\n(HH:MM):'), 0, 0)
-        self.widgets['sync_start_time'] = QDateTimeEdit(displayFormat='HH:mm')
-        sync_layout.addWidget(self.widgets['sync_start_time'], 0, 1)
+        sync_layout.addWidget(QLabel('Start Time\n(HH:MM):'), nrow, 0)
+        self.widgets['sync_so2_start'] = QDateTimeEdit(displayFormat='HH:mm')
+        sync_layout.addWidget(self.widgets['sync_so2_start'], nrow, 1)
+        nrow += 1
 
-        sync_layout.addWidget(QLabel('Sync Stop Time\n(HH:MM):'), 1, 0)
-        self.widgets['sync_stop_time'] = QDateTimeEdit(displayFormat='HH:mm')
-        sync_layout.addWidget(self.widgets['sync_stop_time'], 1, 1)
+        sync_layout.addWidget(QLabel('Stop Time\n(HH:MM):'), nrow, 0)
+        self.widgets['sync_so2_stop'] = QDateTimeEdit(displayFormat='HH:mm')
+        sync_layout.addWidget(self.widgets['sync_so2_stop'], nrow, 1)
+        nrow += 1
 
-        sync_layout.addWidget(QLabel('Sync Time\nInterval (s):'), 2, 0)
+        sync_layout.addWidget(QHLine(), nrow, 0, 1, 10)
+        nrow += 1
+
+        header = QLabel('Spectra Files')
+        header.setAlignment(Qt.AlignLeft)
+        header.setFont(QFont('Ariel', 12))
+        sync_layout.addWidget(header, nrow, 0, 1, 3)
+        nrow += 1
+
+        # Create widgets for the start and stop scan times
+        sync_layout.addWidget(QLabel('Start Time\n(HH:MM):'), nrow, 0)
+        self.widgets['sync_spec_start'] = QDateTimeEdit(displayFormat='HH:mm')
+        sync_layout.addWidget(self.widgets['sync_spec_start'], nrow, 1)
+        nrow += 1
+
+        sync_layout.addWidget(QLabel('Stop Time\n(HH:MM):'), nrow, 0)
+        self.widgets['sync_spec_stop'] = QDateTimeEdit(displayFormat='HH:mm')
+        sync_layout.addWidget(self.widgets['sync_spec_stop'], nrow, 1)
+        nrow += 1
+
+        sync_layout.addWidget(QHLine(), nrow, 0, 1, 10)
+        nrow += 1
+
+        sync_layout.addWidget(QLabel('Time\nInterval (s):'), nrow, 0)
         self.widgets['sync_interval'] = QSpinBox()
         self.widgets['sync_interval'].setRange(0, 86400)
         self.widgets['sync_interval'].setValue(30)
-        sync_layout.addWidget(self.widgets['sync_interval'], 2, 1)
+        sync_layout.addWidget(self.widgets['sync_interval'], nrow, 1)
+        nrow += 1
 
-        sync_layout.addWidget(QLabel('Sync Mode:'), 3, 0)
-        self.widgets['sync_mode'] = QComboBox()
-        self.widgets['sync_mode'].addItems(['so2', 'spectra'])
-        sync_layout.addWidget(self.widgets['sync_mode'], 3, 1)
+        sync_layout.setRowStretch(nrow, 10)
 
-        # Add a button to control syncing
-        self.sync_button = QPushButton('Syncing OFF')
-        self.sync_button.setStyleSheet("background-color: red")
-        self.sync_button.clicked.connect(self._toggle_sync)
-        self.syncing = False
-        sync_layout.addWidget(self.sync_button, 4, 0, 1, 2)
+        # Post Analysis =======================================================
 
         # Add post analysis controls
         post_layout = QGridLayout(postTab)
+        nrow = 0
 
         # File path to the data
-        post_layout.addWidget(QLabel('Date to Analyse:'), 0, 0)
+        post_layout.addWidget(QLabel('Date to Analyse:'), nrow, 0)
         self.widgets['date_to_analyse'] = QDateEdit(displayFormat='yyyy-MM-dd')
         self.widgets['date_to_analyse'].setCalendarPopup(True)
-        post_layout.addWidget(self.widgets['date_to_analyse'], 0, 1)
+        post_layout.addWidget(self.widgets['date_to_analyse'], nrow, 1)
+        nrow += 1
 
         # Set the path to the results
-        post_layout.addWidget(QLabel('Data Folder:'), 1, 0)
+        post_layout.addWidget(QLabel('Data Folder:'), nrow, 0)
         self.widgets['dir_to_analyse'] = QLineEdit()
-        post_layout.addWidget(self.widgets['dir_to_analyse'], 1, 1)
+        post_layout.addWidget(self.widgets['dir_to_analyse'], nrow, 1)
         btn = QPushButton('Browse')
         btn.clicked.connect(partial(
             browse, self, self.widgets['dir_to_analyse'], 'folder', None))
-        post_layout.addWidget(btn, 1, 2)
+        post_layout.addWidget(btn, nrow, 2)
+        nrow += 1
 
         # Add a button to control syncing
         self.post_button = QPushButton('Run Post Analysis')
         self.post_button.clicked.connect(self._flux_post_analysis)
         self.post_button.setFixedSize(150, 25)
-        post_layout.addWidget(self.post_button, 2, 0, 1, 2)
+        post_layout.addWidget(self.post_button, nrow, 0, 1, 2)
+        nrow += 1
+
+        post_layout.setRowStretch(nrow, 10)
 
 # =============================================================================
 #   Generate the program outputs
@@ -466,11 +498,13 @@ class MainWindow(QMainWindow):
         map_layout.addWidget(self.map_graphwin)
 
         # Generate the colormap to use
-        self.cmap = pg.colormap.get('magma', source='matplotlib')
+        self.cmap = pg.colormap.get('viridis')
 
         # Initialise dictionaries to hold the station widgets
         self.station_log = {}
         self.station_so2_map = {}
+        self.station_so2_data = {}
+        self.station_cbar = {}
         self.station_axes = {}
         self.station_status = {}
         self.station_graphwin = {}
@@ -483,11 +517,18 @@ class MainWindow(QMainWindow):
             self.add_station(station)
         layout.addWidget(self.stationTabHolder, 0, 0, 1, 10)
 
+        # Add a button to control syncing
+        self.sync_button = QPushButton('Syncing OFF')
+        self.sync_button.setStyleSheet("background-color: red")
+        self.sync_button.clicked.connect(self._toggle_sync)
+        self.syncing = False
+        layout.addWidget(self.sync_button, 1, 0)
+
         # Add a button to add a station
         self.add_station_btn = QPushButton('Add Station')
         self.add_station_btn.setFixedSize(150, 25)
         self.add_station_btn.clicked.connect(self.new_station)
-        layout.addWidget(self.add_station_btn, 1, 0)
+        layout.addWidget(self.add_station_btn, 1, 1)
 
     def update_map(self):
         """Update the volcano location."""
@@ -597,6 +638,15 @@ class MainWindow(QMainWindow):
         so2_map = pg.ScatterPlotItem()
         ax1.addItem(so2_map)
         self.station_so2_map[name] = so2_map
+
+        # Initialise the colorbar
+        im = pg.ImageItem()
+        cbar = pg.ColorBarItem(values=(0, 1e18), colorMap=self.cmap)
+        cbar.setImageItem(im)
+        cbar.sigLevelsChangeFinished.connect(
+            lambda: self._update_map_colors(name))
+        self.station_cbar[name] = cbar
+        self.station_graphwin[name].addItem(self.station_cbar[name], 0, 2)
 
         # Create a textbox to hold the station logs
         self.station_log[name] = QPlainTextEdit(self)
@@ -750,17 +800,31 @@ class MainWindow(QMainWindow):
         except AttributeError:
             pass
 
-        # Check that the program is within the syncing time
-        start_time = datetime.strptime(self.widgets.get('sync_start_time'),
-                                       "%H:%M").time()
-        stop_time = datetime.strptime(self.widgets.get('sync_stop_time'),
-                                      "%H:%M").time()
+        # Pull the syncing times
+        sync_so2_start = datetime.strptime(
+            self.widgets.get('sync_so2_start'), "%H:%M").time()
+        sync_so2_stop = datetime.strptime(
+            self.widgets.get('sync_so2_stop'), "%H:%M").time()
+        sync_spec_start = datetime.strptime(
+            self.widgets.get('sync_spec_start'), "%H:%M").time()
+        sync_spec_stop = datetime.strptime(
+            self.widgets.get('sync_spec_stop'), "%H:%M").time()
 
-        now_time = datetime.now().time()
+        # Get the current time
+        ts = datetime.now().time()
 
-        sync_mode = self.widgets.get('sync_mode')
+        # See if we are within the sync time windows
+        sync_so2_flag = sync_so2_start < ts and ts < sync_so2_stop
+        sync_spec_flag = sync_spec_start < ts and ts < sync_spec_stop
 
-        if now_time < start_time or now_time > stop_time:
+        # Apply relevant sync mode
+        if sync_so2_flag and not sync_spec_flag:
+            sync_mode = 'so2'
+        if not sync_so2_flag and sync_spec_flag:
+            sync_mode = 'spectra'
+        if sync_so2_flag and sync_spec_flag:
+            sync_mode = 'both'
+        if not sync_so2_flag and not sync_spec_flag:
             logger.info('Not within syncing time window')
             return
 
@@ -784,9 +848,6 @@ class MainWindow(QMainWindow):
         scan_pair_time = self.widgets.get('scan_pair_time')
         scan_pair_flag = self.widgets.get('scan_pair_flag')
 
-        # Get the auto-quality check flag
-        auto_quality_flag = self.widgets.get('use_auto_quality')
-
         # Get the min/max scd and intensity values
         min_scd = float(self.widgets.get('lo_scd_lim'))
         max_scd = float(self.widgets.get('hi_scd_lim'))
@@ -800,8 +861,8 @@ class MainWindow(QMainWindow):
         self.syncWorker = SyncWorker(self.stations, self.analysis_date,
                                      sync_mode, volc_loc, default_alt,
                                      default_az, wind_speed, scan_pair_time,
-                                     scan_pair_flag, auto_quality_flag,
-                                     min_scd, max_scd, min_int, max_int)
+                                     scan_pair_flag, min_scd, max_scd, min_int,
+                                     max_int)
 
         # Move the worker to the thread
         self.syncWorker.moveToThread(self.syncThread)
@@ -851,9 +912,6 @@ class MainWindow(QMainWindow):
         scan_pair_time = self.widgets.get('scan_pair_time')
         scan_pair_flag = self.widgets.get('scan_pair_flag')
 
-        # Get the auto-quality check flag
-        auto_quality_flag = self.widgets.get('use_auto_quality')
-
         # Get the min/max scd and intensity values
         min_scd = float(self.widgets.get('lo_scd_lim'))
         max_scd = float(self.widgets.get('hi_scd_lim'))
@@ -864,8 +922,8 @@ class MainWindow(QMainWindow):
         self.postThread = QThread()
         self.postWorker = PostAnalysisWorker(
             self.stations, resfpath, self.analysis_date, volc_loc, default_alt,
-            default_az, wind_speed, scan_pair_time, scan_pair_flag,
-            auto_quality_flag, min_scd, max_scd, min_int, max_int)
+            default_az, wind_speed, scan_pair_time, scan_pair_flag, min_scd,
+            max_scd, min_int, max_int)
 
         # Move the worker to the thread
         self.postWorker.moveToThread(self.postThread)
@@ -994,9 +1052,10 @@ class MainWindow(QMainWindow):
         scan_time = scan_time.flatten()
         scan_so2 = scan_so2.flatten()
 
-        # Get the colormap limits
-        map_lo_lim = 0.0
-        map_hi_lim = 1.0e18
+        self.station_so2_data[name] = scan_so2
+
+        # # Get the colormap limits
+        map_lo_lim, map_hi_lim = self.station_cbar[name].levels()
 
         # Normalise the data and convert to colors
         norm_values = (scan_so2 - map_lo_lim) / (map_hi_lim - map_lo_lim)
@@ -1011,7 +1070,28 @@ class MainWindow(QMainWindow):
             brushes = None
 
         self.station_so2_map[name].setData(x=scan_time, y=scan_angle,
-                                           pens=pens, brushes=brushes)
+                                           pen=pens, brush=brushes)
+
+    def _update_map_colors(self, name):
+        try:
+            scan_time, scan_angle = self.station_so2_map[name].getData()
+            scan_so2 = self.station_so2_data[name]
+
+            # Get the colormap limits
+            map_lo_lim, map_hi_lim = self.station_cbar[name].levels()
+
+            # Normalise the data and convert to colors
+            norm_values = (scan_so2 - map_lo_lim) / (map_hi_lim - map_lo_lim)
+            np.nan_to_num(norm_values, copy=False)
+
+            pens = [pg.mkPen(color=self.cmap.map(val)) for val in norm_values]
+            brushes = [pg.mkBrush(color=self.cmap.map(val))
+                       for val in norm_values]
+
+            self.station_so2_map[name].setData(x=scan_time, y=scan_angle,
+                                               pen=pens, brush=brushes)
+        except ValueError:
+            pass
 
     def update_flux_plots(self, mode):
         """Display the calculated fluxes."""
@@ -1120,18 +1200,18 @@ class MainWindow(QMainWindow):
                 config = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
             for key, value in config.items():
-                # try:
-                if key == 'theme':
-                    self.theme = value
-                elif key == 'stations':
-                    for name in self.stations.copy().keys():
-                        self.del_station(name)
-                    for name, info in value.items():
-                        self.add_station(name, **info)
-                else:
-                    self.widgets.set(key, value)
-                # except Exception:
-                #     logger.warning(f'Failed to load {key} from config file')
+                try:
+                    if key == 'theme':
+                        self.theme = value
+                    elif key == 'stations':
+                        for name in self.stations.copy().keys():
+                            self.del_station(name)
+                        for name, info in value.items():
+                            self.add_station(name, **info)
+                    else:
+                        self.widgets.set(key, value)
+                except Exception:
+                    logger.warning(f'Failed to load {key} from config file')
 
         except FileNotFoundError:
             logger.warning(f'Unable to load config file {self.config_fname}')
@@ -1412,4 +1492,5 @@ def main():
 
 
 if __name__ == '__main__':
+    main()
     main()
