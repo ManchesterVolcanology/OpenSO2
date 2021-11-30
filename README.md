@@ -19,17 +19,21 @@ There are several libraries required for OpenSO<sub>2</sub> beyond the base libr
 - Pandas
 - PyYaml
 - GPIOzero
+- PySerial
+
+Note that numpy ships with the Raspberry Pi, however it is a litte out of date. In order to update it run:
+
+```
+sudo apt update
+sudo apt upgrade
+sudo apt remove python3-numpy
+sudo apt install libatlas3-base
+```
 
 These can be installed using pip3:
 
 ```
-pip3 install numpy scipy pandas PyYAML GPIOzero
-```
-
-Sometimes there is an issue with numpy caused by a missing libf77blas file. If this is the case try:
-
-```
-sudo apt install libatlas3-base
+pip3 install numpy scipy pandas PyYAML GPIOzero pyserial
 ```
 
 There are a number of additional specialised libraries that are also required, these are detailled below.
