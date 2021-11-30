@@ -59,13 +59,8 @@ pip3 install gps
 ### WittyPi HAT
 The power to the Pi is controlled using the WittyPi HAT. This controls when the Pi powers down and up to save electricity while it is dark. Details can be found [here](http://www.uugear.com/doc/WittyPi2_UserManual.pdf). To install the required software use the following commands from the home directory (NOTE! it is strongly suggested that this is done before mounting the WittyPi board):
 ```
-wget http://www.uugear.com/repo/WittyPi2/installWittyPi.sh
-sudo sh installWittyPi.sh
-```
-or 
-```
 wget http://www.uugear.com/repo/WittyPi3/install.sh
-sudo sh installWittyPi.sh
+sudo sh install.sh
 ```
 Depending on whether you have the 2 or 3 board. This script goes through several steps to ensure the WittyPi board will operate correctly. Note it is not necessary to install Qt for the GUI. Once it is installed a correct script to tell the board when to power on and off is required. In the ```/home/pi/wittyPi``` folder create a text document called ```schedule.wpi``` containing the following text:
 ```
