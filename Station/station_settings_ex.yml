@@ -7,15 +7,11 @@ save_format: csv
 start_time: '08:00'
 stop_time: '16:00'
 
-# iFit model settings
-model_pad: 2
-model_res: 0.01
-
 # Spectrometer settings
 start_int_time: 200
 start_coadds: 10
 min_int_time: 50
-max_int_time: 5000
+max_int_time: 600
 int_time_step: 50
 target_int: 50000
 
@@ -28,3 +24,29 @@ step_type: double
 steps_per_spec: 2
 specs_per_scan: 100
 angle_per_step: 0.9
+
+# iFit parameter settings
+fit_parameters:
+  SO2:
+    value: 1.0e16
+    xpath: Ref/SO2_295K.txt
+  O3:
+    value: 1.0e19
+    xpath: Ref/O3_243K.txt
+  Ring:
+    value: 0.1
+    xpath: Ref/Ring.txt
+  bgpoly0:
+    value: 0.0
+  bgpoly1:
+    value: 0.0
+  bgpoly2:
+    value: 0.0
+  bgpoly3:
+    value: 1.0
+  shift0:
+    value: 0.0
+  shift1:
+    value: 0.1
+  offset0:
+    value: 0.0
