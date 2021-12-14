@@ -19,7 +19,7 @@ from PyQt5.QtCore import Qt, QThreadPool, QTimer, pyqtSlot, QThread
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QMessageBox, QLabel, QLineEdit, QPushButton,
                              QFrame, QSplitter, QTabWidget, QFileDialog,
-                             QScrollArea, QToolBar, QPlainTextEdit, QComboBox,
+                             QScrollArea, QToolBar, QPlainTextEdit,
                              QFormLayout, QDialog, QAction, QDateTimeEdit,
                              QDateEdit, QSpinBox, QDoubleSpinBox, QCheckBox)
 
@@ -777,7 +777,7 @@ class MainWindow(QMainWindow):
             self.syncing = False
             self.syncTimer.stop()
 
-        # iF syncing is OFF, turn it ON
+        # If syncing is OFF, turn it ON
         else:
             self.sync_button.setText('Syncing ON')
             self.sync_button.setStyleSheet("background-color: green")
@@ -825,7 +825,7 @@ class MainWindow(QMainWindow):
         if sync_so2_flag and sync_spec_flag:
             sync_mode = 'both'
         if not sync_so2_flag and not sync_spec_flag:
-            logger.info('Not within syncing time window')
+            logger.debug('Not within syncing time window')
             return
 
         logger.info('Beginning scanner sync')
