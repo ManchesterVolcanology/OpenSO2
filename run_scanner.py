@@ -53,7 +53,7 @@ logger.addHandler(stdout_handler)
 datestamp = datetime.now().date()
 
 # Create results folder
-results_fpath = f"Results/{datestamp}/"
+results_fpath = f'Results/{datestamp}/'
 if not os.path.exists(results_fpath + 'so2/'):
     os.makedirs(results_fpath + 'so2/')
 if not os.path.exists(results_fpath + 'spectra/'):
@@ -255,8 +255,8 @@ def main_loop():
 
         else:
             # Log that the process was not started
-            logger.warning("Too many processes running, "
-                           f"scan {scanner.scan_number} not analysed")
+            logger.warning('Too many processes running, '
+                           f'scan {scanner.scan_number} not analysed')
 
         # Update the scan number
         scanner.scan_number += 1
