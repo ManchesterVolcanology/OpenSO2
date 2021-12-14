@@ -507,6 +507,7 @@ class MainWindow(QMainWindow):
         self.station_cbar = {}
         self.station_axes = {}
         self.station_status = {}
+        self.station_sync_flag = {}
         self.station_graphwin = {}
         self.flux_lines = {}
         self.station_widgets = {}
@@ -565,7 +566,12 @@ class MainWindow(QMainWindow):
         self.station_status[name] = QLabel('Status: -')
         coln = 0
         layout.addWidget(self.station_status[name], 0, coln)
-        layout.addWidget(QVLine(), 0, coln+1)
+
+        # Add checkbox to sync the station or not
+        self.station_sync_flag[name] = QCheckBox('Sync station?')
+        layout.addWidget(self.station_sync_flag[name], 1, coln)
+
+        layout.addWidget(QVLine(), 0, coln+1, 2, 1)
         coln += 2
 
         # Add the station location
@@ -581,32 +587,31 @@ class MainWindow(QMainWindow):
             stat_lon += u"\N{DEGREE SIGN}W"
         stat_loc = QLabel(f'Location: {stat_lat}, {stat_lon}')
         layout.addWidget(stat_loc, 0, coln)
-        layout.addWidget(QVLine(), 0, coln+1)
-        coln += 2
 
         # Add the station altitude
         stat_alt = QLabel(f'Altitude: {loc_info["altitude"]} m')
-        layout.addWidget(stat_alt, 0, coln)
-        layout.addWidget(QVLine(), 0, coln+1)
+        layout.addWidget(stat_alt, 1, coln)
+
+        layout.addWidget(QVLine(), 0, coln+1, 2, 1)
         coln += 2
 
         # Add the station orientation
         stat_az = QLabel(f'Orientation: {loc_info["azimuth"]}'
                          + u"\N{DEGREE SIGN}")
         layout.addWidget(stat_az, 0, coln)
-        layout.addWidget(QVLine(), 0, coln+1)
+
+        layout.addWidget(QVLine(), 0, coln+1, 2, 1)
         coln += 2
 
         # Add button to edit the station
         edit_btn = QPushButton('Edit Station')
         edit_btn.clicked.connect(lambda: self.edit_station(name))
         layout.addWidget(edit_btn, 0, coln)
-        coln += 1
 
         # Add button to delete the station
         close_btn = QPushButton('Delete Station')
         close_btn.clicked.connect(lambda: self.del_station(name))
-        layout.addWidget(close_btn, 0, coln)
+        layout.addWidget(close_btn, 1, coln)
         coln += 1
 
         # Add the station widgets to a dictionary
@@ -682,7 +687,7 @@ class MainWindow(QMainWindow):
         splitter = QSplitter(Qt.Vertical)
         splitter.addWidget(self.station_graphwin[name])
         splitter.addWidget(self.station_log[name])
-        layout.addWidget(splitter, 1, 0, 1, coln)
+        layout.addWidget(splitter, 2, 0, 1, coln)
 
         logger.info(f'Added {name} station')
 
@@ -854,11 +859,15 @@ class MainWindow(QMainWindow):
         min_int = float(self.widgets.get('lo_int_lim'))
         max_int = float(self.widgets.get('hi_int_lim'))
 
+        # Get stations to sync
+        stations_to_sync = [s for s in self.stations
+                            if self.station_sync_flag[s.name].isChecked()]
+
         self.statusBar().showMessage('Syncing...')
 
         # Initialise the sync thread
         self.syncThread = QThread()
-        self.syncWorker = SyncWorker(self.stations, self.analysis_date,
+        self.syncWorker = SyncWorker(stations_to_sync, self.analysis_date,
                                      sync_mode, volc_loc, default_alt,
                                      default_az, wind_speed, scan_pair_time,
                                      scan_pair_flag, min_scd, max_scd, min_int,

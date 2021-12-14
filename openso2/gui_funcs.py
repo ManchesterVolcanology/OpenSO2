@@ -95,7 +95,7 @@ class SyncWorker(QObject):
         scans = {}
 
         # Sync each station
-        for station in self.stations.values():
+        for station in self.stations_to_sync:
 
             logging.info(f'Syncing {station.name} station...')
 
