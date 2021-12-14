@@ -25,6 +25,7 @@ class GPS():
                 comport = serial.tools.list_ports.comports()[0].device
             except IndexError:
                 logger.warning('GPS not connected: no serial port detected!')
+                return
 
         # Connect to the gps
         self.serial_port = serial.Serial(comport, baudrate=baudrate,
@@ -72,6 +73,7 @@ class GPS():
 
             except serial.SerialException:
                 logger.warning('GPS disconnected!')
+                self.close()
 
     def _parse_gpgga(self, data):
         """Parse GPGGA string."""
