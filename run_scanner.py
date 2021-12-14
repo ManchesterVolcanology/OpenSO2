@@ -20,18 +20,19 @@ import sys
 import time
 import yaml
 import logging
+import subprocess
 from datetime import datetime
 from multiprocessing import Process
 
+from ifit.gps import GPS
 from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
 from ifit.spectrometers import Spectrometer
 
 from openso2.scanner import Scanner
 from openso2.analyse_scan import analyse_scan, update_int_time
-from openso2.call_gps import sync_gps_time
 
-__version__ = 'v_1_2'
+__version__ = 'v_1_3'
 
 # =============================================================================
 # Set up logging
@@ -109,9 +110,29 @@ def main_loop():
 #   Program setup
 # =============================================================================
 
-    # Sync time with the GPS
-    p = Process(target=sync_gps_time)
-    p.start()
+    # Connect to the GPS
+    gps = GPS()
+
+    # Get a fix from the GPS
+    ts, lat, lon, alt, flag = gps.get_fix()
+
+    if flag:
+        logger.info('Updating system time: {ts.strftime("%Y-%m-%d %H:%M:%S")}')
+        tstr = ts.strftime('%a %b %d %H:%M:%S UTC %Y')
+        subprocess.call(f'sudo date -s {tstr}', shell=True)
+
+        # Log the scanner location
+        logger.info('Scanner location:\n'
+                    + f'Latitude:   {lat}'
+                    + f'Longitutde: {lon}'
+                    + f'Altitude:   {alt}')
+
+    else:
+        logger.warning('GPS fix failed, using RTC time (not yet implemented)')
+
+        # =====================================================================
+        # Add code for RTC time sync
+        # =====================================================================
 
     # Read in the station operation settings file
     with open('Station/station_settings.yml', 'r') as ymlfile:
@@ -120,7 +141,7 @@ def main_loop():
 
     msg = 'Scanner Settings:'
     for key, value in settings.items():
-        msg += f'\n{key}\t{value}'
+        msg += f'\n{key}:\t{value}'
     logger.info(msg)
 
     spectro = Spectrometer(integration_time=settings['start_int_time'],
@@ -166,7 +187,7 @@ def main_loop():
 
     # If before scan time, wait
     if datetime.now().time() < start_time:
-        logger.info('Station idle')
+        logger.info(f'Station idle, waiting untill {start_time}')
 
         # Check time every 10s
         while datetime.now().time() < start_time:
@@ -181,7 +202,7 @@ def main_loop():
                       home_angle=settings['home_angle'],
                       max_steps_home=settings['max_steps_home'],
                       spectrometer=spectro)
-    logger.info('Scanner connected')
+    logger.info('Scanner engaged')
 
     # Begin loop
     while datetime.now().time() < stop_time:
@@ -240,8 +261,10 @@ def main_loop():
         # Update the scan number
         scanner.scan_number += 1
 
-    # Release the scanner to conserve power
+    # Return the scanner to home and release to conserve power
+    scanner.find_home()
     scanner.motor.release()
+    logger.info('Scanner released')
 
     # Finish up any analysis that is still ongoing
     for p in processes:
