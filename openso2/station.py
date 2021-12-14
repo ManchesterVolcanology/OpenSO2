@@ -25,12 +25,13 @@ class Station:
         Name of the station. Default is "TEST"
     """
 
-    def __init__(self, name, com_info, loc_info):
+    def __init__(self, name, com_info, loc_info, sync_flag=True):
         """Initialise."""
         # Set the connection and location information for this station
         self.name = name
         self.com_info = com_info
         self.loc_info = loc_info
+        self.sync_flag = sync_flag
 
 # =============================================================================
 # Sync Folder

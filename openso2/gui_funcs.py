@@ -94,8 +94,15 @@ class SyncWorker(QObject):
         # Generate an empty dictionary to hold the scans
         scans = {}
 
+        # Set the file path to the results folder
+        fpath = f'Results/{self.today_date}'
+
         # Sync each station
-        for station in self.stations_to_sync:
+        for station in self.stations.values():
+
+            if not station.sync_flag:
+                logging.info(f'Syncing {station.name} station disabled')
+                continue
 
             logging.info(f'Syncing {station.name} station...')
 
@@ -152,7 +159,6 @@ class SyncWorker(QObject):
                 scans[station.name] = new_so2_fnames
 
                 # Update scan plots if new data is found
-                fpath = f'Results/{self.today_date}'
                 self.updatePlots.emit(station.name, fpath)
 
         # Get all local files to recalculate flux with updated scans
@@ -429,10 +435,14 @@ def get_local_scans(stations, fpath):
 
     # For each station find the available scans and there timestamps
     for name, station in stations.items():
-        scan_fnames[name] = [f'{fpath}/{name}/so2/{f}'
-                             for f in os.listdir(f'{fpath}/{name}/so2/')]
-        scan_times[name] = [datetime.strptime(f[:14], '%Y%m%d_%H%M%S')
-                            for f in os.listdir(f'{fpath}/{name}/so2/')]
+        try:
+            scan_fnames[name] = [f'{fpath}/{name}/so2/{f}'
+                                 for f in os.listdir(f'{fpath}/{name}/so2/')]
+            scan_times[name] = [datetime.strptime(f[:14], '%Y%m%d_%H%M%S')
+                                for f in os.listdir(f'{fpath}/{name}/so2/')]
+        except FileNotFoundError:
+            scan_fnames[name] = []
+            scan_times[name] = []
 
     return scan_fnames, scan_times
 

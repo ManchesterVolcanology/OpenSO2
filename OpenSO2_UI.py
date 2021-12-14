@@ -19,7 +19,7 @@ from PyQt5.QtCore import Qt, QThreadPool, QTimer, pyqtSlot, QThread
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
                              QMessageBox, QLabel, QLineEdit, QPushButton,
                              QFrame, QSplitter, QTabWidget, QFileDialog,
-                             QScrollArea, QToolBar, QPlainTextEdit,
+                             QScrollArea, QToolBar, QPlainTextEdit, QComboBox,
                              QFormLayout, QDialog, QAction, QDateTimeEdit,
                              QDateEdit, QSpinBox, QDoubleSpinBox, QCheckBox)
 
@@ -28,7 +28,7 @@ from openso2.gui_funcs import (SyncWorker, PostAnalysisWorker, Widgets,
                                QTextEditLogger, browse)
 from openso2.plume import calc_end_point
 
-__version__ = '1.2'
+__version__ = '1.3'
 __author__ = 'Ben Esse'
 
 logger = logging.getLogger()
@@ -507,7 +507,6 @@ class MainWindow(QMainWindow):
         self.station_cbar = {}
         self.station_axes = {}
         self.station_status = {}
-        self.station_sync_flag = {}
         self.station_graphwin = {}
         self.flux_lines = {}
         self.station_widgets = {}
@@ -549,10 +548,10 @@ class MainWindow(QMainWindow):
 #   Add Scanning Stations
 # =============================================================================
 
-    def add_station(self, name, com_info, loc_info):
+    def add_station(self, name, com_info, loc_info, sync_flag):
         """Add station controls and displays to a new tab."""
         # Create the station object
-        self.stations[name] = Station(name, com_info, loc_info)
+        self.stations[name] = Station(name, com_info, loc_info, sync_flag)
 
         # Create the tab to hold the station widgets
         self.stationTabs[name] = QWidget()
@@ -568,8 +567,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.station_status[name], 0, coln)
 
         # Add checkbox to sync the station or not
-        self.station_sync_flag[name] = QCheckBox('Sync station?')
-        layout.addWidget(self.station_sync_flag[name], 1, coln)
+        sync_flag = QLabel(f'Syncing: {sync_flag}')
+        layout.addWidget(sync_flag, 1, coln)
 
         layout.addWidget(QVLine(), 0, coln+1, 2, 1)
         coln += 2
@@ -615,7 +614,8 @@ class MainWindow(QMainWindow):
         coln += 1
 
         # Add the station widgets to a dictionary
-        self.station_widgets[name] = {'loc': stat_loc, 'az': stat_az}
+        self.station_widgets[name] = {'loc': stat_loc, 'az': stat_az,
+                                      'sync_flag': sync_flag}
 
         # Create the graphs
         self.station_graphwin[name] = pg.GraphicsLayoutWidget(show=True)
@@ -747,6 +747,8 @@ class MainWindow(QMainWindow):
             self.station_widgets[name]['az'].setText('Orientation: '
                                                      + f'{loc_info["azimuth"]}'
                                                      + u"\N{DEGREE SIGN}")
+            self.station_widgets[name]['sync_flag'].setText(
+                f'Syncing: {station.sync_flag}')
 
             # Update the station map
             self.update_station_map(name)
@@ -859,15 +861,11 @@ class MainWindow(QMainWindow):
         min_int = float(self.widgets.get('lo_int_lim'))
         max_int = float(self.widgets.get('hi_int_lim'))
 
-        # Get stations to sync
-        stations_to_sync = [s for s in self.stations
-                            if self.station_sync_flag[s.name].isChecked()]
-
         self.statusBar().showMessage('Syncing...')
 
         # Initialise the sync thread
         self.syncThread = QThread()
-        self.syncWorker = SyncWorker(stations_to_sync, self.analysis_date,
+        self.syncWorker = SyncWorker(self.stations, self.analysis_date,
                                      sync_mode, volc_loc, default_alt,
                                      default_az, wind_speed, scan_pair_time,
                                      scan_pair_flag, min_scd, max_scd, min_int,
@@ -1164,7 +1162,8 @@ class MainWindow(QMainWindow):
         config['stations'] = {}
         for name, station in self.stations.items():
             config['stations'][name] = {'com_info': station.com_info,
-                                        'loc_info': station.loc_info}
+                                        'loc_info': station.loc_info,
+                                        'sync_flag': station.sync_flag}
 
         # Get save filename if required
         if asksavepath or self.config_fname is None:
@@ -1336,12 +1335,16 @@ class NewStationWizard(QDialog):
         # Set the layout
         layout = QFormLayout()
 
+        syncComboBox = QComboBox()
+        syncComboBox.addItems(['True', 'False'])
+
         # Setup entry widgets
         self.widgets = {'Name': QLineEdit(),
                         'Latitude': QLineEdit(),
                         'Longitude': QLineEdit(),
                         'Altitude': QLineEdit(),
                         'Azimuth': QLineEdit(),
+                        'Syncing': syncComboBox,
                         'Host': QLineEdit(),
                         'Username': QLineEdit(),
                         'Password': QLineEdit()}
@@ -1360,15 +1363,17 @@ class NewStationWizard(QDialog):
     def accept_action(self):
         """Record the station data and exit."""
         try:
-            loc_info = {}
-            loc_info['latitude'] = float(self.widgets['Latitude'].text())
-            loc_info['longitude'] = float(self.widgets['Longitude'].text())
-            loc_info['altitude'] = float(self.widgets['Altitude'].text())
-            loc_info['azimuth'] = float(self.widgets['Azimuth'].text())
-            com_info = {}
-            com_info['host'] = self.widgets['Host'].text()
-            com_info['username'] = self.widgets['Username'].text()
-            com_info['password'] = self.widgets['Password'].text()
+            loc_info = {'latitude':  float(self.widgets['Latitude'].text()),
+                        'longitude': float(self.widgets['Longitude'].text()),
+                        'altitude':  float(self.widgets['Azimuth'].text()),
+                        'azimuth':   float(self.widgets['Azimuth'].text())}
+            com_info = {'host': self.widgets['Host'].text(),
+                        'username': self.widgets['Username'].text(),
+                        'password': self.widgets['Password'].text()}
+            if self.widgets['Syncing'].currentText() == 'True':
+                sync_flag = True
+            else:
+                sync_flag = False
         except ValueError:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Critical)
@@ -1381,7 +1386,8 @@ class NewStationWizard(QDialog):
 
         self.station_info = {'name': self.widgets['Name'].text(),
                              'loc_info': loc_info,
-                             'com_info': com_info}
+                             'com_info': com_info,
+                             'sync_flag': sync_flag}
         self.accept()
 
     def cancel_action(self):
@@ -1402,6 +1408,7 @@ class EditStationWizard(QDialog):
         self.station = station
         self.loc_info = station.loc_info
         self.com_info = station.com_info
+        self.sync_flag = station.sync_flag
         self.station_data = {}
 
         self._createApp()
@@ -1410,6 +1417,13 @@ class EditStationWizard(QDialog):
         # Set the layout
         layout = QFormLayout()
 
+        # Create sync flag widget
+        syncComboBox = QComboBox()
+        syncComboBox.addItems(['True', 'False'])
+        index = syncComboBox.findText(str(self.sync_flag), Qt.MatchFixedString)
+        if index >= 0:
+            syncComboBox.setCurrentIndex(index)
+
         # Setup entry widgets
         self.widgets = {
             'Name': QLineEdit(str(self.station.name)),
@@ -1417,6 +1431,7 @@ class EditStationWizard(QDialog):
             'Longitude': QLineEdit(str(self.loc_info['longitude'])),
             'Altitude': QLineEdit(str(self.loc_info['altitude'])),
             'Azimuth': QLineEdit(str(self.loc_info['azimuth'])),
+            'Syncing': syncComboBox,
             'Host': QLineEdit(str(self.com_info['host'])),
             'Username': QLineEdit(str(self.com_info['username'])),
             'Password': QLineEdit(str(self.com_info['password']))}
@@ -1435,16 +1450,17 @@ class EditStationWizard(QDialog):
     def accept_action(self):
         """Record the station data and exit."""
         try:
-            loc_info = {}
-            loc_info['latitude'] = float(self.widgets['Latitude'].text())
-            loc_info['longitude'] = float(self.widgets['Longitude'].text())
-            loc_info['altitude'] = float(self.widgets['Altitude'].text())
-            loc_info['azimuth'] = float(self.widgets['Azimuth'].text())
-
-            com_info = {}
-            com_info['host'] = self.widgets['Host'].text()
-            com_info['username'] = self.widgets['Username'].text()
-            com_info['password'] = self.widgets['Password'].text()
+            loc_info = {'latitude':  float(self.widgets['Latitude'].text()),
+                        'longitude': float(self.widgets['Longitude'].text()),
+                        'altitude':  float(self.widgets['Azimuth'].text()),
+                        'azimuth':   float(self.widgets['Azimuth'].text())}
+            com_info = {'host': self.widgets['Host'].text(),
+                        'username': self.widgets['Username'].text(),
+                        'password': self.widgets['Password'].text()}
+            if self.widgets['Syncing'].currentText() == 'True':
+                sync_flag = True
+            else:
+                sync_flag = False
         except ValueError:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Critical)
@@ -1458,6 +1474,7 @@ class EditStationWizard(QDialog):
         self.station.name = self.widgets['Name'].text()
         self.station.loc_info = loc_info
         self.station.com_info = com_info
+        self.station.sync_flag = sync_flag
         self.accept()
 
     def cancel_action(self):
