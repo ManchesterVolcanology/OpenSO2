@@ -310,6 +310,18 @@ class MainWindow(QMainWindow):
         sync_layout = QGridLayout(syncTab)
         nrow = 0
 
+        sync_layout.addWidget(QLabel('Local Folder:'), nrow, 0)
+        self.widgets['sync_folder'] = QLineEdit('Results')
+        sync_layout.addWidget(self.widgets['sync_folder'], nrow, 1)
+        btn = QPushButton('Browse')
+        btn.clicked.connect(partial(
+            browse, self, self.widgets['sync_folder'], 'folder', None))
+        sync_layout.addWidget(btn, nrow, 2)
+        nrow += 1
+
+        sync_layout.addWidget(QHLine(), nrow, 0, 1, 10)
+        nrow += 1
+
         header = QLabel('Analysed Scan Files')
         header.setAlignment(Qt.AlignLeft)
         header.setFont(QFont('Ariel', 12))
@@ -837,6 +849,11 @@ class MainWindow(QMainWindow):
 
         logger.info('Beginning scanner sync')
 
+        # Pull the results folder
+        res_dir = self.widgets.get('sync_folder')
+        if not os.path.isdir(res_dir):
+            os.makedirs(res_dir)
+
         # Get today's date
         self.analysis_date = datetime.now().date()
 
@@ -865,11 +882,10 @@ class MainWindow(QMainWindow):
 
         # Initialise the sync thread
         self.syncThread = QThread()
-        self.syncWorker = SyncWorker(self.stations, self.analysis_date,
-                                     sync_mode, volc_loc, default_alt,
-                                     default_az, wind_speed, scan_pair_time,
-                                     scan_pair_flag, min_scd, max_scd, min_int,
-                                     max_int)
+        self.syncWorker = SyncWorker(
+            res_dir, self.stations, self.analysis_date, sync_mode, volc_loc,
+            default_alt, default_az, wind_speed, scan_pair_time,
+            scan_pair_flag, min_scd, max_scd, min_int, max_int)
 
         # Move the worker to the thread
         self.syncWorker.moveToThread(self.syncThread)

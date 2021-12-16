@@ -60,13 +60,14 @@ class SyncWorker(QObject):
     updatePlots = pyqtSignal(str, str)
     updateFluxPlot = pyqtSignal(str)
 
-    def __init__(self, stations, today_date, sync_mode, volc_loc, default_alt,
-                 default_az, wind_speed, scan_pair_time, scan_pair_flag,
-                 min_scd, max_scd, min_int, max_int):
+    def __init__(self, res_dir, stations, analysis_date, sync_mode, volc_loc,
+                 default_alt, default_az, wind_speed, scan_pair_time,
+                 scan_pair_flag, min_scd, max_scd, min_int, max_int):
         """Initialize."""
         super(QObject, self).__init__()
+        self.res_dir = res_dir
         self.stations = stations
-        self.today_date = today_date
+        self.analysis_date = analysis_date
         self.sync_mode = sync_mode
         self.volc_loc = volc_loc
         self.default_alt = default_alt
@@ -95,7 +96,7 @@ class SyncWorker(QObject):
         scans = {}
 
         # Set the file path to the results folder
-        fpath = f'Results/{self.today_date}'
+        fpath = f'{self.res_dir}/{self.analysis_date}'
 
         # Sync each station
         for station in self.stations.values():
@@ -106,7 +107,7 @@ class SyncWorker(QObject):
 
             logging.info(f'Syncing {station.name} station...')
 
-            stat_dir = f'Results/{self.today_date}/{station.name}/'
+            stat_dir = f'{self.res_dir}/{self.analysis_date}/{station.name}/'
             if not os.path.isdir(stat_dir):
                 os.makedirs(stat_dir)
 
@@ -134,23 +135,24 @@ class SyncWorker(QObject):
 
             # Sync spectra files
             if self.sync_mode in ['spec', 'both']:
-                local_dir = f'Results/{self.today_date}/{station.name}/' \
-                            + 'spectra/'
+                local_dir = f'{self.res_dir}/{self.analysis_date}/' \
+                            + f'{station.name}/spectra/'
                 if not os.path.isdir(local_dir):
                     os.makedirs(local_dir)
-                remote_dir = f'/home/pi/open_so2/Results/{self.today_date}/' \
-                             + 'spectra/'
+                remote_dir = '/home/pi/open_so2/Results/' \
+                             + f'{self.analysis_date}/spectra/'
                 new_spec_fnames, err = station.sync(local_dir, remote_dir)
                 logging.info(f'Synced {len(new_spec_fnames)} spectra scans '
                              + f'from {station.name}')
 
             # Sync so2 files
             if self.sync_mode in ['so2', 'both']:
-                local_dir = f'Results/{self.today_date}/{station.name}/so2/'
+                local_dir = f'{self.res_dir}/{self.analysis_date}/' \
+                            + f'{station.name}/so2/'
                 if not os.path.isdir(local_dir):
                     os.makedirs(local_dir)
-                remote_dir = f'/home/pi/open_so2/Results/{self.today_date}/' \
-                             + 'so2/'
+                remote_dir = '/home/pi/open_so2/Results/' \
+                             + f'{self.analysis_date}/so2/'
                 new_so2_fnames, err = station.sync(local_dir, remote_dir)
                 logging.info(f'Synced {len(new_so2_fnames)} scans from '
                              + f'{station.name}')
@@ -178,7 +180,7 @@ class SyncWorker(QObject):
             # Format the file name of the flux output file
             for name, flux_df in flux_results.items():
                 flux_df.to_csv(
-                    f'{fpath}/{name}/{self.today_date}_{name}_fluxes.csv')
+                    f'{fpath}/{name}/{self.analysis_date}_{name}_fluxes.csv')
 
             # Plot the fluxes on the GUI
             self.updateFluxPlot.emit('RealTime')

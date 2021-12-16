@@ -1,12 +1,15 @@
 """Control communication between the home computer and the scanning station."""
 
 import os
-import pysftp
 import logging
 from datetime import datetime as dt
-from paramiko.ssh_exception import SSHException
 
-logging.getLogger("paramiko").setLevel(logging.WARNING)
+try:
+    import pysftp
+    from paramiko.ssh_exception import SSHException
+    logging.getLogger("paramiko").setLevel(logging.WARNING)
+except ModuleNotFoundError:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +157,7 @@ class Station:
 #   Pull Log
 # =============================================================================
 
-    def pull_log(self):
+    def pull_log(self, sdate=None):
         """Pull the log file from the station for analysis.
 
         NOTE THIS ASSUMES THE DATE ON THE PI IS CORRECT TO PULL THE CORRECT LOG
@@ -162,7 +165,8 @@ class Station:
 
         Parameters
         ----------
-        None
+        sdate : datetime.date object or None, optional
+            The date to sync the log for. If None, then today is used.
 
         Returns
         -------
@@ -173,11 +177,12 @@ class Station:
             message
         """
         # Get the date to find the correct log file
-        date = dt.now().date()
+        if sdate is None:
+            sdate = dt.now().date()
 
         # Make sure the Station folder exists
-        if not os.path.exists(f'Results/{date}/'):
-            os.makedirs(f'Results/{date}/')
+        if not os.path.exists(f'Results/{sdate}/'):
+            os.makedirs(f'Results/{sdate}/')
 
         cnopts = pysftp.CnOpts()
         cnopts.hostkeys = None
@@ -189,10 +194,10 @@ class Station:
 
                 # Get the status file
                 try:
-                    sftp.get(f'/home/pi/open_so2/Results/{date}/{date}.log',
-                             f'Results/{date}/{self.name}/{date}.log',
+                    sftp.get(f'/home/pi/open_so2/Results/{sdate}/{sdate}.log',
+                             f'Results/{sdate}/{self.name}/{sdate}.log',
                              preserve_mtime=True)
-                    fname = f'Results/{date}/{self.name}/{date}.log'
+                    fname = f'Results/{sdate}/{self.name}/{sdate}.log'
                 except FileNotFoundError:
                     fname = None
                     logger.info('No log file found')
