@@ -126,7 +126,7 @@ The Open SO<sub>2</sub> scanners are designed to work as a network, with a centr
 The home software is currently run as a python script (written in python 3.6). The easiest way to get python up and running is using Anaconda (https://www.anaconda.com/) which comes with most of the required libraries. The best method to install is to create a new virtual environment for the software:
 
 ```
-conda create -n openso2 python=3.6 numpy scipy pandas pyyaml pyqt pyqtgraph
+conda create -n openso2 numpy scipy pandas pyyaml
 ```
 
 This will create the environment and install some of the libraries on the main Anaconda channel. Down activate the environment:
@@ -135,10 +135,17 @@ This will create the environment and install some of the libraries on the main A
 conda activate openso2
 ```
 
+then install PyQt5 and pyqtgraph using pip, as the version on conda is not up to date:
+
+```
+pip install PyQt5
+pip install pyqtgraph
+```
+
 and install the remaining libraries from conda-forge:
 
 ```
-conda install -c conda-forge pyside2 pysftp
+conda install -c conda-forge pysftp
 ```
 
 Now the home software can be launched from the command line.
