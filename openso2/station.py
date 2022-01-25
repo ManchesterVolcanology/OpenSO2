@@ -69,7 +69,11 @@ class Station:
                 local_files = os.listdir(local_dir)
 
                 # Get the file names in the remote directory
-                remote_files = sftp.listdir(remote_dir)
+                try:
+                    remote_files = sftp.listdir(remote_dir)
+                except FileNotFoundError:
+                    logger.info('No files found')
+                    return [], [False, '']
 
                 # FInd the files to sync
                 files_to_sync = [f for f in remote_files

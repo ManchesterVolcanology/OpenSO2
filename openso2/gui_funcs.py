@@ -179,8 +179,11 @@ class SyncWorker(QObject):
 
             # Format the file name of the flux output file
             for name, flux_df in flux_results.items():
-                flux_df.to_csv(
-                    f'{fpath}/{name}/{self.analysis_date}_{name}_fluxes.csv')
+                try:
+                    flux_df.to_csv(f'{fpath}/{name}/{self.analysis_date}_'
+                                   + f'{name}_fluxes.csv')
+                except FileNotFoundError:
+                    pass
 
             # Plot the fluxes on the GUI
             self.updateFluxPlot.emit('RealTime')
@@ -253,8 +256,11 @@ class PostAnalysisWorker(QObject):
 
         # Format the file name of the flux output file
         for name, flux_df in flux_results.items():
-            flux_df.to_csv(f'{fpath}/{name}/{self.date_to_analyse}_{name}_'
-                           + 'fluxes_reanalysed.csv')
+            try:
+                flux_df.to_csv(f'{fpath}/{name}/{self.date_to_analyse}_{name}_'
+                               + 'fluxes_reanalysed.csv')
+            except FileNotFoundError:
+                pass
 
         # Plot the fluxes on the GUI
         self.updateFluxPlot.emit('Post')
