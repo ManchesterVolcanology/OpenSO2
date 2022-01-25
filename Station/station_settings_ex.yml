@@ -1,6 +1,5 @@
 # Station name
 station_name: TEST
-version: v_1_2
 save_format: csv
 
 # Scanning start and end time (hours)
