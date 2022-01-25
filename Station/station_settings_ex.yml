@@ -1,5 +1,5 @@
 # Station name
-station_name: TEST
+station_name: NAME
 save_format: csv
 
 # Scanning start and end time (hours)
@@ -31,7 +31,7 @@ fit_parameters:
     xpath: Ref/SO2_295K.txt
   O3:
     value: 1.0e19
-    xpath: Ref/O3_243K.txt
+    xpath: Ref/O3_Voigt_246K.txt
   Ring:
     value: 0.1
     xpath: Ref/Ring.txt
@@ -47,5 +47,3 @@ fit_parameters:
     value: 0.0
   shift1:
     value: 0.1
-  offset0:
-    value: 0.0
