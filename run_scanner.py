@@ -21,6 +21,7 @@ import time
 import yaml
 import logging
 import subprocess
+import numpy as np
 from datetime import datetime
 from multiprocessing import Process
 
@@ -172,8 +173,9 @@ def main_loop():
     # Report fitting parameters
     logger.info(params.pretty_print(cols=['name', 'value', 'vary', 'xpath']))
 
-    # Read a spectrum to get the wavelenghth calibration
+    # Read a spectrum to get the wavelenghth calibration and save
     [wl_calib, spec], info = spectro.get_spectrum()
+    np.savetxt(f'Station/{spectro.serial_number}_wl_calib.txt', wl_calib)
 
 # =============================================================================
 #   Begin the scanning loop
