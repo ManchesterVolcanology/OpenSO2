@@ -147,7 +147,6 @@ def main_loop():
 
     spectro = Spectrometer(integration_time=settings['start_int_time'],
                            coadds=settings['start_coadds'])
-    logger.info(f'Spectrometer {spectro.serial_number} connected')
 
 # =============================================================================
 #   Set up iFit analyser
