@@ -123,7 +123,7 @@ class SyncWorker(QObject):
                 continue
 
             # Pull the station logs
-            fname, err = station.pull_log()
+            fname, err = station.pull_log(local_dir=self.res_dir)
 
             # Read the log file
             if fname is not None:

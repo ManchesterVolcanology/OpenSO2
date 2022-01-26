@@ -161,7 +161,7 @@ class Station:
 #   Pull Log
 # =============================================================================
 
-    def pull_log(self, sdate=None):
+    def pull_log(self, local_dir='Results', sdate=None):
         """Pull the log file from the station for analysis.
 
         NOTE THIS ASSUMES THE DATE ON THE PI IS CORRECT TO PULL THE CORRECT LOG
@@ -185,8 +185,8 @@ class Station:
             sdate = dt.now().date()
 
         # Make sure the Station folder exists
-        if not os.path.exists(f'Results/{sdate}/'):
-            os.makedirs(f'Results/{sdate}/')
+        if not os.path.exists(f'{local_dir}/{sdate}/{self.name}'):
+            os.makedirs(f'{local_dir}/{sdate}/{self.name}')
 
         cnopts = pysftp.CnOpts()
         cnopts.hostkeys = None
@@ -199,9 +199,9 @@ class Station:
                 # Get the status file
                 try:
                     sftp.get(f'/home/pi/open_so2/Results/{sdate}/{sdate}.log',
-                             f'Results/{sdate}/{self.name}/{sdate}.log',
+                             f'{local_dir}/{sdate}/{self.name}/{sdate}.log',
                              preserve_mtime=True)
-                    fname = f'Results/{sdate}/{self.name}/{sdate}.log'
+                    fname = f'{local_dir}/{sdate}/{self.name}/{sdate}.log'
                 except FileNotFoundError:
                     fname = None
                     logger.info('No log file found')
