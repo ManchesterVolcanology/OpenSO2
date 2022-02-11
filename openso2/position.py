@@ -26,7 +26,7 @@ def gps_sync(gps, name):
                     + f'Altitude:   {alt}')
 
         # Write the position to a file
-        with open(f'Station/{name}', 'w') as w:
+        with open(f'Station/{name}_location.yml', 'w') as w:
             w.write(f'Time: {tstamp}\nLat: {lat}\nLon: {lon}\nAlt: {alt}')
 
     else:
