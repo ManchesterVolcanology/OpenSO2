@@ -43,7 +43,7 @@ fmt = '%(asctime)s %(levelname)s %(module)s %(funcName)s %(message)s'
 fh.setFormatter(logging.Formatter(fmt))
 logger.addHandler(fh)
 
-COLORS = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b',
+COLORS = ['#1f77b4', '#ff7f0e', '#2ca02c', '#9467bd', '#8c564b',
           '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 
 
@@ -93,9 +93,14 @@ class MainWindow(QMainWindow):
         self.config = {}
         self.config_fname = None
         if os.path.isfile('bin/.config'):
-            with open('bin/.config', 'r') as r:
-                self.config_fname = r.readline().strip()
-            self.load_config(fname=self.config_fname)
+            try:
+                with open('bin/.config', 'r') as r:
+                    self.config_fname = r.readline().strip()
+                self.load_config(fname=self.config_fname)
+            except Exception:
+                logging.warning('Error loading config file: '
+                                + self.config_fname,
+                                exc_info=True)
 
         # Update GUI theme
         if self.theme == 'Dark':
@@ -485,12 +490,12 @@ class MainWindow(QMainWindow):
         self.map_ax.setLabel('bottom', 'Time')
 
         # Create the plot of the volcano
-        scatter = pg.ScatterPlotItem(size=20, pen=pg.mkPen(COLORS[7]),
-                                     brush=pg.mkBrush(COLORS[3]))
+        scatter = pg.ScatterPlotItem(size=20, pen=pg.mkPen(COLORS[6]),
+                                     brush=pg.mkBrush('#d62728'))
         scatter.setToolTip("Volcano")
-        line = pg.PlotCurveItem(pen=pg.mkPen(COLORS[3], width=2))
-        arrow = pg.ArrowItem(pen=pg.mkPen(COLORS[3], width=2), tipAngle=45,
-                             baseAngle=25, brush=pg.mkBrush(COLORS[3]))
+        line = pg.PlotCurveItem(pen=pg.mkPen('#d62728', width=2))
+        arrow = pg.ArrowItem(pen=pg.mkPen('#d62728', width=2), tipAngle=45,
+                             baseAngle=25, brush=pg.mkBrush('#d62728'))
         line.setToolTip("Plume")
         arrow.setToolTip("Plume")
         self.map_ax.addItem(line)
@@ -671,7 +676,8 @@ class MainWindow(QMainWindow):
         self.station_log[name].setFont(QFont('Courier', 10))
 
         # Add overview plot lines
-        pen = pg.mkPen(color=COLORS[len(self.stations.keys())-1], width=2)
+        stat_num = len(self.stations.keys())-1
+        pen = pg.mkPen(color=COLORS[stat_num], width=2)
         fe0 = pg.ErrorBarItem(pen=pen)
         fl0 = pg.PlotCurveItem(pen=pen)
         fl1 = pg.PlotCurveItem(pen=pen)
@@ -686,14 +692,17 @@ class MainWindow(QMainWindow):
         # Add station to map plot
         scatter = pg.ScatterPlotItem(x=[loc_info['longitude']],
                                      y=[loc_info['latitude']],
-                                     size=15, brush=pg.mkBrush(COLORS[0]))
-        line = pg.PlotCurveItem(pen=pg.mkPen(COLORS[0], width=2))
-        arrow = pg.ArrowItem(baseAngle=25, brush=pg.mkBrush(COLORS[0]))
+                                     brush=pg.mkBrush(COLORS[stat_num]),
+                                     size=15)
+        line1 = pg.PlotCurveItem(pen=pg.mkPen(COLORS[stat_num], width=4))
+        line2 = pg.PlotCurveItem(pen=pg.mkPen(COLORS[stat_num], width=2))
+        arrow = pg.ArrowItem(baseAngle=25, brush=pg.mkBrush(COLORS[stat_num]))
         scatter.setToolTip(name)
         self.map_ax.addItem(scatter)
-        self.map_ax.addItem(line)
+        self.map_ax.addItem(line1)
+        self.map_ax.addItem(line2)
         self.map_ax.addItem(arrow)
-        self.map_plots[name] = [scatter, line, arrow]
+        self.map_plots[name] = [scatter, line1, line2, arrow]
         self.update_station_map(name)
 
         splitter = QSplitter(Qt.Vertical)
@@ -774,12 +783,13 @@ class MainWindow(QMainWindow):
         x = loc_info['longitude']
         y = loc_info['latitude']
         az = loc_info['azimuth']
-        y0, x0 = calc_end_point([y, x], 2500, az-90)
-        y1, x1 = calc_end_point([y, x], 2500, az+90)
+        y1, x1 = calc_end_point([y, x], 2500, az-90)
+        y2, x2 = calc_end_point([y, x], 2500, az+90)
         self.map_plots[name][0].setData(x=[x], y=[y])
-        self.map_plots[name][1].setData([x0, x1], [y0, y1])
-        self.map_plots[name][2].setPos(x, y)
-        self.map_plots[name][2].setStyle(angle=az+90)
+        self.map_plots[name][1].setData([x, x1], [y, y1])
+        self.map_plots[name][2].setData([x, x2], [y, y2])
+        self.map_plots[name][3].setPos(x, y)
+        self.map_plots[name][3].setStyle(angle=az+90)
 
 # =============================================================================
 #   Syncing Controls
@@ -1119,7 +1129,7 @@ class MainWindow(QMainWindow):
     def update_flux_plots(self, mode):
         """Display the calculated fluxes."""
         if mode == 'RealTime':
-            resfpath = 'Results'
+            resfpath = self.widgets.get('sync_folder')
         elif mode == 'Post':
             resfpath = self.widgets.get('dir_to_analyse')
 
@@ -1153,14 +1163,20 @@ class MainWindow(QMainWindow):
             self.flux_lines[name][2].setData(x=xdata, y=plume_alt)
             self.flux_lines[name][3].setData(x=xdata, y=plume_dir)
 
-            min_time.append(np.nanmin(xdata))
-            max_time.append(np.nanmax(xdata))
+            try:
+                min_time.append(np.nanmin(xdata))
+                max_time.append(np.nanmax(xdata))
+            except ValueError:
+                pass
 
         # Scale the x-axis (avoids issues with stations without fluxes)
-        xlim_lo = min(min_time)
-        xlim_hi = min(max_time)
-        for ax in self.flux_axes:
-            ax.setXRange(xlim_lo, xlim_hi)
+        try:
+            xlim_lo = min(min_time)
+            xlim_hi = min(max_time)
+            for ax in self.flux_axes:
+                ax.setXRange(xlim_lo, xlim_hi)
+        except ValueError:
+            pass
 
 # =============================================================================
 #   Configuratuion Controls
@@ -1235,10 +1251,12 @@ class MainWindow(QMainWindow):
                     else:
                         self.widgets.set(key, value)
                 except Exception:
-                    logger.warning(f'Failed to load {key} from config file')
+                    logger.warning(f'Failed to load {key} from config file',
+                                   exc_info=True)
 
         except FileNotFoundError:
-            logger.warning(f'Unable to load config file {self.config_fname}')
+            logger.warning(f'Unable to load config file {self.config_fname}',
+                           exc_info=True)
             config = {}
         self.config = config
         logger.info(f'Configuration loaded from {self.config_fname}')
