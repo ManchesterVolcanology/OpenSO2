@@ -9,6 +9,8 @@ Station/
 status.txt
 .config
 *.log.*
+*.yaml
+*.yml
 
 # Scratch files
 *scratch*
