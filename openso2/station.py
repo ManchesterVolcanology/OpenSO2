@@ -139,7 +139,7 @@ class Station:
             with pysftp.Connection(**self.com_info, cnopts=cnopts) as sftp:
 
                 # Get the status file
-                sftp.get('/home/pi/open_so2/Station/status.txt',
+                sftp.get('/home/pi/OpenSO2/Station/status.txt',
                          f'Station/{self.name}_status.txt',
                          preserve_mtime=True)
 
@@ -198,7 +198,7 @@ class Station:
 
                 # Get the status file
                 try:
-                    sftp.get(f'/home/pi/open_so2/Results/{sdate}/{sdate}.log',
+                    sftp.get(f'/home/pi/OpenSO2/Results/{sdate}/{sdate}.log',
                              f'{local_dir}/{sdate}/{self.name}/{sdate}.log',
                              preserve_mtime=True)
                     fname = f'{local_dir}/{sdate}/{self.name}/{sdate}.log'
