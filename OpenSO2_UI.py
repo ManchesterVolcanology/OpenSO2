@@ -698,6 +698,8 @@ class MainWindow(QMainWindow):
         line2 = pg.PlotCurveItem(pen=pg.mkPen(COLORS[stat_num], width=2))
         arrow = pg.ArrowItem(baseAngle=25, brush=pg.mkBrush(COLORS[stat_num]))
         scatter.setToolTip(name)
+        line1.setToolTip('+ve')
+        line2.setToolTip('-ve')
         self.map_ax.addItem(scatter)
         self.map_ax.addItem(line1)
         self.map_ax.addItem(line2)
