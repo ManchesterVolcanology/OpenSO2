@@ -1,56 +1,31 @@
 """Contains GPS functions."""
 
-import gps
 import logging
 import subprocess
 
 logger = logging.getLogger()
 
 
-class GPS(object):
-    """GPS class used to listen to GPS signals."""
+def gps_sync(gps, name):
+    """Syncs the position and time with the GPS."""
+    # Get a fix from the GPS
+    ts, lat, lon, alt, flag = gps.get_fix(time_to_wait=7200)
+    tstamp = ts.strftime("%Y-%m-%d %H:%M:%S")
 
-    def __init__(self):
-        """Initialise."""
-        # Turn on the GPS daemon
-        logger.info('Activating GPS daemon')
-        subprocess.call('sudo systemctl stop gpsd.socket', shell=True)
-        subprocess.call('sudo systemctl disable gpsd.socket', shell=True)
-        subprocess.call('sudo gpsd /dev/ttyUSB0 -F /var/run/gpsd.sock',
-                        shell=True)
+    if flag:
+        logger.info('Updating system time: {tstamp}')
+        tstr = ts.strftime('%a %b %d %H:%M:%S UTC %Y')
+        subprocess.call(f'sudo date -s {tstr}', shell=True)
 
-        # Connect to the GPS
-        logger.info('Connecting to GPS')
-        self.gpsd = gps.gps("localhost", "2947")
-        self.gpsd.stream(gps.WATCH_ENABLE | gps.WATCH_NEWSTYLE)
+        # Log the scanner location
+        logger.info('Scanner location:\n'
+                    + f'Latitude:   {lat}'
+                    + f'Longitutde: {lon}'
+                    + f'Altitude:   {alt}')
 
-    def read(self, maxtime=10):
-        """Call the GPS for position data."""
-        while True:
-            print('mark')
-            nx = self.gpsd.next()
+        # Write the position to a file
+        with open(f'Station/{name}', 'w') as w:
+            w.write(f'Time: {tstamp}\nLat: {lat}\nLon: {lon}\nAlt: {alt}')
 
-            if nx['class'] == 'TPV':
-                output = {'time': getattr(nx, 'time', 'Unknown'),
-                          'lat': getattr(nx, 'lat', 'Unknown'),
-                          'lon': getattr(nx, 'lon', 'Unknown'),
-                          'alt': getattr(nx, 'alt', 'Unknown')}
-                return output
-
-            elif nx['class'] == 'ERROR':
-                logger.error(nx['message'])
-
-        logger.warning(f'GPS timed out after {maxtime}s')
-        return None
-
-
-if __name__ == '__main__':
-
-    import time
-
-    gps_device = GPS()
-
-    data = gps_device.read()
-    for i in range(10):
-        print(data['time'], data['lat'], data['lon'])
-        time.sleep(1)
+    else:
+        logger.warning('GPS fix failed, using RTC time (not yet implemented)')

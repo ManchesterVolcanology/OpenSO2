@@ -20,7 +20,6 @@ import sys
 import time
 import yaml
 import logging
-import subprocess
 import numpy as np
 from datetime import datetime
 from multiprocessing import Process
@@ -31,6 +30,7 @@ from ifit.spectral_analysis import Analyser
 from ifit.spectrometers import Spectrometer
 
 from openso2.scanner import Scanner
+from openso2.position import gps_sync
 from openso2.analyse_scan import analyse_scan, update_int_time
 
 __version__ = 'v_1_3'
@@ -111,30 +111,6 @@ def main_loop():
 #   Program setup
 # =============================================================================
 
-    # Connect to the GPS
-    gps = GPS()
-
-    # Get a fix from the GPS
-    ts, lat, lon, alt, flag = gps.get_fix()
-
-    if flag:
-        logger.info('Updating system time: {ts.strftime("%Y-%m-%d %H:%M:%S")}')
-        tstr = ts.strftime('%a %b %d %H:%M:%S UTC %Y')
-        subprocess.call(f'sudo date -s {tstr}', shell=True)
-
-        # Log the scanner location
-        logger.info('Scanner location:\n'
-                    + f'Latitude:   {lat}'
-                    + f'Longitutde: {lon}'
-                    + f'Altitude:   {alt}')
-
-    else:
-        logger.warning('GPS fix failed, using RTC time (not yet implemented)')
-
-        # =====================================================================
-        # Add code for RTC time sync
-        # =====================================================================
-
     # Read in the station operation settings file
     with open('Station/station_settings.yml', 'r') as ymlfile:
         settings = yaml.load(ymlfile, Loader=yaml.FullLoader)
@@ -144,6 +120,22 @@ def main_loop():
     for key, value in settings.items():
         msg += f'\n{key}:\t{value}'
     logger.info(msg)
+
+# =============================================================================
+#   Sync with GPS
+# =============================================================================
+
+    # Connect to the GPS
+    gps = GPS()
+
+    # Set a background task to sync the station time and position with the GPS
+    p = Process(target=gps_sync, args=[gps, settings['station_name']])
+    p.daemon = True
+    p.start()
+
+# =============================================================================
+#   Connect to the spectrometer
+# =============================================================================
 
     spectro = Spectrometer(integration_time=settings['start_int_time'],
                            coadds=settings['start_coadds'])
