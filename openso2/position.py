@@ -8,6 +8,8 @@ logger = logging.getLogger()
 
 def gps_sync(gps, name):
     """Syncs the position and time with the GPS."""
+    logger.info('Starting GPS sync...')
+
     # Get a fix from the GPS
     ts, lat, lon, alt, flag = gps.get_fix(time_to_wait=7200)
     tstamp = ts.strftime("%Y-%m-%d %H:%M:%S")
