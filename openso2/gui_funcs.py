@@ -139,7 +139,7 @@ class SyncWorker(QObject):
                             + f'{station.name}/spectra/'
                 if not os.path.isdir(local_dir):
                     os.makedirs(local_dir)
-                remote_dir = '/home/pi/open_so2/Results/' \
+                remote_dir = '/home/pi/OpenSO2/Results/' \
                              + f'{self.analysis_date}/spectra/'
                 new_spec_fnames, err = station.sync(local_dir, remote_dir)
                 logging.info(f'Synced {len(new_spec_fnames)} spectra scans '
@@ -151,7 +151,7 @@ class SyncWorker(QObject):
                             + f'{station.name}/so2/'
                 if not os.path.isdir(local_dir):
                     os.makedirs(local_dir)
-                remote_dir = '/home/pi/open_so2/Results/' \
+                remote_dir = '/home/pi/OpenSO2/Results/' \
                              + f'{self.analysis_date}/so2/'
                 new_so2_fnames, err = station.sync(local_dir, remote_dir)
                 logging.info(f'Synced {len(new_so2_fnames)} scans from '
