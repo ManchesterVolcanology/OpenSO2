@@ -88,7 +88,7 @@ Then select ```None of the above``` and set the TZ to UTC.
 ### Adafruit Motor HAT
 Control of the stepper motor in the scanner is achieved using this HAT. Details can be found [here](https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/installing-circuitpython-on-raspberry-pi). To operate first you need to install Adafruit Blinka following these steps:
 ```
-pip3 install –upgrade setuptools
+pip3 install -–upgrade setuptools
 ```
 Next enable I2C and SPI and reboot. Then run the following commands:
 ```
