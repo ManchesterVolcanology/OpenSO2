@@ -130,7 +130,7 @@ def analyse_scan(scan_fname, analyser, save_fname=None):
     data_vars = {}
     coords = {'angle': scan_da.coords['angle']}
     for key, value in output_data.items():
-        data_vars[key] = xr.DataSet(
+        data_vars[key] = xr.DataArray(
             data=value,
             coords=coords
         )
