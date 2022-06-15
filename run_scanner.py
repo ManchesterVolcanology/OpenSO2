@@ -147,27 +147,32 @@ def main_loop():
     params = Parameters()
 
     # Add the gases
-    params.add('SO2', value=1.0e16, vary=True, xpath='Ref/SO2_295K.txt')
-    params.add('O3', value=1.0e19, vary=True, xpath='Ref/O3_Voigt_246K.txt')
-    params.add('Ring', value=0.1, vary=True, xpath='Ref/Ring.txt')
+    # params.add('SO2', value=1.0e16, vary=True, xpath='Ref/SO2_295K.txt')
+    # params.add('O3', value=1.0e19, vary=True, xpath='Ref/O3_Voigt_246K.txt')
+    # params.add('Ring', value=0.1, vary=True, xpath='Ref/Ring.txt')
 
     # Add background polynomial parameters
-    params.add('bg_poly0', value=0.0, vary=True)
-    params.add('bg_poly1', value=0.0, vary=True)
-    params.add('bg_poly2', value=0.0, vary=True)
-    params.add('bg_poly3', value=1.0, vary=True)
+    # params.add('bg_poly0', value=0.0, vary=True)
+    # params.add('bg_poly1', value=0.0, vary=True)
+    # params.add('bg_poly2', value=0.0, vary=True)
+    # params.add('bg_poly3', value=1.0, vary=True)
 
     # Add intensity offset parameters
     # params.add('offset0', value=0.0, vary=True)
 
     # Add wavelength shift parameters
-    params.add('shift0', value=0.0, vary=True)
-    params.add('shift1', value=0.1, vary=True)
+    # params.add('shift0', value=0.0, vary=True)
+    # params.add('shift1', value=0.1, vary=True)
 
     # Load the parameter information
-    # for name, info in settings['fit_parameters'].items():
-    #     info['value'] = float(info['value'])
-    #     params.add(name, **info)
+    for name, par in settings['fit_parameters'].items():
+        par['value'] = float(par['value'])
+        params.add(name, **par)
+
+    settings['fit_parameters'] = [
+        [par.name, par.value, par.vary, par.xpath]
+        for par in params.values()
+    ]
 
     # Generate the analyser
     analyser = Analyser(params,
