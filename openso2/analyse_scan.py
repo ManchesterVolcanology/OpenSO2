@@ -136,7 +136,10 @@ def analyse_scan(scan_fname, analyser, save_fname=None):
         )
 
     # Form output dataset
-    attrs = {**scan_da.attrs, **{'analysis_time': datetime.now()}}
+    attrs = {
+        **scan_da.attrs,
+        **{'analysis_time': datetime.now().strftime('%Y-%m-%dT%H:%M:%S')}
+    }
     output_ds = xr.Dataset(
         data_vars=data_vars,
         coords=coords,
