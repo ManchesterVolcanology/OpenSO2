@@ -20,7 +20,6 @@ import sys
 import time
 import yaml
 import logging
-import numpy as np
 from datetime import datetime
 from multiprocessing import Process
 
@@ -182,10 +181,6 @@ def main_loop():
     # Report fitting parameters
     logger.info(params.pretty_print(cols=['name', 'value', 'vary', 'xpath']))
 
-    # Read a spectrum to get the wavelenghth calibration and save
-    [wl_calib, spec], info = spectro.get_spectrum()
-    np.savetxt(f'Station/{spectro.serial_number}_wl_calib.txt', wl_calib)
-
 # =============================================================================
 #   Begin the scanning loop
 # =============================================================================
@@ -252,7 +247,7 @@ def main_loop():
 
             # Create new process to handle fitting of the last scan
             p = Process(target=analyse_scan,
-                        args=[scan_fname, analyser, wl_calib, save_fname])
+                        args=[scan_fname, analyser, save_fname])
 
             # Add to array of active processes
             processes.append(p)

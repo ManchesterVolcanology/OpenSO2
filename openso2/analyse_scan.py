@@ -5,6 +5,7 @@ import logging
 import numpy as np
 import pandas as pd
 import xarray as xr
+from datetime import datetime
 
 
 logger = logging.getLogger(__name__)
@@ -58,7 +59,7 @@ def read_scan(scan_fname):
 # Analyse Scan
 # =============================================================================
 
-def analyse_scan(scan_fname, analyser, wl_calib, save_fname=None):
+def analyse_scan(scan_fname, analyser, save_fname=None):
     """Run iFit analysis of a scan.
 
     Parameters
@@ -68,9 +69,6 @@ def analyse_scan(scan_fname, analyser, wl_calib, save_fname=None):
 
     analyser : iFit Analyser
         The analyser to use to fit the scan spectra
-
-    wl_calib : 1D numpy array
-        The wavelength calibration of the spectrometer
 
     save_fname : None or str, optional
         If not None, then the scan results are saved to the path given
@@ -83,17 +81,13 @@ def analyse_scan(scan_fname, analyser, wl_calib, save_fname=None):
     # Read in the scan file
     scan_da = xr.open_dataarray(scan_fname)
 
+    # Pull out the wavelength information and number of spectra
+    wl_calib = scan_da.coords['wavelength'].to_numpy()
+    nspec = scan_da.attrs['specs_per_scan']
+
     # Pull out the spectra and correct for the dark spectrum
     raw_spectra = scan_da.to_numpy()
     spectra = raw_spectra[1:] - raw_spectra[0]
-
-    # Set the spectrum times from the scan start and stop times
-    nspec = scan_da.attrs['specs_per_scan']
-    scan_times = pd.date_range(
-        scan_da.attrs['start_time'],
-        scan_da.attrs['end_time'],
-        periods=nspec
-    )
 
     # Set up the output data arrays
     output_data = {
@@ -107,68 +101,53 @@ def analyse_scan(scan_fname, analyser, wl_calib, save_fname=None):
         output_data[par] = np.zeros(nspec)
         output_data[f'{par}_err'] = np.zeros(nspec)
 
-    # Read in the scan
-    err, info_block, spec_block = read_scan(scan_fname)
+    for i, spec in enumerate(spectra):
 
-    if not err:
+        try:
+            fit = analyser.fit_spectrum(spectrum=[wl_calib, spec],
+                                        update_params=True,
+                                        resid_limit=20,
+                                        int_limit=[0, 60000],
+                                        interp_method='linear')
 
-        # Correct for the dark spectrum
-        corr_spec_block = spec_block[1:] - spec_block[0]
+            output_data['fit_quality'][i] = fit.nerr
+            output_data['int_lo'][i] = fit.int_lo
+            output_data['int_av'][i] = fit.int_av
+            output_data['int_hi'][i] = fit.int_hi
+            output_data['max_resid'][i] = np.nanmax(fit.resid)
 
-        # Create columns for the dataframe
-        cols = ['Number', 'Time', 'Angle']
-        for par in analyser.params:
-            cols += [par, f'{par}_err']
-        cols += ['fit_quality', 'int_lo', 'int_hi', 'int_av', 'max_resid']
+            for par in fit.params.values():
+                output_data[par.name][i] = par.fit_val
+                output_data[par.name + '_err'][i] = par.fit_err
 
-        # Create a dataframe to hold the results
-        fit_df = pd.DataFrame(index=np.arange(len(corr_spec_block)),
-                              columns=cols)
-
-        for i, spec in enumerate(corr_spec_block):
-            try:
-                fit = analyser.fit_spectrum(spectrum=[wl_calib, spec],
-                                            update_params=True,
-                                            resid_limit=20,
-                                            int_limit=[0, 60000],
-                                            interp_method='linear')
-
-                # Get the spectrum time and angle
-                hours = info_block[i+1][1]
-                minutes = info_block[i+1][2]
-                seconds = info_block[i+1][3]
-                scan_time = hours + minutes/60 + seconds/3600
-                scan_angle = info_block[i+1][5]
-
-                # Add to the results dataframe
-                row = [i+1, scan_time, scan_angle]
-                for par in fit.params.values():
-                    row += [par.fit_val, par.fit_err]
-                row += [fit.nerr, fit.int_lo, fit.int_hi,
-                        fit.int_av, np.nanmax(fit.resid)]
-                fit_df.loc[i] = row
-
-            except ValueError as msg:
-                logger.warning(f'Error in analysis, skipping\n{msg}')
+        except ValueError as msg:
+            logger.warning(f'Error in analysis, skipping\n{msg}')
 
         head, tail = os.path.split(scan_fname)
         logger.info(f'Analysis finished for scan {tail}')
 
-        if save_fname is not None:
+    # Form output dataarrays
+    data_vars = {}
+    coords = {'angle': scan_da.coords['angle']}
+    for key, value in output_data.items():
+        data_vars[key] = xr.DataSet(
+            data=value,
+            coords=coords
+        )
 
-            # Either save as a .csv or a .npy file
-            file_end = save_fname.split('.')[-1]
-            if file_end == 'csv':
-                fit_df.to_csv(save_fname)
-            elif file_end == 'npy':
-                np.save(save_fname, fit_df.to_numpy())
-            else:
-                logger.warning(f'Error in save filename {save_fname}')
+    # Form output dataset
+    attrs = {**scan_da.attrs, **{'analysis_time': datetime.now()}}
+    output_ds = xr.DataSet(
+        data_vars=data_vars,
+        coords=coords,
+        attrs=attrs
+    )
 
-        return fit_df
+    # Save the output file if desired
+    if save_fname is not None:
+        output_ds.to_netcdf(save_fname)
 
-    else:
-        logger.warning(f'Error reading file {scan_fname}')
+    return output_ds
 
 
 # =============================================================================
