@@ -207,7 +207,8 @@ def main_loop():
                       angle_per_step=settings['angle_per_step'],
                       home_angle=settings['home_angle'],
                       max_steps_home=settings['max_steps_home'],
-                      spectrometer=spectro)
+                      spectrometer=spectro,
+                      gps=gps)
     logger.info('Scanner engaged')
 
     # Begin loop
