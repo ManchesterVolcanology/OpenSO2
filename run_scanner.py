@@ -246,7 +246,7 @@ def main_loop():
             head, tail = os.path.split(scan_fname)
 
             # Build the save filename
-            save_fname = f'{results_fpath}/so2/{tail[:-10]}_results.nc'
+            save_fname = f'{results_fpath}/so2/{tail[:-11]}_results.nc'
 
             # Create new process to handle fitting of the last scan
             p = Process(target=analyse_scan,
