@@ -32,7 +32,7 @@ from ifit.spectrometers import Spectrometer
 from openso2.scanner import Scanner
 from openso2.analyse_scan import analyse_scan, update_int_time
 
-__version__ = 'v_1_3'
+__version__ = 'v_1_4'
 
 # =============================================================================
 # Set up logging
@@ -53,14 +53,14 @@ logger.addHandler(stdout_handler)
 datestamp = datetime.now().date()
 
 # Create results folder
-results_fpath = f'Results/{datestamp}/'
-if not os.path.exists(results_fpath + 'so2/'):
-    os.makedirs(results_fpath + 'so2/')
-if not os.path.exists(results_fpath + 'spectra/'):
-    os.makedirs(results_fpath + 'spectra/')
+results_fpath = f'Results/{datestamp}'
+if not os.path.exists(f'{results_fpath}/so2/'):
+    os.makedirs(f'{results_fpath}/so2/')
+if not os.path.exists(f'{results_fpath}/spectra/'):
+    os.makedirs(f'{results_fpath}/spectra/')
 
 # Add a file handler o the logger
-file_handler = logging.FileHandler(f'{results_fpath}{datestamp}.log')
+file_handler = logging.FileHandler(f'{results_fpath}/{datestamp}.log')
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 file_format = logging.Formatter(log_fmt, '%Y-%m-%d %H:%M:%S')
 file_handler.setFormatter(file_format)
@@ -237,11 +237,7 @@ def main_loop():
             head, tail = os.path.split(scan_fname)
 
             # Build the save filename
-            if settings['save_format'] == 'numpy':
-                file_end = '.npy'
-            elif settings['save_format'] == 'csv':
-                file_end = '.csv'
-            save_fname = f'{results_fpath}so2/{tail[:-4]}_so2{file_end}'
+            save_fname = f'{results_fpath}/so2/{tail[:-4]}_results.nc'
 
             # Create new process to handle fitting of the last scan
             p = Process(target=analyse_scan,

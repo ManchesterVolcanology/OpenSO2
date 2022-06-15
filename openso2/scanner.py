@@ -3,9 +3,10 @@
 import time
 import atexit
 import logging
-from datetime import datetime
 import numpy as np
+import xarray as xr
 from threading import Thread
+from datetime import datetime
 from adafruit_motor import stepper
 from adafruit_motorkit import MotorKit
 from gpiozero import DigitalInputDevice
@@ -23,14 +24,14 @@ class Scanner:
 
     # Initialise
     def __init__(self, switch_pin=24, step_type='single', angle_per_step=1.8,
-                 home_angle=180, max_steps_home=1000, spectrometer=None):
+                 home_angle=180, max_steps_home=1000, spectrometer=None,
+                 gps=None):
         """Initialise.
 
         Parameters
         ----------
         switch_pin : int, optional
             The GPIO pin that connects to the home switch. Default is 24
-
         steptype : str, optional
             Stepping type. Must be one of:
                 - single;     single step (lowest power, default)
@@ -38,16 +39,17 @@ class Scanner:
                 - interleave; finer control, has double the steps of single
                 - micro;      slower but with much higher precision (8x)
             Default is single
-
         angle_per_step : float, optional
             The angle change with every step in degrees. Default is 1.8
-
         home_angle : float, optional
             The angular position (deg) of the scanner when home. Default is 180
-
         max_steps_home : int, optional
             Sets the maximum number of steps to look for home before giving up.
             Default is 1000.
+        spectrometer : iFit Spectrometer, optional
+            The spectrometer to use when taking a scan. If None, then ignored.
+        gps : iFit GPS, optional
+            The GPS to locate the scan. If None then ignored.
         """
         # Connect to the home switch
         self.home_switch = DigitalInputDevice(switch_pin, pull_up=False)
@@ -77,8 +79,9 @@ class Scanner:
         # Create a counter for the scan number
         self.scan_number = 0
 
-        # Add the spectrometer
+        # Add the spectrometer and gps
         self.spectrometer = spectrometer
+        self.gps = gps
 
 # =============================================================================
 #   Find Home
@@ -195,26 +198,9 @@ class Scanner:
             self.angle += steps * self.angle_per_step
         elif direction == 'forward':
             self.angle -= steps * self.angle_per_step
-        self.angle_check()
 
-# =============================================================================
-#   Angle check
-# =============================================================================
-
-    def angle_check(self, max_iter=1000):
-        """Check scanner angle is between -180/+180."""
-        counter = 0
-        while self.angle <= -180 or self.angle > 180:
-            if self.angle <= -180:
-                self.angle += 360
-            elif self.angle > 180:
-                self.angle -= 360
-            counter += 1
-            if counter >= max_iter:
-                msg = "Error calculating scanner angle, max iteration reached"
-                raise Exception(msg)
-
-        return self.angle
+        # Make sure the angle is between -180 to 180 degrees
+        self.angle = ((self.angle + 180) % 360) - 180
 
 # =============================================================================
 # Acquire Scan
@@ -223,95 +209,99 @@ class Scanner:
     def acquire_scan(self, settings, save_path):
         """Acquire a scan.
 
-        Perform a scan, measuring a dark spectrum then spectra from horizon to
-        horizon as defined in the settings.
+        Perform a scan along the following order:
+            1) Return to home position
+            2) Take dark spectrum
+            3) Move to scan start
+            3) Take measurement spectra, stepping the scanner between each
 
         Parameters
         ----------
-        scanner : OpenSO2 Scanner object
-            The scanner used to take the scan
-
-        spectro : iFit Spectrometer object
-            The spectrometer to acquire the spectra in the scan
-
         settings : dict
-            Holds the settings for the scan
-
+            Holds the settings for the scanner
         save_path : str
             The folder to hold the scan results
 
         Returns
         -------
-        fpath : str
+        str
             File path to the saved scan
         """
         # Create array to hold scan data
-        scan_data = np.zeros((settings['specs_per_scan'],
-                              self.spectrometer.pixels+8))
+        spectra = np.zeros([settings['specs_per_scan']+1,
+                            self.spectrometer.pixels])
+        scan_angles = np.zeros(settings['specs_per_scan']+1)
 
         # Return the scanner position to home
         logger.info('Returning to home position...')
         self.find_home()
 
-        # Get time
-        dt = datetime.now()
-
-        # Form the filename of the scan file
-        fname = f'{dt.year}{dt.month:02d}{dt.day:02d}_'           # yyyymmdd
-        fname += f'{dt.hour:02d}{dt.minute:02d}{dt.second:02d}_'  # Time HHMMSS
-        fname += f'{settings["station_name"]}_'                   # Name
-        fname += f'{settings["version"]}_'                        # Version
-        fname += f'Scan{self.scan_number:03d}.npy'                # Scan no
-
         # Take the dark spectrum
         logger.info('Acquiring dark spectrum')
-        dark_spec, info = self.spectrometer.get_spectrum()
-        dark_data = np.array([0,  # Step number
-                              dt.hour, dt.minute, dt.second,  # Time
-                              self.position,  # Scanner position
-                              self.angle,  # Scan angle
-                              info['coadds'],  # Coadds
-                              info['integration_time']  # Integration time
-                              ])
-        scan_data[0] = np.append(dark_data, dark_spec[1])
+        [wl, dark_spec], info = self.spectrometer.get_spectrum()
+        spectra[0] = dark_spec
+        scan_angles[0] = self.angle
 
         # Move scanner to start position
         logger.info('Moving to start position')
         self.step(steps=settings['steps_to_start'])
 
+        # Get the scan start time
+        scan_start_time = datetime.now()
+        time_str = datetime.strftime(scan_start_time, "%Y%m%d_%H%M%S")
+
+        # Form the filename of the scan file
+        fname = f'{save_path}/spectra/{time_str}_{settings["station_name"]}_' \
+                f'{settings["version"]}_Scan{self.scan_number:03d}_spectra.nc'
+
         # Begin stepping through the scan
         logger.info('Begin main scan')
+
         for step_no in range(1, settings['specs_per_scan']+1):
 
             # Acquire the spectrum
             spectrum, info = self.spectrometer.get_spectrum()
-
-            # Get the time
-            t = info['time']
-
-            # Add the data to the array
-            spec_data = np.array([step_no,  # Step number
-                                  t.hour, t.minute, t.second,  # Time
-                                  self.position,  # Scanner pos
-                                  self.angle,  # Scan angle
-                                  self.spectrometer.coadds,   # Coadds
-                                  self.spectrometer.integration_time  # I time
-                                  ])
-            scan_data[step_no-1] = np.append(spec_data, spectrum[1])
+            spectra[step_no] = spectrum[1]
+            scan_angles[step_no] = self.angle
 
             # Step the scanner
             self.step(settings['steps_per_spec'])
 
+        # Get the scan end time
+        scan_end_time = datetime.now()
+
         # Scan complete
         logger.info('Scan complete')
 
-        # Save the scan data
-        fpath = f'{save_path}spectra/{fname}'
+        # Form the scan info
+        scan_info = {
+            'filename': fname,
+            'spectrometer': self.spectrometer.serial_number,
+            'start_time': scan_start_time,
+            'end_time': scan_end_time,
+            'integration_time': self.spectrometer.integration_time,
+            'coadds': self.spectrometer.coadds,
+            'scan_number': self.scan_number,
+            'latitude': self.gps.lat,
+            'longitude': self.gps.lon,
+            'altitude': self.gps.alt
+        }
 
-        np.save(fpath, scan_data.astype('float16'))
+        # Form the output Dataset
+        scan_data = xr.DataArray(
+            data=spectra,
+            coords={
+                'angle': scan_angles,
+                'wavelength': wl
+            },
+            attrs={**scan_info, **settings}
+        )
+
+        # Save the scan
+        scan_data.to_netcdf(fname)
 
         # Return the filepath to the saved scan
-        return fpath
+        return fname
 
 
 # =============================================================================
@@ -467,31 +457,14 @@ class VScanner:
             self.angle += steps * self.angle_per_step
         elif direction == 'forward':
             self.angle -= steps * self.angle_per_step
-        self.angle_check()
+
+        # Make sure the angle is between -180 to 180 degrees
+        self.angle = ((self.angle + 180) % 360) - 180
 
         if self.angle > 179 or self.angle < -179:
             self.home_switch.value = False
         else:
             self.home_switch.value = True
-
-# =============================================================================
-#   Angle check
-# =============================================================================
-
-    def angle_check(self, max_iter=1000):
-        """Check scanner angle is between -180/+180."""
-        counter = 0
-        while self.angle <= -180 or self.angle > 180:
-            if self.angle <= -180:
-                self.angle += 360
-            elif self.angle > 180:
-                self.angle -= 360
-            counter += 1
-            if counter >= max_iter:
-                msg = "Error calculating scanner angle, max iteration reached"
-                raise Exception(msg)
-
-        return self.angle
 
 # =============================================================================
 # Acquire Scan
