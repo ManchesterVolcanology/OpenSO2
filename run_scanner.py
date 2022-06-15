@@ -20,7 +20,7 @@ import sys
 import time
 import yaml
 import logging
-import subprocess
+import numpy as np
 from datetime import datetime
 from multiprocessing import Process
 
@@ -30,6 +30,7 @@ from ifit.spectral_analysis import Analyser
 from ifit.spectrometers import Spectrometer
 
 from openso2.scanner import Scanner
+from openso2.position import gps_sync
 from openso2.analyse_scan import analyse_scan, update_int_time
 
 __version__ = 'v_1_4'
@@ -110,30 +111,6 @@ def main_loop():
 #   Program setup
 # =============================================================================
 
-    # Connect to the GPS
-    gps = GPS()
-
-    # Get a fix from the GPS
-    ts, lat, lon, alt, flag = gps.get_fix()
-
-    if flag:
-        logger.info('Updating system time: {ts.strftime("%Y-%m-%d %H:%M:%S")}')
-        tstr = ts.strftime('%a %b %d %H:%M:%S UTC %Y')
-        subprocess.call(f'sudo date -s {tstr}', shell=True)
-
-        # Log the scanner location
-        logger.info('Scanner location:\n'
-                    + f'Latitude:   {lat}'
-                    + f'Longitutde: {lon}'
-                    + f'Altitude:   {alt}')
-
-    else:
-        logger.warning('GPS fix failed, using RTC time (not yet implemented)')
-
-        # =====================================================================
-        # Add code for RTC time sync
-        # =====================================================================
-
     # Read in the station operation settings file
     with open('Station/station_settings.yml', 'r') as ymlfile:
         settings = yaml.load(ymlfile, Loader=yaml.FullLoader)
@@ -144,9 +121,24 @@ def main_loop():
         msg += f'\n{key}:\t{value}'
     logger.info(msg)
 
+# =============================================================================
+#   Sync with GPS
+# =============================================================================
+
+    # Connect to the GPS
+    gps = GPS()
+
+    # Set a background task to sync the station time and position with the GPS
+    p = Process(target=gps_sync, args=[gps, settings['station_name']])
+    p.daemon = True
+    p.start()
+
+# =============================================================================
+#   Connect to the spectrometer
+# =============================================================================
+
     spectro = Spectrometer(integration_time=settings['start_int_time'],
                            coadds=settings['start_coadds'])
-    logger.info(f'Spectrometer {spectro.serial_number} connected')
 
 # =============================================================================
 #   Set up iFit analyser
@@ -155,10 +147,28 @@ def main_loop():
     # Create parameter dictionary
     params = Parameters()
 
+    # Add the gases
+    params.add('SO2', value=1.0e16, vary=True, xpath='Ref/SO2_295K.txt')
+    params.add('O3', value=1.0e19, vary=True, xpath='Ref/O3_Voigt_246K.txt')
+    params.add('Ring', value=0.1, vary=True, xpath='Ref/Ring.txt')
+
+    # Add background polynomial parameters
+    params.add('bg_poly0', value=0.0, vary=True)
+    params.add('bg_poly1', value=0.0, vary=True)
+    params.add('bg_poly2', value=0.0, vary=True)
+    params.add('bg_poly3', value=1.0, vary=True)
+
+    # Add intensity offset parameters
+    # params.add('offset0', value=0.0, vary=True)
+
+    # Add wavelength shift parameters
+    params.add('shift0', value=0.0, vary=True)
+    params.add('shift1', value=0.1, vary=True)
+
     # Load the parameter information
-    for name, info in settings['fit_parameters'].items():
-        info['value'] = float(info['value'])
-        params.add(name, **info)
+    # for name, info in settings['fit_parameters'].items():
+    #     info['value'] = float(info['value'])
+    #     params.add(name, **info)
 
     # Generate the analyser
     analyser = Analyser(params,
@@ -172,8 +182,9 @@ def main_loop():
     # Report fitting parameters
     logger.info(params.pretty_print(cols=['name', 'value', 'vary', 'xpath']))
 
-    # Read a spectrum to get the wavelenghth calibration
+    # Read a spectrum to get the wavelenghth calibration and save
     [wl_calib, spec], info = spectro.get_spectrum()
+    np.savetxt(f'Station/{spectro.serial_number}_wl_calib.txt', wl_calib)
 
 # =============================================================================
 #   Begin the scanning loop

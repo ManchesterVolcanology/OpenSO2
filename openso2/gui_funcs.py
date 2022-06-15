@@ -123,7 +123,7 @@ class SyncWorker(QObject):
                 continue
 
             # Pull the station logs
-            fname, err = station.pull_log()
+            fname, err = station.pull_log(local_dir=self.res_dir)
 
             # Read the log file
             if fname is not None:
@@ -139,7 +139,7 @@ class SyncWorker(QObject):
                             + f'{station.name}/spectra/'
                 if not os.path.isdir(local_dir):
                     os.makedirs(local_dir)
-                remote_dir = '/home/pi/open_so2/Results/' \
+                remote_dir = '/home/pi/OpenSO2/Results/' \
                              + f'{self.analysis_date}/spectra/'
                 new_spec_fnames, err = station.sync(local_dir, remote_dir)
                 logging.info(f'Synced {len(new_spec_fnames)} spectra scans '
@@ -151,7 +151,7 @@ class SyncWorker(QObject):
                             + f'{station.name}/so2/'
                 if not os.path.isdir(local_dir):
                     os.makedirs(local_dir)
-                remote_dir = '/home/pi/open_so2/Results/' \
+                remote_dir = '/home/pi/OpenSO2/Results/' \
                              + f'{self.analysis_date}/so2/'
                 new_so2_fnames, err = station.sync(local_dir, remote_dir)
                 logging.info(f'Synced {len(new_so2_fnames)} scans from '
@@ -179,8 +179,11 @@ class SyncWorker(QObject):
 
             # Format the file name of the flux output file
             for name, flux_df in flux_results.items():
-                flux_df.to_csv(
-                    f'{fpath}/{name}/{self.analysis_date}_{name}_fluxes.csv')
+                try:
+                    flux_df.to_csv(f'{fpath}/{name}/{self.analysis_date}_'
+                                   + f'{name}_fluxes.csv')
+                except FileNotFoundError:
+                    pass
 
             # Plot the fluxes on the GUI
             self.updateFluxPlot.emit('RealTime')
@@ -253,8 +256,11 @@ class PostAnalysisWorker(QObject):
 
         # Format the file name of the flux output file
         for name, flux_df in flux_results.items():
-            flux_df.to_csv(f'{fpath}/{name}/{self.date_to_analyse}_{name}_'
-                           + 'fluxes_reanalysed.csv')
+            try:
+                flux_df.to_csv(f'{fpath}/{name}/{self.date_to_analyse}_{name}_'
+                               + 'fluxes_reanalysed.csv')
+            except FileNotFoundError:
+                pass
 
         # Plot the fluxes on the GUI
         self.updateFluxPlot.emit('Post')

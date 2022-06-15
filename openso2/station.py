@@ -69,7 +69,11 @@ class Station:
                 local_files = os.listdir(local_dir)
 
                 # Get the file names in the remote directory
-                remote_files = sftp.listdir(remote_dir)
+                try:
+                    remote_files = sftp.listdir(remote_dir)
+                except FileNotFoundError:
+                    logger.info('No files found')
+                    return [], [False, '']
 
                 # FInd the files to sync
                 files_to_sync = [f for f in remote_files
@@ -135,7 +139,7 @@ class Station:
             with pysftp.Connection(**self.com_info, cnopts=cnopts) as sftp:
 
                 # Get the status file
-                sftp.get('/home/pi/open_so2/Station/status.txt',
+                sftp.get('/home/pi/OpenSO2/Station/status.txt',
                          f'Station/{self.name}_status.txt',
                          preserve_mtime=True)
 
@@ -157,7 +161,7 @@ class Station:
 #   Pull Log
 # =============================================================================
 
-    def pull_log(self, sdate=None):
+    def pull_log(self, local_dir='Results', sdate=None):
         """Pull the log file from the station for analysis.
 
         NOTE THIS ASSUMES THE DATE ON THE PI IS CORRECT TO PULL THE CORRECT LOG
@@ -181,8 +185,8 @@ class Station:
             sdate = dt.now().date()
 
         # Make sure the Station folder exists
-        if not os.path.exists(f'Results/{sdate}/'):
-            os.makedirs(f'Results/{sdate}/')
+        if not os.path.exists(f'{local_dir}/{sdate}/{self.name}'):
+            os.makedirs(f'{local_dir}/{sdate}/{self.name}')
 
         cnopts = pysftp.CnOpts()
         cnopts.hostkeys = None
@@ -194,10 +198,10 @@ class Station:
 
                 # Get the status file
                 try:
-                    sftp.get(f'/home/pi/open_so2/Results/{sdate}/{sdate}.log',
-                             f'Results/{sdate}/{self.name}/{sdate}.log',
+                    sftp.get(f'/home/pi/OpenSO2/Results/{sdate}/{sdate}.log',
+                             f'{local_dir}/{sdate}/{self.name}/{sdate}.log',
                              preserve_mtime=True)
-                    fname = f'Results/{sdate}/{self.name}/{sdate}.log'
+                    fname = f'{local_dir}/{sdate}/{self.name}/{sdate}.log'
                 except FileNotFoundError:
                     fname = None
                     logger.info('No log file found')
