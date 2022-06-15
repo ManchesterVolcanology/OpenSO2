@@ -4,6 +4,7 @@ import os
 import logging
 import numpy as np
 import pandas as pd
+import xarray as xr
 
 
 logger = logging.getLogger(__name__)
@@ -79,6 +80,33 @@ def analyse_scan(scan_fname, analyser, wl_calib, save_fname=None):
     results : Pandas DataFrame
         Contains the scan information and fit results and errors
     """
+    # Read in the scan file
+    scan_da = xr.open_dataarray(scan_fname)
+
+    # Pull out the spectra and correct for the dark spectrum
+    raw_spectra = scan_da.to_numpy()
+    spectra = raw_spectra[1:] - raw_spectra[0]
+
+    # Set the spectrum times from the scan start and stop times
+    nspec = scan_da.attrs['specs_per_scan']
+    scan_times = pd.date_range(
+        scan_da.attrs['start_time'],
+        scan_da.attrs['end_time'],
+        periods=nspec
+    )
+
+    # Set up the output data arrays
+    output_data = {
+        'fit_quality': np.zeros(nspec, dtype=int),
+        'int_lo': np.zeros(nspec, dtype=int),
+        'int_av': np.zeros(nspec, dtype=int),
+        'int_hi': np.zeros(nspec, dtype=int),
+        'max_resid': np.zeros(nspec)
+    }
+    for par in analyser.params:
+        output_data[par] = np.zeros(nspec)
+        output_data[f'{par}_err'] = np.zeros(nspec)
+
     # Read in the scan
     err, info_block, spec_block = read_scan(scan_fname)
 
