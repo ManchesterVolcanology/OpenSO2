@@ -296,7 +296,7 @@ class Scanner:
                 'angle': scan_angles,
                 'wavelength': wl
             },
-            attrs={**scan_info, **settings}
+            attrs=scan_info
         )
 
         # Save the scan
