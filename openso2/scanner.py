@@ -238,7 +238,7 @@ class Scanner:
 
         # Take the dark spectrum
         logger.info('Acquiring dark spectrum')
-        self.spectrometer.fpath = 'data_bases/dart.txt'
+        self.spectrometer.fpath = 'data_bases/dark.txt'
         [wl, dark_spec], info = self.spectrometer.get_spectrum()
         spectra[0] = dark_spec
         scan_angles[0] = self.angle
