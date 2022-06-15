@@ -123,7 +123,8 @@ def analyse_scan(scan_fname, analyser, save_fname=None):
             logger.warning(f'Error in analysis, skipping\n{msg}')
 
         head, tail = os.path.split(scan_fname)
-        logger.info(f'Analysis finished for scan {tail}')
+
+    logger.info(f'Analysis finished for scan {tail}')
 
     # Form output dataarrays
     data_vars = {}
@@ -136,7 +137,7 @@ def analyse_scan(scan_fname, analyser, save_fname=None):
 
     # Form output dataset
     attrs = {**scan_da.attrs, **{'analysis_time': datetime.now()}}
-    output_ds = xr.DataSet(
+    output_ds = xr.Dataset(
         data_vars=data_vars,
         coords=coords,
         attrs=attrs
