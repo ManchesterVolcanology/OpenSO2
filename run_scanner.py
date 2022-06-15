@@ -169,10 +169,10 @@ def main_loop():
         par['value'] = float(par['value'])
         params.add(name, **par)
 
-    settings['fit_parameters'] = [
-        [par.name, par.value, par.vary, par.xpath]
-        for par in params.values()
-    ]
+    settings['fit_parameters'] = []
+    for par in params.values():
+        settings['fit_parameters'] += [
+            par.name, par.value, par.vary, par.xpath]
 
     # Generate the analyser
     analyser = Analyser(params,
