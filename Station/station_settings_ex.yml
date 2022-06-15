@@ -1,31 +1,47 @@
 # Station name
-station_name: TEST
-version: v_1_2
-save_format: csv
+station_name: NAME
 
-# Scanning start and end time (hours)
+# Scanning start and end time (UTC) ===========================================
 start_time: '08:00'
 stop_time: '16:00'
 
-# Spectrometer settings
+# Spectrometer settings =======================================================
+
+# Acquisition integration time (ms) and number of coadds
 start_int_time: 200
 start_coadds: 10
+
+# Min, max and allowed step in integration time (ms)
 min_int_time: 50
 max_int_time: 600
 int_time_step: 50
+
+# Target intensity value (counts)
 target_int: 50000
 
-# Scanner settings
+# Scanner settings ============================================================
+
+# Scanner home location (degrees, 0 = zenith)
 home_angle: 180
-switch_pin: 21
-max_steps_home: 800
+
+# Number of steps to the start position
 steps_to_start: 100
+
+# Pin on which to listen for the home signal
+switch_pin: 21
+
+# The maximum number of steps home before giving up
+max_steps_home: 800
+
+# Motor stepping mode
 step_type: double
+
+# Define angle change per step, steps per spectrum and spectra per scan
+angle_per_step: 0.9
 steps_per_spec: 2
 specs_per_scan: 100
-angle_per_step: 0.9
 
-# iFit parameter settings
+# iFit parameter settings =====================================================
 fit_parameters:
   SO2:
     value: 1.0e16
