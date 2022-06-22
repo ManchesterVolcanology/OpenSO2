@@ -153,8 +153,9 @@ def main_loop():
     for name, par in settings['fit_parameters'].items():
         par['value'] = float(par['value'])
         params.add(name, **par)
-        params_str += f'\n{name}\t{par.value}\t{par.vary}\t{par.xpath}'
-
+        params_str += f'\n{name}\t{par["value"]}' \
+                      f'\t{par["vary"]}\t{par["xpath"]}'
+    print(params_str)
     settings['fit_parameters'] = params_str
 
     # Generate the analyser
