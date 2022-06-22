@@ -153,8 +153,8 @@ def main_loop():
     for name, par in settings['fit_parameters'].items():
         par['value'] = float(par['value'])
         params.add(name, **par)
-        params_str += f'\n{name}\t{params["name"].value}' \
-                      f'\t{params["name"].vary}\t{params["name"].xpath}'
+        params_str += f'\n{name}\t{params[name].value}' \
+                      f'\t{params[name].vary}\t{params[name].xpath}'
     print(params_str)
     settings['fit_parameters'] = params_str
 
