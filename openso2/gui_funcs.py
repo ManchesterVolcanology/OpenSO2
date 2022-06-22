@@ -293,7 +293,8 @@ def calculate_fluxes(stations, scans, fpath, vent_loc, default_alt, default_az,
         for i, scan_fname in enumerate(scans[name]):
 
             # Read in the scan
-            scan_df = xr.read_dataset(scan_fname).to_dataframe()
+            with xr.open_dataset(scan_fname) as da:
+                scan_df = da.to_dataframe()
 
             # Filter the scan
             msk_scan_df, peak, msg = filter_scan(scan_df, min_scd, max_scd,

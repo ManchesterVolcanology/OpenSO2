@@ -8,6 +8,7 @@ import yaml
 import logging
 import traceback
 import numpy as np
+import xarray as xr
 import pandas as pd
 import pyqtgraph as pg
 from datetime import datetime
@@ -1024,13 +1025,20 @@ class MainWindow(QMainWindow):
         for i, fname in enumerate(scan_fnames[-5:][::-1]):
 
             # Load the scan file, unpacking the angle and SO2 data
-            scan_df = pd.read_csv(f'{fpath}/{name}/so2/{fname}')
+            with xr.open_dataset(f'{fpath}/{name}/so2/{fname}') as da:
+                scan_df = da.to_dataframe()
+                scan_df['angle'] = da.coords['angle']
+                scan_df['time'] = pd.date_range(
+                    da.attrs['scan_start_time'],
+                    da.attrs['scan_end_time'],
+                    da.attrs['specs_per_scan']
+                )
 
             if i == 0:
-                shape = [len(scan_fnames[-5:]), len(scan_df['Angle'])]
+                shape = [len(scan_fnames[-5:]), len(scan_df['angle'])]
                 plotx = np.zeros(shape)
                 ploty = np.zeros(shape)
-            plotx[i] = scan_df['Angle'].to_numpy()
+            plotx[i] = scan_df['angle'].to_numpy()
             ploty[i] = scan_df['SO2'].to_numpy()
 
             # Get the scan time from the filename to use as a label
@@ -1064,18 +1072,20 @@ class MainWindow(QMainWindow):
             d = int(fname[6:8])
 
             # Load the scan file, unpacking the angle and SO2 data
-            scan_df = pd.read_csv(f'{fpath}/{name}/so2/{fname}')
-            scan_angle[i] = scan_df['Angle'].to_numpy()
+            with xr.open_dataset(f'{fpath}/{name}/so2/{fname}') as da:
+                scan_df = da.to_dataframe()
+                scan_df['angle'] = da.coords['angle']
+                scan_df['time'] = pd.date_range(
+                    da.attrs['scan_start_time'],
+                    da.attrs['scan_end_time'],
+                    da.attrs['specs_per_scan']
+                )
+            scan_angle[i] = scan_df['angle'].to_numpy()
             scan_so2[i] = scan_df['SO2'].to_numpy()
 
             # Pull the time and convert to a unix timestamp
-            for j, t in enumerate(scan_df['Time']):
+            for j, ts in enumerate(scan_df['time']):
                 try:
-                    H = int(t)
-                    M = int((t - H)*60)
-                    S = int((t-H-M/60))*3600
-                    ts = pd.Timestamp(year=y, month=m, day=d, hour=H, minute=M,
-                                      second=S)
                     ds = pd.Timedelta('1s')
                     ts_ux = (ts - pd.Timestamp("1970-01-01")) // ds
                     scan_time[i, j] = ts_ux
