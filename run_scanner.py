@@ -136,8 +136,10 @@ def main_loop():
 #   Connect to the spectrometer
 # =============================================================================
 
-    spectro = VSpectrometer(integration_time=settings['start_int_time'],
-                            coadds=settings['start_coadds'])
+    spectro = VSpectrometer(
+        integration_time=settings['start_int_time'],
+        coadds=settings['start_coadds']
+    )
 
 # =============================================================================
 #   Set up iFit analyser
@@ -146,39 +148,25 @@ def main_loop():
     # Create parameter dictionary
     params = Parameters()
 
-    # Add the gases
-    # params.add('SO2', value=1.0e16, vary=True, xpath='Ref/SO2_295K.txt')
-    # params.add('O3', value=1.0e19, vary=True, xpath='Ref/O3_Voigt_246K.txt')
-    # params.add('Ring', value=0.1, vary=True, xpath='Ref/Ring.txt')
-
-    # Add background polynomial parameters
-    # params.add('bg_poly0', value=0.0, vary=True)
-    # params.add('bg_poly1', value=0.0, vary=True)
-    # params.add('bg_poly2', value=0.0, vary=True)
-    # params.add('bg_poly3', value=1.0, vary=True)
-
-    # Add intensity offset parameters
-    # params.add('offset0', value=0.0, vary=True)
-
-    # Add wavelength shift parameters
-    # params.add('shift0', value=0.0, vary=True)
-    # params.add('shift1', value=0.1, vary=True)
-
-    # Load the parameter information
+    # Load the parameter information and convert the parameter info to a string
+    params_str = 'Fit Parameters\nName\tValue\tVary\tXpath'
     for name, par in settings['fit_parameters'].items():
         par['value'] = float(par['value'])
         params.add(name, **par)
+        params_str += f'\n{name}\t{par.value}\t{par.vary}\t{par.xpath}'
 
-    settings.pop('fit_parameters')
+    settings['fit_parameters'] = params_str
 
     # Generate the analyser
-    analyser = Analyser(params,
-                        fit_window=[310, 320],
-                        frs_path='Ref/sao2010.txt',
-                        stray_flag=True,
-                        stray_window=[280, 290],
-                        ils_type='Params',
-                        ils_path=f'Station/{spectro.serial_number}_ils.txt')
+    analyser = Analyser(
+        params=params,
+        fit_window=[310, 320],
+        frs_path='Ref/sao2010.txt',
+        stray_flag=True,
+        stray_window=[280, 290],
+        ils_type='Params',
+        ils_path=f'Station/{spectro.serial_number}_ils.txt'
+    )
 
     # Report fitting parameters
     logger.info(params.pretty_print(cols=['name', 'value', 'vary', 'xpath']))
@@ -204,13 +192,15 @@ def main_loop():
             time.sleep(10)
 
     # Connect to the scanner
-    scanner = Scanner(switch_pin=settings['switch_pin'],
-                      step_type=settings['step_type'],
-                      angle_per_step=settings['angle_per_step'],
-                      home_angle=settings['home_angle'],
-                      max_steps_home=settings['max_steps_home'],
-                      spectrometer=spectro,
-                      gps=gps)
+    scanner = Scanner(
+        switch_pin=settings['switch_pin'],
+        step_type=settings['step_type'],
+        angle_per_step=settings['angle_per_step'],
+        home_angle=settings['home_angle'],
+        max_steps_home=settings['max_steps_home'],
+        spectrometer=spectro,
+        gps=gps
+    )
     logger.info('Scanner engaged')
 
     # Begin loop
@@ -227,8 +217,9 @@ def main_loop():
         logger.info(f'Scan {scanner.scan_number} complete')
 
         # Update the spectrometer integration time
-        new_int_time = update_int_time(scan_fname, spectro.integration_time,
-                                       settings)
+        new_int_time = update_int_time(
+            scan_fname, spectro.integration_time, settings
+        )
         spectro.update_integration_time(new_int_time)
         logger.info(f'Integration time updated to {int(new_int_time)}')
 
@@ -249,8 +240,10 @@ def main_loop():
             save_fname = f'{results_fpath}/so2/{tail[:-11]}_results.nc'
 
             # Create new process to handle fitting of the last scan
-            p = Process(target=analyse_scan,
-                        args=[scan_fname, analyser, save_fname])
+            p = Process(
+                target=analyse_scan,
+                args=[scan_fname, analyser, save_fname]
+            )
 
             # Add to array of active processes
             processes.append(p)
@@ -260,8 +253,10 @@ def main_loop():
 
         else:
             # Log that the process was not started
-            logger.warning('Too many processes running, '
-                           f'scan {scanner.scan_number} not analysed')
+            logger.warning(
+                'Too many processes running, '
+                f'scan {scanner.scan_number} not analysed'
+            )
 
         # Update the scan number
         scanner.scan_number += 1
