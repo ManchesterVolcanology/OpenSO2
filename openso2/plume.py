@@ -210,9 +210,9 @@ def calc_plume_azimuth(station, plume_loc, vent_location, plume_altitude):
         x, plume_azimth = haversine(vent_location, [lat, lon])
         return np.degrees(plume_azimth)
     elif alpha > 0:
-        phi = bearing_check(np.radians(az) - pi/2)
+        phi = (np.radians(az) - pi/2) % (2*pi)
     else:
-        phi = bearing_check(np.radians(az) + pi/2)
+        phi = (np.radians(az) + pi/2) % (2*pi)
 
     # Correct the plume altitude given the station altitude
     plume_height = plume_altitude - alt
@@ -271,9 +271,9 @@ def calc_plume_altitude_single(station, plume_loc, vent_location,
         logger.warning("Plume directly over scanner, altitude unconstrained")
         return np.nan
     elif alpha > 0:
-        phi = bearing_check(np.radians(az) - pi/2)
+        phi = (np.radians(az) - pi/2) % (2*pi)
     else:
-        phi = bearing_check(np.radians(az) + pi/2)
+        phi = (np.radians(az) + pi/2) % (2*pi)
 
     # Set minimiser arguements
     args = [[lat, lon], phi, vent_location, plume_azimuth]
@@ -421,7 +421,7 @@ def haversine(start_coords, end_coords, radius=6371000):
     bearing = atan2(sin(dlon) * cos(lat2),
                     (cos(lat1)*sin(lat2)) - (sin(lat1)*cos(lat2)*cos(dlon)))
 
-    bearing = bearing_check(bearing)
+    bearing = bearing % (2*pi)
 
     return distance, bearing
 
@@ -466,12 +466,3 @@ def calc_end_point(start_coords, distance, bearing, radius=6371000):
                           cos(ang_dist) - (sin(lat)*sin(end_lat)))
 
     return np.degrees([end_lat, end_lon])
-
-
-# =============================================================================
-# Bearing Check
-# =============================================================================
-
-def bearing_check(angle):
-    """Ensure an angle is between 0 and 2pi."""
-    return angle % (2*pi)
