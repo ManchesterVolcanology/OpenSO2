@@ -26,7 +26,7 @@ from multiprocessing import Process
 from ifit.gps import GPS
 from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
-from ifit.spectrometers import VSpectrometer
+from ifit.spectrometers import Spectrometer
 
 from openso2.scanner import Scanner
 from openso2.position import gps_sync
@@ -136,7 +136,7 @@ def main_loop():
 #   Connect to the spectrometer
 # =============================================================================
 
-    spectro = VSpectrometer(
+    spectro = Spectrometer(
         integration_time=settings['start_int_time'],
         coadds=settings['start_coadds']
     )
@@ -155,7 +155,6 @@ def main_loop():
         params.add(name, **par)
         params_str += f'\n{name}\t{params[name].value}' \
                       f'\t{params[name].vary}\t{params[name].xpath}'
-    print(params_str)
     settings['fit_parameters'] = params_str
 
     # Generate the analyser
