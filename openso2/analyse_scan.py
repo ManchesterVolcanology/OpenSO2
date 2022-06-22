@@ -11,50 +11,6 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# Read Scan
-# =============================================================================
-
-def read_scan(scan_fname):
-    """Read in an OpenSO2 scan file.
-
-    Paramters
-    ---------
-    scan_fname : string
-        The file path to the scan file
-
-    Returns
-    -------
-    error : bool
-        An error code, 0 if all is OK, 1 if an error was produced
-    info_block : array
-        Spectra info: spec no, hours, minutes, seconds, motor position, angle,
-        coadds and integration time (ms)
-    spec_block : array
-        Array of the measured spectra for the scan block
-    """
-    try:
-        # Read in the numpy file
-        scan_data = np.load(scan_fname)
-
-        # Create empty arrays to hold the spectra
-        width, height = scan_data.shape
-        info = np.zeros((width, 8))
-        spec = np.zeros((width, height - 8))
-
-        # Unpack the scan data
-        for i, line in enumerate(scan_data):
-
-            # Split the spectrum from the spectrum info
-            info[i] = line[:8]
-            spec[i] = line[8:]
-
-        return 0, info, spec
-
-    except Exception:
-        return 1, 0, 0
-
-
-# =============================================================================
 # Analyse Scan
 # =============================================================================
 
@@ -177,10 +133,10 @@ def update_int_time(scan_fname, integration_time, settings):
         New integration time for the next scan
     """
     # Load the previous scan
-    spec = read_scan(scan_fname)[-1]
+    spectra = xr.open_dataarray(scan_fname).to_numpy()
 
     # Find the maximum intensity
-    max_int = np.max(spec)
+    max_int = np.max(spectra)
 
     # Scale the intensity to the target
     scale = settings['target_int'] / max_int

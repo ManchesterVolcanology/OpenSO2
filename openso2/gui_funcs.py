@@ -5,6 +5,7 @@ import sys
 import logging
 import traceback
 import numpy as np
+import xarray as xr
 import pandas as pd
 from scipy.signal import savgol_filter
 from datetime import datetime, timedelta
@@ -292,7 +293,7 @@ def calculate_fluxes(stations, scans, fpath, vent_loc, default_alt, default_az,
         for i, scan_fname in enumerate(scans[name]):
 
             # Read in the scan
-            scan_df = pd.read_csv(scan_fname)
+            scan_df = xr.read_dataset(scan_fname).to_dataframe()
 
             # Filter the scan
             msk_scan_df, peak, msg = filter_scan(scan_df, min_scd, max_scd,
