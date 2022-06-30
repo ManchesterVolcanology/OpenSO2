@@ -110,7 +110,7 @@ crontab -e
 Then at the bottom of the file add the following line:
 
 ```
-@reboot cd /home/pi/open_so2/ && python3 run_scanner.py &
+@reboot cd /home/pi/OpenSO2/ && python3 run_scanner.py &
 ```
 
 ### Wiring
