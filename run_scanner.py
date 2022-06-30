@@ -26,7 +26,7 @@ from multiprocessing import Process
 from ifit.gps import GPS
 from ifit.parameters import Parameters
 from ifit.spectral_analysis import Analyser
-from ifit.spectrometers import VSpectrometer as Spectrometer
+from ifit.spectrometers import Spectrometer
 
 from openso2.scanner import Scanner
 from openso2.position import gps_sync
