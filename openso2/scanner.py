@@ -238,6 +238,7 @@ class Scanner:
 
         # Take the dark spectrum
         logger.info('Acquiring dark spectrum')
+        self.spectrometer.fpath = 'data_bases/dark.txt'
         [wl, dark_spec], info = self.spectrometer.get_spectrum()
         spectra[0] = dark_spec
         scan_angles[0] = self.angle
@@ -260,6 +261,7 @@ class Scanner:
         for step_no in range(1, settings['specs_per_scan']+1):
 
             # Acquire the spectrum
+            self.spectrometer.fpath = 'data_bases/spectrum_00360.txt'
             spectrum, info = self.spectrometer.get_spectrum()
             spectra[step_no] = spectrum[1]
             scan_angles[step_no] = self.angle
@@ -515,6 +517,7 @@ class VScanner:
 
         # Take the dark spectrum
         logger.info('Acquiring dark spectrum')
+        self.spectrometer.fpath = 'data_bases/dark.txt'
         dark_spec, info = self.spectrometer.get_spectrum()
         dark_data = np.array([0,  # Step number
                               dt.hour, dt.minute, dt.second,  # Time
@@ -534,6 +537,7 @@ class VScanner:
         for step_no in range(1, settings['specs_per_scan']+1):
 
             # Acquire the spectrum
+            self.spectrometer.fpath = 'data_bases/spectrum_00360.txt'
             spectrum, info = self.spectrometer.get_spectrum()
 
             # Get the time
