@@ -414,7 +414,7 @@ def filter_scan(scan_df, min_scd, max_scd, min_int, max_int, plume_scd,
         return None, None, 'Not enough plume spectra'
 
     # Determine the peak scan angle
-    x = masked_scan_df['Angle'].to_numpy()
+    x = masked_scan_df['angle'].to_numpy()
     y = masked_scan_df['SO2'].to_numpy()
     so2_filtered = savgol_filter(y, sg_window, sg_polyn, mode='nearest')
     peak_angle = x[so2_filtered.argmax()]
