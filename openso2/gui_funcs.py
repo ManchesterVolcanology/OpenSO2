@@ -258,8 +258,10 @@ class PostAnalysisWorker(QObject):
         # Format the file name of the flux output file
         for name, flux_df in flux_results.items():
             try:
-                flux_df.to_csv(f'{fpath}/{name}/{self.date_to_analyse}_{name}_'
-                               + 'fluxes_reanalysed.csv')
+                flux_df.to_csv(
+                    f'{fpath}/{name}/{self.date_to_analyse}_{name}_'
+                    'fluxes_reanalysed.csv'
+                )
             except FileNotFoundError:
                 pass
 
@@ -285,28 +287,28 @@ def calculate_fluxes(stations, scans, fpath, vent_loc, default_alt, default_az,
 
         logger.info(f'Calculating fluxes for {name}')
 
-        cols = ['Time [UTC]', 'Scan File', 'Pair Station', 'Pair File',
-                'Flux [kg/s]', 'Flux Err [kg/s]', 'Plume Altitude [m]',
-                'Plume Direction [deg]', 'Wind Speed [m/s]']
+        cols = [
+            'Time [UTC]', 'Scan File', 'Pair Station', 'Pair File',
+            'Flux [kg/s]', 'Flux Err [kg/s]', 'Plume Altitude [m]',
+            'Plume Direction [deg]', 'Wind Speed [m/s]']
         flux_df = pd.DataFrame(index=np.arange(len(scans[name])), columns=cols)
 
         for i, scan_fname in enumerate(scans[name]):
 
             # Read in the scan
-            with xr.open_dataset(scan_fname) as da:
-                scan_df = da.to_dataframe()
+            with xr.open_dataset(scan_fname) as scan_da:
 
-            # Filter the scan
-            msk_scan_df, peak, msg = filter_scan(scan_df, min_scd, max_scd,
-                                                 min_int, max_int, plume_scd,
-                                                 good_scan_lim, sg_window,
-                                                 sg_polyn)
+                # Filter the scan
+                msk_scan_da, peak, msg = filter_scan(
+                    scan_da, min_scd, max_scd, min_int, max_int, plume_scd,
+                    good_scan_lim, sg_window, sg_polyn
+                )
 
             # Pull the scan time from the filename
             scan_time = datetime.strptime(os.path.split(scan_fname)[1][:14],
                                           '%Y%m%d_%H%M%S')
 
-            if msk_scan_df is None:
+            if msk_scan_da is None:
                 logger.info(f'Scan {scan_fname} not analysed. {msg}')
                 row = [scan_time, os.path.split(scan_fname)[1], None, None,
                        None, None, None, None, None]
@@ -315,10 +317,9 @@ def calculate_fluxes(stations, scans, fpath, vent_loc, default_alt, default_az,
 
             if scan_pair_flag:
                 # Find the nearest scan from other stations
-                near_fname, near_ts, alt_name = find_nearest_scan(name,
-                                                                  scan_time,
-                                                                  scan_fnames,
-                                                                  scan_times)
+                near_fname, near_ts, alt_name = find_nearest_scan(
+                    name, scan_time, scan_fnames, scan_times
+                )
             else:
                 near_fname, near_ts, alt_name = None, None, None
 
@@ -338,24 +339,23 @@ def calculate_fluxes(stations, scans, fpath, vent_loc, default_alt, default_az,
                     alt_scan_df = pd.read_csv(near_fname)
 
                     # Filter the scan
-                    alt_msk_df, alt_peak, msg = filter_scan(
+                    alt_msk_da, alt_peak, msg = filter_scan(
                         alt_scan_df, min_scd, max_scd, min_int, max_int,
-                        plume_scd, good_scan_lim, sg_window, sg_polyn)
+                        plume_scd, good_scan_lim, sg_window, sg_polyn
+                    )
 
                     # If the alt scan is good, calculate the plume altitude
-                    if alt_msk_df is None:
+                    if alt_msk_da is None:
                         near_fname = 'None'
                         alt_station_name = None
                         plume_alt = default_alt
                         plume_az = default_az
                     else:
                         alt_station = stations[alt_name]
-                        plume_alt, plume_az = calc_plume_altitude(station,
-                                                                  alt_station,
-                                                                  peak,
-                                                                  alt_peak,
-                                                                  vent_loc,
-                                                                  default_alt)
+                        plume_alt, plume_az = calc_plume_altitude(
+                            station, alt_station, peak, alt_peak, vent_loc,
+                            default_alt
+                        )
                         alt_station_name = alt_station.name
 
                 # If scans are too far appart, use default values
@@ -366,10 +366,13 @@ def calculate_fluxes(stations, scans, fpath, vent_loc, default_alt, default_az,
                     plume_az = default_az
 
             # Calculate the scan flux
+            filter_idx = msk_scan_da['filter']
             flux_amt, flux_err = calc_scan_flux(
-                angles=msk_scan_df['Angle'].to_numpy(),
-                scan_so2=[msk_scan_df['SO2'].to_numpy(),
-                          msk_scan_df['SO2_err'].to_numpy()],
+                angles=msk_scan_da['angle'].data[filter_idx],
+                scan_so2=[
+                    msk_scan_da['SO2'].data[filter_idx],
+                    msk_scan_da['SO2_err'].data[filter_idx]
+                ],
                 station=station,
                 vent_location=vent_loc,
                 windspeed=wind_speed,
@@ -388,38 +391,46 @@ def calculate_fluxes(stations, scans, fpath, vent_loc, default_alt, default_az,
     return flux_results
 
 
-def filter_scan(scan_df, min_scd, max_scd, min_int, max_int, plume_scd,
+def filter_scan(scan_da, min_scd, max_scd, min_int, max_int, plume_scd,
                 good_scan_lim, sg_window, sg_polyn):
     """Filter scans for quality and find the centre."""
     # Filter the points for quality
-    mask = np.row_stack([scan_df['SO2'] < min_scd,
-                         scan_df['SO2'] > max_scd,
-                         scan_df['int_av'] < min_int,
-                         scan_df['int_av'] > max_int
-                         ]).any(axis=0)
+    mask = np.row_stack([
+        scan_da['SO2'] < min_scd,
+        scan_da['SO2'] > max_scd,
+        scan_da['int_av'] < min_int,
+        scan_da['int_av'] > max_int
+    ]).any(axis=0)
 
-    if len(np.where(mask)[0]) > good_scan_lim*len(scan_df['SO2']):
+    if len(np.where(mask)[0]) > good_scan_lim*len(scan_da['SO2']):
         return None, None, 'Not enough good spectra'
 
-    masked_scan_df = scan_df.loc[(scan_df['SO2'] > min_scd)
-                                 & (scan_df['SO2'] < max_scd)
-                                 & (scan_df['int_av'] > min_int)
-                                 & (scan_df['int_av'] < max_int)]
-    so2_scd_masked = masked_scan_df['SO2']
+    filter_idx = np.all(
+        [
+            scan_da['SO2'] > min_scd,
+            scan_da['SO2'] < max_scd,
+            scan_da['int_av'] > min_int,
+            scan_da['int_av'] < max_int
+        ],
+        axis=0
+    )
+    scan_da['filter'] = xr.DataArray(
+        data=filter_idx, coords=scan_da['SO2'].coords
+    )
 
     # Count the number of 'plume' spectra
-    nplume = sum(so2_scd_masked > plume_scd)
+    nplume = sum(filter_idx < plume_scd)
 
     if nplume < 10:
         return None, None, 'Not enough plume spectra'
 
     # Determine the peak scan angle
-    x = masked_scan_df['angle'].to_numpy()
-    y = masked_scan_df['SO2'].to_numpy()
+    x = scan_da['angle'].data[filter_idx]
+    y = scan_da['SO2'].data[filter_idx]
     so2_filtered = savgol_filter(y, sg_window, sg_polyn, mode='nearest')
     peak_angle = x[so2_filtered.argmax()]
 
-    return masked_scan_df, peak_angle, 'Scan analysed'
+    return scan_da, peak_angle, 'Scan analysed'
 
 
 def get_local_scans(stations, fpath):
@@ -444,12 +455,16 @@ def get_local_scans(stations, fpath):
     scan_times = {}
 
     # For each station find the available scans and there timestamps
-    for name, station in stations.items():
+    for name in stations:
         try:
-            scan_fnames[name] = [f'{fpath}/{name}/so2/{f}'
-                                 for f in os.listdir(f'{fpath}/{name}/so2/')]
-            scan_times[name] = [datetime.strptime(f[:14], '%Y%m%d_%H%M%S')
-                                for f in os.listdir(f'{fpath}/{name}/so2/')]
+            scan_fnames[name] = [
+                f'{fpath}/{name}/so2/{f}'
+                for f in os.listdir(f'{fpath}/{name}/so2/')
+            ]
+            scan_times[name] = [
+                datetime.strptime(f[:14], '%Y%m%d_%H%M%S')
+                for f in os.listdir(f'{fpath}/{name}/so2/')
+            ]
         except FileNotFoundError:
             scan_fnames[name] = []
             scan_times[name] = []
