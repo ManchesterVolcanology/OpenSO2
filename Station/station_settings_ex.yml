@@ -39,7 +39,7 @@ step_type: double
 # Define angle change per step, steps per spectrum and spectra per scan
 angle_per_step: 0.9
 steps_per_spec: 2
-specs_per_scan: 100
+specs_per_scan: 101
 
 # iFit parameter settings =====================================================
 fit_parameters:
@@ -52,14 +52,16 @@ fit_parameters:
   Ring:
     value: 0.1
     xpath: Ref/Ring.txt
-  bgpoly0:
+  bg_poly0:
     value: 0.0
-  bgpoly1:
+  bg_poly1:
     value: 0.0
-  bgpoly2:
+  bg_poly2:
     value: 0.0
-  bgpoly3:
+  bg_poly3:
     value: 1.0
+  offset0:
+    value: 0.0
   shift0:
     value: 0.0
   shift1:
