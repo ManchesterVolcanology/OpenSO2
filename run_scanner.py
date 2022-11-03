@@ -231,10 +231,8 @@ def main_loop():
         if len(processes) <= 2:
 
             # Log the start of the scan analysis
-            head, tail = os.path.split(scan_fname)
+            _, tail = os.path.split(scan_fname)
             logger.info(f'Start analysis for scan {tail}')
-
-            head, tail = os.path.split(scan_fname)
 
             # Build the save filename
             save_fname = f'{results_fpath}/so2/{tail[:-11]}_results.nc'
