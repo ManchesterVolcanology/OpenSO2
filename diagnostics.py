@@ -9,7 +9,7 @@ import seabreeze.spectrometers as sb
 from openso2.scanner import Scanner
 from ifit.spectrometers import Spectrometer
 
-from openso2.call_gps import sync_gps_time
+from ifit.gps import GPS
 
 
 class bcolors:
@@ -44,12 +44,15 @@ print(f'Current system time: {datetime.now()}')
 
 print('Reading stations settings...')
 
-with open('Station/station_settings.yml', 'r') as ymlfile:
-    settings = yaml.load(ymlfile, Loader=yaml.FullLoader)
+try:
+    with open('Station/station_settings.yml', 'r') as ymlfile:
+        settings = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
-print('Station settings:')
-for key, item in settings.items():
-    print(key, item)
+    print('Station settings:')
+    for key, item in settings.items():
+        print(key, item)
+except FileNotFoundError:
+    print('No settings file found')
 
 print('Testing scanner...')
 
@@ -91,7 +94,10 @@ except Exception:
 print('Testing GPS')
 
 try:
-    sync_gps_time()
+    gps = GPS()
+    ts, lat, lon, alt, flag = gps.get_fix()
+    if flag:
+        print(f'GPS fix:\nTime: {ts}\nLat: {lat}\nLon: {lon}\nAlt: {alt}')
 except Exception:
     print(f'{bcolors.FAIL}Error with GPS!{bcolors.ENDC}')
     print(traceback.format_exc())
