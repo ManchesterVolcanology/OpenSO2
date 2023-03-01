@@ -126,7 +126,7 @@ The Open SO<sub>2</sub> scanners are designed to work as a network, with a centr
 The home software is currently run as a python script (written in python 3.6). The easiest way to get python up and running is using Anaconda (https://www.anaconda.com/) which comes with most of the required libraries. The best method to install is to create a new virtual environment for the software:
 
 ```
-conda create -n openso2 numpy scipy pandas pyyaml
+conda create -n openso2 numpy scipy pandas pyyaml xarray netcdf4
 ```
 
 This will create the environment and install some of the libraries on the main Anaconda channel. Down activate the environment:
