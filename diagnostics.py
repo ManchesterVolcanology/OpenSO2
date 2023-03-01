@@ -52,7 +52,9 @@ try:
     for key, item in settings.items():
         print(key, item)
 except FileNotFoundError:
-    print('No settings file found')
+    print('No settings file found, using default')
+    with open('Station/station_settings_ex.yml', 'r') as ymlfile:
+        settings = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
 print('Testing scanner...')
 
