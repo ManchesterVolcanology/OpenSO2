@@ -107,10 +107,11 @@ def gps_time_sync(gps, name):
     logger.info('Starting GPS sync...')
 
     # Get a fix from the GPS
-    ts, lat, lon, alt = gps.get_location(time_to_wait=7200)
-    tstamp = ts.strftime("%Y-%m-%d %H:%M:%S")
+    location = gps.get_location(time_to_wait=7200)
 
-    if flag:
+    if location is not None:
+        ts, lat, lon, alt = location
+        tstamp = ts.strftime("%Y-%m-%d %H:%M:%S")
         logger.info('Updating system time: {tstamp}')
         tstr = ts.strftime('%a %b %d %H:%M:%S UTC %Y')
         subprocess.call(f'sudo date -s {tstr}', shell=True)
