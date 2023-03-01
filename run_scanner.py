@@ -107,7 +107,7 @@ def gps_time_sync(gps, name):
     logger.info('Starting GPS sync...')
 
     # Get a fix from the GPS
-    ts, lat, lon, alt, flag = gps.get_location(time_to_wait=7200)
+    ts, lat, lon, alt = gps.get_location(time_to_wait=7200)
     tstamp = ts.strftime("%Y-%m-%d %H:%M:%S")
 
     if flag:
