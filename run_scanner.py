@@ -107,10 +107,10 @@ def gps_time_sync(gps):
     logger.info('Starting GPS sync...')
 
     # Get a fix from the GPS
-    location = gps.get_location(time_to_wait=7200)
+    position = gps.get_position(time_to_wait=7200)
 
-    if location is not None:
-        ts, lat, lon, alt = location
+    if position is not None:
+        ts, lat, lon, alt = position
         tstamp = ts.strftime("%Y-%m-%d %H:%M:%S")
         logger.info('Updating system time: {tstamp}')
         tstr = ts.strftime('%a %b %d %H:%M:%S UTC %Y')
@@ -118,7 +118,7 @@ def gps_time_sync(gps):
 
         # Log the scanner location
         logger.info(
-            'Scanner location:\n'
+            'Scanner position:\n'
             f'Latitude:   {lat}\n'
             f'Longitutde: {lon}\n'
             f'Altitude:   {alt}\n'
