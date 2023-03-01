@@ -168,14 +168,15 @@ class Scanner:
         None
         """
         # Set stepping mode dict
-        step_mode = {'single':     stepper.SINGLE,
-                     'double':     stepper.DOUBLE,
-                     'interleave': stepper.INTERLEAVE,
-                     'micro':      stepper.MICROSTEP}
+        step_mode = {
+            'single':     stepper.SINGLE,
+            'double':     stepper.DOUBLE,
+            'interleave': stepper.INTERLEAVE,
+            'micro':      stepper.MICROSTEP
+        }
 
         # Set stepping direction dict
-        step_dir = {'forward':  stepper.FORWARD,
-                    'backward': stepper.BACKWARD}
+        step_dir = {'forward':  stepper.FORWARD, 'backward': stepper.BACKWARD}
 
         # Perform steps
         for i in range(steps):
@@ -184,8 +185,9 @@ class Scanner:
             time.sleep(0.01)
 
             # Step the motor
-            self.motor.onestep(direction=step_dir[direction],
-                               style=step_mode[self.step_type])
+            self.motor.onestep(
+                direction=step_dir[direction], style=step_mode[self.step_type]
+            )
 
         # Update the motor postion
         if direction == 'backward':
@@ -228,8 +230,9 @@ class Scanner:
             File path to the saved scan
         """
         # Create array to hold scan data
-        spectra = np.zeros([settings['specs_per_scan']+1,
-                            self.spectrometer.pixels])
+        spectra = np.zeros(
+            [settings['specs_per_scan']+1, self.spectrometer.pixels]
+        )
         scan_angles = np.zeros(settings['specs_per_scan']+1)
 
         # Return the scanner position to home
