@@ -98,9 +98,8 @@ print('Testing GPS')
 
 try:
     gps = GPS()
-    ts, lat, lon, alt, flag = gps.get_position()
-    if flag:
-        print(f'GPS fix:\nTime: {ts}\nLat: {lat}\nLon: {lon}\nAlt: {alt}')
+    ts, lat, lon, alt = gps.get_position()
+    print(f'GPS fix:\nTime: {ts}\nLat: {lat}\nLon: {lon}\nAlt: {alt}')
 except Exception:
     print(f'{bcolors.FAIL}Error with GPS!{bcolors.ENDC}')
     print(traceback.format_exc())
