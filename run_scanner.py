@@ -20,6 +20,7 @@ import sys
 import time
 import yaml
 import logging
+import subprocess
 from datetime import datetime
 from multiprocessing import Process
 
@@ -32,7 +33,7 @@ from openso2.scanner import Scanner
 from openso2.position import gps_sync
 from openso2.analyse_scan import analyse_scan, update_int_time
 
-__version__ = 'v_1_4'
+__version__ = 'v_1_5'
 
 # =============================================================================
 # Set up logging
@@ -95,6 +96,37 @@ def exception_handler(*exc_info):
 
 
 sys.excepthook = exception_handler
+
+
+# =============================================================================
+# Setup the GPS sync function
+# =============================================================================
+
+def gps_time_sync(gps, name):
+    """Syncs the position and time with the GPS."""
+    logger.info('Starting GPS sync...')
+
+    # Get a fix from the GPS
+    ts, lat, lon, alt, flag = gps.get_location(time_to_wait=7200)
+    tstamp = ts.strftime("%Y-%m-%d %H:%M:%S")
+
+    if flag:
+        logger.info('Updating system time: {tstamp}')
+        tstr = ts.strftime('%a %b %d %H:%M:%S UTC %Y')
+        subprocess.call(f'sudo date -s {tstr}', shell=True)
+
+        # Log the scanner location
+        logger.info('Scanner location:\n'
+                    + f'Latitude:   {lat}'
+                    + f'Longitutde: {lon}'
+                    + f'Altitude:   {alt}')
+
+        # Write the position to a file
+        with open(f'Station/{name}_location.yml', 'w') as w:
+            w.write(f'Time: {tstamp}\nLat: {lat}\nLon: {lon}\nAlt: {alt}')
+
+    else:
+        logger.warning('GPS fix failed')
 
 
 # =============================================================================
@@ -274,4 +306,6 @@ def main_loop():
 
 
 if __name__ == '__main__':
-    main_loop()
+    # main_loop()
+    gps = GPS()
+    gps_time_sync(gps)

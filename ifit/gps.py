@@ -19,18 +19,12 @@ class GPS():
                  parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
                  bytesize=serial.EIGHTBITS):
         """Initialize."""
-        # Select the comport to use for the GPS
         if comport is None:
-            try:
-                comport = serial.tools.list_ports.comports()[0].device
-            except IndexError:
-                logger.warning('GPS not connected: no serial port detected!')
-                return
-
-        # Connect to the gps
-        self.serial_port = serial.Serial(comport, baudrate=baudrate,
-                                         parity=parity, stopbits=stopbits,
-                                         bytesize=bytesize)
+            comport = serial.tools.list_ports.comports()[0].device
+        self.serial_port = serial.Serial(
+            comport, baudrate=baudrate, parity=parity, stopbits=stopbits,
+            bytesize=bytesize
+        )
 
         self.filename = filename
         self.timestamp = None
@@ -55,8 +49,10 @@ class GPS():
                         with open(self.filename, 'a') as w:
                             w.write(decoded_bytes.strip() + '\n')
                     except FileNotFoundError:
-                        logger.warning(f'Unable to find file {self.filename}'
-                                       + ' Disabling GPS file stream.')
+                        logger.warning(
+                            f'Unable to find file {self.filename} '
+                            'Disabling GPS file stream.'
+                        )
                         self.filename = None
 
                 # Exctract location information
@@ -73,10 +69,8 @@ class GPS():
 
             except serial.SerialException:
                 logger.warning('GPS disconnected!')
-                self.close()
 
     def _parse_gpgga(self, data):
-        """Parse GPGGA string."""
         try:
             # Read timestamp
             self.timestamp = datetime.strptime(data[1], '%H%M%S.%f').time()
@@ -153,43 +147,25 @@ class GPS():
             logger.debug(f'Error parsing GPS string\n{e}')
             pass
 
-    def get_fix(self,  time_to_wait=60):
-        """Report current time and position.
-
-        Parameters
-        ----------
-        time_to_wait : int, optional
-            The time to wait for a fix in seconds. Default is 60.
-
-        Returns
-        -------
-        timestamp : datetime object
-            The current gps timestamp. If the fix fails then it returns the
-            current system time instead.
-        lat : float
-            The current latitude in decimal degrees
-        lon : float
-            The current longitude in decimal degrees
-        alt : float
-            The current altitude in meters above sea level
-        fix_flag : bool
-            True if a fix is acquired. Otherwise False
-        """
-        logger.info('Waiting for GPS fix...')
+    def get_position(self,  time_to_wait=60):
+        """Report current time and position."""
         t0 = datetime.now()
         while (datetime.now() - t0).total_seconds() < time_to_wait:
 
-            flags = [~np.isnan(self.lat), ~np.isnan(self.lon),
-                     self.timestamp is not None, self.datestamp is not None]
+            flags = [
+                ~np.isnan(self.lat),
+                ~np.isnan(self.lon),
+                self.timestamp is not None,
+                self.datestamp is not None
+            ]
 
             if np.array(flags).all():
-                logger.info('GPS fix acquired')
-                return [datetime.combine(self.datestamp, self.timestamp),
-                        self.lat, self.lon, self.alt, True]
+                return [
+                    datetime.combine(self.datestamp, self.timestamp),
+                    self.lat, self.lon, self.alt
+                ]
 
-        # If no fix is achieved, report and move on
         logger.warning(f'No GPS fix acquired after {time_to_wait} seconds')
-        return datetime.now(), self.lat, self.lon, self.alt, False
 
     def close(self):
         """Close the connection."""
