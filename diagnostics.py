@@ -59,11 +59,13 @@ except FileNotFoundError:
 print('Testing scanner...')
 
 try:
-    scanner = Scanner(switch_pin=settings['switch_pin'],
-                      step_type=settings['step_type'],
-                      angle_per_step=settings['angle_per_step'],
-                      home_angle=settings['home_angle'],
-                      max_steps_home=settings['max_steps_home'])
+    scanner = Scanner(
+        switch_pin=settings['switch_pin'],
+        step_type=settings['step_type'],
+        angle_per_step=settings['angle_per_step'],
+        home_angle=settings['home_angle'],
+        max_steps_home=settings['max_steps_home']
+    )
     print('Scanner connected, trying to find home...')
     scanner.find_home()
 
@@ -81,13 +83,12 @@ try:
     else:
         for dev in devs:
             print(dev)
-        spectro = Spectrometer(integration_time=settings['start_int_time'],
-                               coadds=settings['start_coadds'])
-        [x, y], info = spectro.get_spectrum()
-        print('Wavelengths:')
-        print(x)
-        print('Intensities:')
-        print(y)
+        spectro = Spectrometer(
+            integration_time=settings['start_int_time'],
+            coadds=settings['start_coadds']
+        )
+        spectrum = spectro.get_spectrum()
+        print(spectrum)
 
 except Exception:
     print(f'{bcolors.FAIL}Error with spectomreter!{bcolors.ENDC}')
