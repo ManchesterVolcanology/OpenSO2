@@ -102,7 +102,7 @@ sys.excepthook = exception_handler
 # Setup the GPS sync function
 # =============================================================================
 
-def gps_time_sync(gps, name):
+def gps_time_sync(gps):
     """Syncs the position and time with the GPS."""
     logger.info('Starting GPS sync...')
 
@@ -117,13 +117,15 @@ def gps_time_sync(gps, name):
         subprocess.call(f'sudo date -s {tstr}', shell=True)
 
         # Log the scanner location
-        logger.info('Scanner location:\n'
-                    + f'Latitude:   {lat}'
-                    + f'Longitutde: {lon}'
-                    + f'Altitude:   {alt}')
+        logger.info(
+            'Scanner location:\n'
+            f'Latitude:   {lat}\n'
+            f'Longitutde: {lon}\n'
+            f'Altitude:   {alt}\n'
+        )
 
         # Write the position to a file
-        with open(f'Station/{name}_location.yml', 'w') as w:
+        with open(f'Station/location.yml', 'w') as w:
             w.write(f'Time: {tstamp}\nLat: {lat}\nLon: {lon}\nAlt: {alt}')
 
     else:
