@@ -14,13 +14,13 @@ logger = logging.getLogger(__name__)
 # Analyse Scan
 # =============================================================================
 
-def analyse_scan(scan_fname, analyser, save_fname=None):
+def analyse_scan(scan_data, analyser, save_fname=None):
     """Run iFit analysis of a scan.
 
     Parameters
     ----------
-    scan_fname : str
-        File path to the scan to analyse
+    scan_data : xarray DataArray
+        Holds the scan wavelength, intensity and meta data
 
     analyser : iFit Analyser
         The analyser to use to fit the scan spectra
@@ -33,15 +33,12 @@ def analyse_scan(scan_fname, analyser, save_fname=None):
     results : Pandas DataFrame
         Contains the scan information and fit results and errors
     """
-    # Read in the scan file
-    scan_da = xr.open_dataarray(scan_fname)
-
     # Pull out the wavelength information and number of spectra
-    wl_calib = scan_da.coords['wavelength'].to_numpy()
-    nspec = scan_da.attrs['specs_per_scan']
+    wl_calib = scan_data.coords['wavelength'].to_numpy()
+    nspec = scan_data.attrs['specs_per_scan']
 
     # Pull out the spectra and correct for the dark spectrum
-    raw_spectra = scan_da.data()
+    raw_spectra = scan_data.data()
     spectra = raw_spectra[1:] - raw_spectra[0]
 
     # Set up the output data arrays
@@ -80,13 +77,13 @@ def analyse_scan(scan_fname, analyser, save_fname=None):
         except ValueError as msg:
             logger.warning(f'Error in analysis, skipping\n{msg}')
 
-        head, tail = os.path.split(scan_fname)
+        _, tail = os.path.split(scan_data.filename)
 
     logger.info(f'Analysis finished for scan {tail}')
 
     # Form output dataarrays
     data_vars = {}
-    coords = {'angle': scan_da.coords['angle'][1:]}
+    coords = {'angle': scan_data.coords['angle'][1:]}
     for key, value in output_data.items():
         data_vars[key] = xr.DataArray(
             data=value,
@@ -95,7 +92,7 @@ def analyse_scan(scan_fname, analyser, save_fname=None):
 
     # Form output dataset
     attrs = {
-        **scan_da.attrs,
+        **scan_data.attrs,
         **{'analysis_time': datetime.now().strftime('%Y-%m-%dT%H:%M:%S')}
     }
     output_ds = xr.Dataset(
@@ -115,7 +112,7 @@ def analyse_scan(scan_fname, analyser, save_fname=None):
 # Update Integration Time
 # =============================================================================
 
-def update_int_time(scan_fname, integration_time, settings):
+def update_int_time(scan_data, settings):
     """Update spectrometer integration time.
 
     Function to calculate a new integration time based on the intensity of the
@@ -123,8 +120,8 @@ def update_int_time(scan_fname, integration_time, settings):
 
     Parameters
     ----------
-    common : dict
-        Common dictionary of parameters for the program
+    scan_data : xarray DataArray
+        Holds the scan wavelength, intensity and meta data
 
     settings : dict
         Dictionary of station settings
@@ -135,7 +132,7 @@ def update_int_time(scan_fname, integration_time, settings):
         New integration time for the next scan
     """
     # Load the previous scan
-    spectra = xr.open_dataarray(scan_fname).data
+    spectra = scan_data.data
 
     # Find the maximum intensity
     max_int = np.max(spectra)
@@ -144,7 +141,7 @@ def update_int_time(scan_fname, integration_time, settings):
     scale = settings['target_int'] / max_int
 
     # Scale the integration time by this factor
-    int_time = integration_time * scale
+    int_time = scan_data.integration_time * scale
 
     # Find the nearest integration time
     int_times = np.arange(

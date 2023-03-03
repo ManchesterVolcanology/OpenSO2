@@ -235,8 +235,8 @@ class Scanner:
 
         Returns
         -------
-        str
-            File path to the saved scan
+        xarray DataArray
+            Holds the scan wavelength, intensity and meta data
         """
         # Create array to hold scan data
         spectra = np.zeros(
@@ -250,7 +250,6 @@ class Scanner:
 
         # Take the dark spectrum
         logger.info('Acquiring dark spectrum')
-        self.spectrometer.fpath = 'data_bases/dark.txt'
         spectrum = self.spectrometer.get_spectrum()
         spectra[0] = spectrum.data
         wavelengths = spectrum.wavelength
@@ -274,7 +273,6 @@ class Scanner:
         for step_no in range(1, settings['specs_per_scan']+1):
 
             # Acquire the spectrum
-            self.spectrometer.fpath = 'data_bases/spectrum_00360.txt'
             spectrum = self.spectrometer.get_spectrum()
             spectra[step_no] = spectrum.data
             scan_angles[step_no] = self.angle
@@ -312,11 +310,8 @@ class Scanner:
             attrs={**scan_info, **settings}
         )
 
-        # Save the scan
-        scan_data.to_netcdf(fname)
-
-        # Return the filepath to the saved scan
-        return fname
+        # Return the scan data
+        return scan_data
 
 
 # =============================================================================

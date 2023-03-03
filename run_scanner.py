@@ -53,7 +53,7 @@ logger.addHandler(stdout_handler)
 datestamp = datetime.now().date()
 
 # Create results folder
-results_fpath = f'Results/{datestamp}'
+results_fpath = f'/home/pi/Results/{datestamp}'
 if not os.path.exists(f'{results_fpath}/so2/'):
     os.makedirs(f'{results_fpath}/so2/')
 if not os.path.exists(f'{results_fpath}/spectra/'):
@@ -246,15 +246,16 @@ def main_loop():
         logger.info(f'Begin scan {scanner.scan_number}')
 
         # Scan!
-        scan_fname = scanner.acquire_scan(settings, results_fpath)
+        scan_data = scanner.acquire_scan(settings, results_fpath)
+
+        # Save the scan
+        scan_data.to_netcdf(scan_data.filename)
 
         # Log scan completion
         logger.info(f'Scan {scanner.scan_number} complete')
 
         # Update the spectrometer integration time
-        new_int_time = update_int_time(
-            scan_fname, spectro.integration_time, settings
-        )
+        new_int_time = update_int_time(scan_data, settings)
         spectro.update_integration_time(new_int_time)
         logger.info(f'Integration time updated to {int(new_int_time)}')
 
@@ -266,7 +267,7 @@ def main_loop():
         if len(processes) <= 2:
 
             # Log the start of the scan analysis
-            _, tail = os.path.split(scan_fname)
+            _, tail = os.path.split(scan_data.filename)
             logger.info(f'Start analysis for scan {tail}')
 
             # Build the save filename
@@ -275,7 +276,7 @@ def main_loop():
             # Create new process to handle fitting of the last scan
             p = Process(
                 target=analyse_scan,
-                args=[scan_fname, analyser, save_fname]
+                args=[scan_data, analyser, save_fname]
             )
 
             # Add to array of active processes
