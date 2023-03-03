@@ -23,9 +23,9 @@ import logging
 from datetime import datetime
 from multiprocessing import Process
 
-from ifit.parameters import Parameters
+from openso2.parameters import Parameters
 from ifit.spectral_analysis import Analyser
-from ifit.spectrometers import VSpectrometer
+from openso2.spectrometers import VSpectrometer
 
 from openso2.scanner import VScanner
 from openso2.analyse_scan import analyse_scan, update_int_time
