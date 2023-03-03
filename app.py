@@ -10,9 +10,8 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Output, Input, State
 
 
-# Read in the overall config file
-with open("settings.yaml", "r") as ymlfile:
-    config = yaml.load(ymlfile, Loader=yaml.FullLoader)
+# Read the station settings
+
 
 # Set possible plot items
 plot_items = ["SO2", "O3", "Ring", "int_av", "fit_quality"]
@@ -21,22 +20,25 @@ plot_items = ["SO2", "O3", "Ring", "int_av", "fit_quality"]
 tday_date = datetime.now().date()
 
 # Get the dates available
-data_folders = os.listdir(f"{config['DataPath']}/Results")
+data_folders = os.listdir("/home/pi/Results")
 data_folders.sort()
 if len(data_folders) == 0:
     data_folders = [tday_date]
 data_dates = pd.to_datetime(data_folders)
-disabled_days = [d for d in pd.date_range(data_dates.min(), tday_date)
-                 if d not in data_dates]
+disabled_days = [
+    d for d in pd.date_range(data_dates.min(), tday_date)
+    if d not in data_dates
+]
 
 
 def update_status():
     # Get the station status
     try:
-        with open(f"{config['DataPath']}/Station/status.txt", 'r') as r:
+        with open(f"/home/pi/OpenSO2/Station/status.txt", 'r') as r:
             status_time, status_text = r.readline().split(' - ')
-            status_time = datetime.strptime(status_time, "%Y-%m-%d %H:%M:%S.%f"
-                                            ).strftime("%Y-%m-%d %H:%M:%S")
+            status_time = datetime.strptime(
+                status_time, "%Y-%m-%d %H:%M:%S.%f"
+            ).strftime("%Y-%m-%d %H:%M:%S")
     except Exception as e:
         status_text, status_time = f'Unknown ({e})', '???'
 
