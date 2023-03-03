@@ -233,7 +233,8 @@ def main_loop():
         home_angle=settings['home_angle'],
         max_steps_home=settings['max_steps_home'],
         spectrometer=spectro,
-        gps=gps
+        gps=gps,
+        position_file='Station/scanner_position.txt'
     )
     logger.info('Scanner engaged')
 

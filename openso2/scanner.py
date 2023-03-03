@@ -25,7 +25,7 @@ class Scanner:
     # Initialise
     def __init__(self, switch_pin=24, step_type='single', angle_per_step=1.8,
                  home_angle=180, max_steps_home=1000, spectrometer=None,
-                 gps=None):
+                 gps=None, position_file=None):
         """Initialise.
 
         Parameters
@@ -50,6 +50,8 @@ class Scanner:
             The spectrometer to use when taking a scan. If None, then ignored.
         gps : iFit GPS, optional
             The GPS to locate the scan. If None then ignored.
+        position_file : str, optional
+            File path to a file to record the current scanner position
         """
         # Connect to the home switch
         self.home_switch = DigitalInputDevice(switch_pin, pull_up=False)
@@ -63,7 +65,7 @@ class Scanner:
         atexit.register(release_motor)
 
         # Set the initial motor position and angle (assuming scanner is home)
-        self.position = 0
+        self.position = np.nan
         self.home_angle = home_angle
         self.angle = home_angle
 
@@ -82,6 +84,9 @@ class Scanner:
         # Add the spectrometer and gps
         self.spectrometer = spectrometer
         self.gps = gps
+
+        # Add status filepath
+        self.position_file = position_file
 
 # =============================================================================
 #   Find Home
@@ -203,6 +208,10 @@ class Scanner:
 
         # Make sure the angle is between -180 to 180 degrees
         self.angle = ((self.angle + 180) % 360) - 180
+
+        if self.position_file is not None:
+            with open(self.position_file, 'w') as w:
+                w.write(str(self.angle))
 
 # =============================================================================
 # Acquire Scan
