@@ -41,7 +41,7 @@ def analyse_scan(scan_fname, analyser, save_fname=None):
     nspec = scan_da.attrs['specs_per_scan']
 
     # Pull out the spectra and correct for the dark spectrum
-    raw_spectra = scan_da.to_numpy()
+    raw_spectra = scan_da.data()
     spectra = raw_spectra[1:] - raw_spectra[0]
 
     # Set up the output data arrays
@@ -59,11 +59,13 @@ def analyse_scan(scan_fname, analyser, save_fname=None):
     for i, spec in enumerate(spectra):
 
         try:
-            fit = analyser.fit_spectrum(spectrum=[wl_calib, spec],
-                                        update_params=True,
-                                        resid_limit=20,
-                                        int_limit=[0, 60000],
-                                        interp_method='linear')
+            fit = analyser.fit_spectrum(
+                spectrum=[wl_calib, spec],
+                update_params=True,
+                resid_limit=20,
+                int_limit=[0, 60000],
+                interp_method='linear'
+            )
 
             output_data['fit_quality'][i] = fit.nerr
             output_data['int_lo'][i] = fit.int_lo
@@ -133,7 +135,7 @@ def update_int_time(scan_fname, integration_time, settings):
         New integration time for the next scan
     """
     # Load the previous scan
-    spectra = xr.open_dataarray(scan_fname).to_numpy()
+    spectra = xr.open_dataarray(scan_fname).data
 
     # Find the maximum intensity
     max_int = np.max(spectra)
@@ -145,9 +147,11 @@ def update_int_time(scan_fname, integration_time, settings):
     int_time = integration_time * scale
 
     # Find the nearest integration time
-    int_times = np.arange(settings['min_int_time'],
-                          settings['max_int_time'] + settings['int_time_step'],
-                          settings['int_time_step'])
+    int_times = np.arange(
+        settings['min_int_time'],
+        settings['max_int_time'] + settings['int_time_step'],
+        settings['int_time_step']
+    )
 
     # Find the nearest value
     diff = ((int_times - int_time)**2)**0.5

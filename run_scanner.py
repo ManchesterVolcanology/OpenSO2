@@ -25,12 +25,11 @@ from datetime import datetime
 from multiprocessing import Process
 
 from ifit.gps import GPS
-from ifit.parameters import Parameters
+from openso2.parameters import Parameters
 from ifit.spectral_analysis import Analyser
-from ifit.spectrometers import Spectrometer
+from openso2.spectrometers import Spectrometer
 
 from openso2.scanner import Scanner
-from openso2.position import gps_sync
 from openso2.analyse_scan import analyse_scan, update_int_time
 
 __version__ = 'v_1_5'
@@ -112,9 +111,9 @@ def gps_time_sync(gps):
     if position is not None:
         ts, lat, lon, alt = position
         tstamp = ts.strftime("%Y-%m-%d %H:%M:%S")
-        logger.info('Updating system time: {tstamp}')
+        logger.info(f'Updating system time: {tstamp}')
         tstr = ts.strftime('%a %b %d %H:%M:%S UTC %Y')
-        subprocess.call(f'sudo date -s {tstr}', shell=True)
+        subprocess.call(f'sudo date -s "{tstr}"', shell=True)
 
         # Log the scanner location
         logger.info(
@@ -163,7 +162,7 @@ def main_loop():
     gps = GPS()
 
     # Set a background task to sync the station time and position with the GPS
-    p = Process(target=gps_sync, args=[gps, settings['station_name']])
+    p = Process(target=gps_time_sync, args=[gps])
     p.daemon = True
     p.start()
 
@@ -309,6 +308,4 @@ def main_loop():
 
 
 if __name__ == '__main__':
-    # main_loop()
-    gps = GPS()
-    gps_time_sync(gps)
+    main_loop()

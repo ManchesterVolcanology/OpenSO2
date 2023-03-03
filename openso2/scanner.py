@@ -242,8 +242,9 @@ class Scanner:
         # Take the dark spectrum
         logger.info('Acquiring dark spectrum')
         self.spectrometer.fpath = 'data_bases/dark.txt'
-        [wl, dark_spec], info = self.spectrometer.get_spectrum()
-        spectra[0] = dark_spec
+        spectrum = self.spectrometer.get_spectrum()
+        spectra[0] = spectrum.data
+        wavelengths = spectrum.wavelength
         scan_angles[0] = self.angle
 
         # Move scanner to start position
@@ -265,8 +266,8 @@ class Scanner:
 
             # Acquire the spectrum
             self.spectrometer.fpath = 'data_bases/spectrum_00360.txt'
-            spectrum, info = self.spectrometer.get_spectrum()
-            spectra[step_no] = spectrum[1]
+            spectrum = self.spectrometer.get_spectrum()
+            spectra[step_no] = spectrum.data
             scan_angles[step_no] = self.angle
 
             # Step the scanner
@@ -297,7 +298,7 @@ class Scanner:
             data=spectra,
             coords={
                 'angle': scan_angles,
-                'wavelength': wl
+                'wavelength': wavelengths
             },
             attrs={**scan_info, **settings}
         )
