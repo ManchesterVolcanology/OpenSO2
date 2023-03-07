@@ -111,8 +111,19 @@ class Spectrometer():
         y_arr = np.zeros([self.coadds, len(x)])
 
         for n in range(self.coadds):
-            y_arr[n] = self.spectro.intensities(self.correct_dark_counts,
-                                                self.correct_nonlinearity)
+            try:
+                y_arr[n] = self.spectro.intensities(
+                    self.correct_dark_counts, self.correct_nonlinearity
+                )
+            except SeaBreezeError:
+                logger.warning(
+                    'Error reading spectrum, '
+                    'trying without non-liniarity correction'
+                )
+                self.correct_nonlinearity = False
+                y_arr[n] = self.spectro.intensities(
+                    self.correct_dark_counts, self.correct_nonlinearity
+                )
 
         y = np.average(y_arr, axis=0)
 
