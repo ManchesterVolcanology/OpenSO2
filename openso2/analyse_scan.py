@@ -6,10 +6,12 @@ import warnings
 import numpy as np
 import xarray as xr
 import pandas as pd
+from tqdm import tqdm
 from scipy.special import gamma
 from scipy.optimize import curve_fit
 from scipy.interpolate import griddata
 from scipy.signal import savgol_filter
+from tqdm.contrib.logging import logging_redirect_tqdm
 
 
 logger = logging.getLogger(__name__)
@@ -65,25 +67,26 @@ def analyse_scan(scan_data, analyser, save_fname=None):
         output_data[par] = np.zeros(nspec)
         output_data[f'{par}_err'] = np.zeros(nspec)
 
-    for i, spec in enumerate(spectra):
+    with logging_redirect_tqdm():
+        for i, spec in enumerate(tqdm(spectra, )):
 
-        try:
-            fit = analyser.fit_spectrum(spectrum=spec)
+            try:
+                fit = analyser.fit_spectrum(spectrum=spec)
 
-            output_data['fit_quality'][i] = fit.fit_quality
-            output_data['min_intensity'][i] = fit.min_intensity
-            output_data['average_intensity'][i] = fit.average_intensity
-            output_data['max_intensity'][i] = fit.max_intensity
-            output_data['max_residual'][i] = np.nanmax(fit.residual)
+                output_data['fit_quality'][i] = fit.fit_quality
+                output_data['min_intensity'][i] = fit.min_intensity
+                output_data['average_intensity'][i] = fit.average_intensity
+                output_data['max_intensity'][i] = fit.max_intensity
+                output_data['max_residual'][i] = np.nanmax(fit.residual)
 
-            for par in analyser.params.values():
-                output_data[par.name][i] = par.fit_val
-                output_data[par.name + '_err'][i] = par.fit_err
+                for par in analyser.params.values():
+                    output_data[par.name][i] = par.fit_val
+                    output_data[par.name + '_err'][i] = par.fit_err
 
-        except ValueError as msg:
-            logger.warning(f'Error in analysis, skipping\n{msg}')
+            except ValueError as msg:
+                logger.warning(f'Error in analysis, skipping\n{msg}')
 
-        _, tail = os.path.split(scan_data.filename)
+            _, tail = os.path.split(scan_data.filename)
 
     logger.info(f'Analysis finished for scan {tail}')
 
@@ -99,7 +102,7 @@ def analyse_scan(scan_data, analyser, save_fname=None):
     # Form output dataset
     attrs = {
         **scan_data.attrs,
-        **{'analysis_time': pd.Timestamp.now()}
+        **{'analysis_time': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}
     }
     output_ds = xr.Dataset(
         data_vars=data_vars,
