@@ -251,6 +251,7 @@ class Scanner:
         # Take the dark spectrum
         logger.info('Acquiring dark spectrum')
         spectrum = self.spectrometer.get_spectrum()
+        spectrum.data = np.loadtxt('TEST/dark.txt')
         spectra[0] = spectrum.data
         wavelengths = spectrum.wavelength
         scan_angles[0] = self.angle
@@ -274,6 +275,7 @@ class Scanner:
 
             # Acquire the spectrum
             spectrum = self.spectrometer.get_spectrum()
+            spectrum.data = np.loadtxt('TEST/spectrum_00366.txt')
             spectra[step_no] = spectrum.data
             scan_angles[step_no] = self.angle
 

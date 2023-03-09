@@ -18,6 +18,10 @@ warnings.filterwarnings(
     "ignore",
     message="Covariance of the parameters could not be estimated"
 )
+warnings.filterwarnings(
+    "ignore",
+    message="All-NaN axis encountered"
+)
 
 
 # =============================================================================
@@ -390,7 +394,7 @@ class Analyser(object):
             # Check the fit quality
             if self.residual_limit is not None \
                     and max(abs(resid)) > self.residual_limit:
-                logger.info('High residual detected')
+                logger.debug('High residual detected')
                 fit_quality = 2
 
             # Check for spectrum light levels
@@ -398,12 +402,12 @@ class Analyser(object):
 
                 # Check for low intensity
                 if min(spectrum.data) <= self.intensity_limit[0]:
-                    logger.info('Low intensity detected')
+                    logger.debug('Low intensity detected')
                     fit_quality = 2
 
                 # Check for high intensity
                 elif max(spectrum.data) >= self.intensity_limit[1]:
-                    logger.info('High intensity detected')
+                    logger.debug('High intensity detected')
                     fit_quality = 2
 
             # Collate the fit results
@@ -477,7 +481,7 @@ class Analyser(object):
             if fit_result.fit_quality == 1:
                 self.p0 = popt
             else:
-                logger.info('Resetting initial guess parameters')
+                logger.debug('Resetting initial guess parameters')
                 self.p0 = self.params.fittedvalueslist()
 
         return fit_result
