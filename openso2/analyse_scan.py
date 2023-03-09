@@ -70,7 +70,7 @@ def analyse_scan(scan_data, analyser, save_fname=None):
             output_data['min_intensity'][i] = fit.min_intensity
             output_data['average_intensity'][i] = fit.average_intensity
             output_data['max_intensity'][i] = fit.max_intensity
-            output_data['max_residual'][i] = np.nanmax(fit.resid)
+            output_data['max_residual'][i] = np.nanmax(fit.residual)
 
             for par in fit.params.values():
                 output_data[par.name][i] = par.fit_val
