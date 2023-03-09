@@ -16,7 +16,6 @@ with open('Station/station_settings.yml', 'r') as ymlfile:
     config = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
 home = '/home/pi/'
-home = 'D:/Code'
 
 # Set possible plot items
 plot_items = ["SO2", "O3", "Ring", "int_av", "fit_quality"]
