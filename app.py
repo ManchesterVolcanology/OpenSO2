@@ -1,7 +1,9 @@
 import os
 import yaml
+import xarray as xr
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime
 from flask import Flask
@@ -9,9 +11,12 @@ from dash import Dash, dcc, html
 import dash_bootstrap_components as dbc
 from dash.dependencies import Output, Input, State
 
-
 # Read the station settings
+with open('Station/station_settings.yml', 'r') as ymlfile:
+    config = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
+home = '/home/pi/'
+home = 'D:/Code'
 
 # Set possible plot items
 plot_items = ["SO2", "O3", "Ring", "int_av", "fit_quality"]
@@ -20,7 +25,7 @@ plot_items = ["SO2", "O3", "Ring", "int_av", "fit_quality"]
 tday_date = datetime.now().date()
 
 # Get the dates available
-data_folders = os.listdir("/home/pi/Results")
+data_folders = os.listdir(f"{home}/Results")
 data_folders.sort()
 if len(data_folders) == 0:
     data_folders = [tday_date]
@@ -34,7 +39,7 @@ disabled_days = [
 def update_status():
     # Get the station status
     try:
-        with open(f"/home/pi/OpenSO2/Station/status.txt", 'r') as r:
+        with open(f"{home}/OpenSO2/Station/status.txt", 'r') as r:
             status_time, status_text = r.readline().split(' - ')
             status_time = datetime.strptime(
                 status_time, "%Y-%m-%d %H:%M:%S.%f"
@@ -46,11 +51,13 @@ def update_status():
 
 
 # Generate the map data
-vlat, vlon = config['VentLocation']
-slat, slon = config['ScannerLocation']
+vlat, vlon = config['volcano_location']
+with open('Station/location.yml', 'r') as ymlfile:
+    scanner_location = yaml.load(ymlfile, Loader=yaml.FullLoader)
+slat, slon = scanner_location['Lat'], scanner_location['Lon']
 df = pd.DataFrame(
     {
-        "name": [config["StationName"], config["VolcanoName"]],
+        "name": [config["station_name"], config["volcano_name"]],
         "lat": [slat, vlat],
         "lon": [slon, vlon],
         "color": ["Red", "Blue"],
@@ -59,7 +66,7 @@ df = pd.DataFrame(
 )
 
 map_fig = px.scatter_mapbox(
-    df, lat="lat", lon="lon", zoom=config['MapZoom'],
+    df, lat="lat", lon="lon", zoom=config['map_zoom'],
     hover_data=["lat", "lon"],
     mapbox_style="stamen-terrain",
     color="color",
@@ -70,10 +77,40 @@ map_fig = px.scatter_mapbox(
 map_fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
 map_fig.update_layout(showlegend=False)
 
+# Geerate the scan position graph
+polar_fig = px.line_polar(
+    r=[0, 1], theta=[0, -90], start_angle=90, template="plotly_dark"
+)
+tickvals = np.concatenate([
+    [x for x in np.arange(270, 360, 10)],
+    [x for x in np.arange(0, 91, 10)],
+    [180]
+])
+ticktext = [str(x) for x in np.arange(-90, 91, 10)] + ['Home']
+polar_fig.update_layout(
+    polar = dict(
+        radialaxis=dict(
+            range=[0, 1], showticklabels=False, ticks='', showgrid=False
+        ),
+        angularaxis = dict(
+            tickmode='array',
+            tickvals=tickvals,
+            ticktext=ticktext
+        )
+    )
+)
+
+go.Figure(go.Indicator(
+    mode='gauge+number',
+    value=-180,
+    domain={'x': [0, 1], 'y': [0, 1]},
+    title={'text': 'Scanner Position'}
+))
+
 # Setup the Dash app
 server = Flask(__name__)
 app = Dash(__name__, server=server, external_stylesheets=[dbc.themes.DARKLY])
-app.title = f"{config['StationName']} Dashboard"
+app.title = f"{config['station_name']} Dashboard"
 
 # =============================================================================
 # App Controls
@@ -116,22 +153,6 @@ controls = dbc.Card(
 
         html.Div(
             [
-                dbc.Label("Upper Limit"),
-                dbc.Input(id='clim-hi', type='number', placeholder="-")
-            ]
-        ),
-
-        html.Div(
-            [
-                dbc.Label("Lower Limit"),
-                dbc.Input(id='clim-lo', type='number', placeholder="-")
-            ]
-        ),
-
-        html.Hr(),
-
-        html.Div(
-            [
                 dbc.Button("View logs", id="open", color="primary"),
 
                 dbc.Modal(
@@ -160,6 +181,15 @@ controls = dbc.Card(
                 dbc.Button("Refresh", id="refresh", color="primary",
                            style={"margin-left": "15px"})
             ]
+        ),
+
+        html.Hr(),
+
+        html.Div(
+            [
+                dbc.Label('Scanner Position'),
+                dcc.Graph(id="polar-chart", figure=polar_fig),
+            ]
         )
     ],
     body=True
@@ -171,6 +201,28 @@ controls = dbc.Card(
 
 plots = dbc.Card(
     [
+        html.Div([
+            dcc.Graph(id="scan-chart"),
+            dcc.Interval(
+                id='interval_component',
+                interval=1 * 1000, n_intervals=0
+            )
+        ]),
+        html.Hr(),
+
+        html.Div(
+            [
+                dbc.Label("Upper Limit"),
+                dbc.Input(id='clim-hi', type='number', placeholder="-")
+            ]
+        ),
+
+        html.Div(
+            [
+                dbc.Label("Lower Limit"),
+                dbc.Input(id='clim-lo', type='number', placeholder="-")
+            ]
+        ),
         html.Div(
             dcc.Graph(id="param-chart")
         ),
@@ -188,7 +240,7 @@ plots = dbc.Card(
 
 app.layout = dbc.Container(
     [
-        html.H1(f"{config['StationName']} Dashboard"),
+        html.H1(f"{config['station_name']} Dashboard"),
         html.Div([dbc.Label(update_status())], id="status-text"),
         html.Hr(),
         dbc.Row(
@@ -208,6 +260,8 @@ app.layout = dbc.Container(
 
 @app.callback(
     [
+        Output("polar-chart", "figure"),
+        Output("scan-chart", "figure"),
         Output("param-chart", "figure"),
         Output("status-text", "children")
     ],
@@ -216,84 +270,119 @@ app.layout = dbc.Container(
         Input("param-filter", "value"),
         Input("clim-hi", "value"),
         Input("clim-lo", "value"),
-        Input("refresh", "n_clicks")
+        Input("refresh", "n_clicks"),
+        Input("interval_component", "n_intervals")
     ]
 )
-def refresh(plot_date, plot_param, climhi, climlo, n):
+def refresh(plot_date, plot_param, climhi, climlo, n, i_n):
     """Callback to refresh the dashboard."""
+    # Get the scanner position
+    try:
+        scanner_pos = np.loadtxt('Station/scanner_position.txt')
+    except FileNotFoundError:
+        scanner_pos = -180
+    polarfig = px.line_polar(
+        r=[0, 1], theta=[0, scanner_pos], start_angle=90,
+        template="plotly_dark"
+    )
+    tickvals = np.concatenate([
+        [x for x in np.arange(270, 360, 10)],
+        [x for x in np.arange(0, 91, 10)],
+        [180]
+    ])
+    ticktext = [str(x) for x in np.arange(-90, 91, 10)] + ['Home']
+    polarfig.update_layout(
+        polar = dict(
+            radialaxis=dict(
+                range=[0, 1], showticklabels=False, ticks='', showgrid=False
+            ),
+            angularaxis = dict(
+                tickmode='array',
+                tickvals=tickvals,
+                ticktext=ticktext
+            )
+        )
+    )
+
     # Get the path to the data
-    fpath = f"{config['DataPath']}/Results/"
+    fpath = f'{home}/{config["output_folder"]}'
 
     # Get the data files
     try:
         scan_fnames = os.listdir(f"{fpath}/{plot_date}/so2")
+        scan_fnames.sort()
     except FileNotFoundError:
-        df = pd.DataFrame(
+        scandf = pd.DataFrame(
+            index=np.arange(0),
+            columns=["Scan Angle (deg)", plot_param]
+        )
+        paramdf = pd.DataFrame(
             index=np.arange(0),
             columns=["Scan Time (UTC)", "Scan Angle (deg)", plot_param]
         )
-        fig = px.scatter(df, x="Scan Time (UTC)", y="Scan Angle (deg)",
-                         color=plot_param, range_color=[0, 1])
-        return [fig, [dbc.Label(update_status())]]
+        scanfig = px.scatter(
+            scandf, x="Scan Angle (deg)", y=plot_param, template="plotly_dark"
+        )
+        paramfig = px.scatter(
+            paramdf, x="Scan Time (UTC)", y="Scan Angle (deg)",
+            color=plot_param, range_color=[0, 1], template="plotly_dark"
+        )
+        return [polarfig, scanfig, paramfig, [dbc.Label(update_status())]]
 
-    # Initialize the DataFrame
-    df = pd.DataFrame(
-        index=np.arange(len(scan_fnames)*99),
-        columns=["Scan Time (UTC)", "Scan Angle (deg)", plot_param]
-    )
-    n = 0
+    plot_data = {'Scan Time (UTC)': [], 'Scan Angle (deg)': [], plot_param: []}
 
     # Iterate through the files
-    for i, fname in enumerate(scan_fnames):
-
-        # Pull year, month and day from file name
-        y = int(fname[:4])
-        m = int(fname[4:6])
-        d = int(fname[6:8])
+    for fname in scan_fnames:
 
         # Load the scan file, unpacking the angle and SO2 data
         try:
-            scan_df = pd.read_csv(f"{fpath}/{plot_date}/so2/{fname}")
+            scan_ds = xr.load_dataset(f"{fpath}/{plot_date}/so2/{fname}")
         except pd.errors.EmptyDataError:
             continue
 
-        # Pull the time and convert to a timestamp
-        for j, t in enumerate(scan_df["Time"]):
-            try:
-                H = int(t)
-                M = int((t - H)*60)
-                S = int((t-H-M/60))*3600
-                ts = pd.Timestamp(year=y, month=m, day=d, hour=H, minute=M,
-                                  second=S)
+        scan_times = pd.date_range(
+            scan_ds.scan_start_time,
+            scan_ds.scan_end_time,
+            periods=len(scan_ds.angle)
+        )
+        plot_data['Scan Time (UTC)'].extend(scan_times)
+        plot_data['Scan Angle (deg)'].extend(scan_ds.angle.data)
+        plot_data[plot_param].extend(scan_ds[plot_param].data)
 
-                # Set the next row
-                df.iloc[n] = [ts, scan_df["Angle"].iloc[j],
-                              scan_df[plot_param].iloc[j]]
+    # Save the last scan
+    scandf = pd.DataFrame({
+        'Scan Angle (deg)': scan_ds.angle.data,
+        plot_param: scan_ds[plot_param].data
+    })
+    scandf = scan_ds.to_dataframe()
+    scandf['Scan Angle (deg)'] = scan_ds.angle
 
-            except ValueError:
-                pass
-
-            # Iterate the counter
-            n += 1
+    # Convert to a dataframe
+    paramdf = pd.DataFrame(plot_data)
 
     # Remove row with nan times
-    df = df[df["Scan Time (UTC)"].notna()]
+    paramdf = paramdf[paramdf["Scan Time (UTC)"].notna()]
 
     # Set nan values to zero
-    df = df.fillna(0)
+    paramdf = paramdf.fillna(0)
 
     # Set the limits
     if climlo is None:
-        climlo = df[plot_param].min()
+        climlo = paramdf[plot_param].min()
     if climhi is None:
-        climhi = df[plot_param].max()
+        climhi = paramdf[plot_param].max()
     limits = [climlo, climhi]
 
-    # Generate the figure
-    fig = px.scatter(df, x="Scan Time (UTC)", y="Scan Angle (deg)",
-                     color=plot_param, range_color=limits)
+    # Generate the figures
+    scanfig = px.line(
+        scandf, x="Scan Angle (deg)", y=plot_param, template="plotly_dark"
+    )
+    paramfig = px.scatter(
+        paramdf, x="Scan Time (UTC)", y="Scan Angle (deg)",
+        color=plot_param, range_color=limits, template="plotly_dark"
+    )
 
-    return [fig, [dbc.Label(update_status())]]
+    return [polarfig, scanfig, paramfig, [dbc.Label(update_status())]]
 
 
 @app.callback(
@@ -313,7 +402,7 @@ def toggle_modal(n1, n2, is_open):
 )
 def update_log_text(date):
     # Try to read the log file
-    fname = f"{config['DataPath']}/Results/{date}/{date}.log"
+    fname = f"{home}/{config['output_folder']}/{date}/{date}.log"
     try:
         with open(fname, "r") as r:
             lines = r.readlines()
