@@ -64,13 +64,7 @@ def analyse_scan(scan_data, analyser, save_fname=None):
     for i, spec in enumerate(spectra):
 
         try:
-            fit = analyser.fit_spectrum(
-                spectrum=spec,
-                update_params=True,
-                resid_limit=20,
-                int_limit=[0, 60000],
-                interp_method='linear'
-            )
+            fit = analyser.fit_spectrum(spectrum=spec)
 
             output_data['fit_quality'][i] = fit.nerr
             output_data['min_intensity'][i] = fit.min_intensity
