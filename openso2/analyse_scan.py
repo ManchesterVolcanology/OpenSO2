@@ -467,7 +467,7 @@ class Analyser(object):
             'fit_quality': fit_quality,
             'min_intensity': spectrum.min(),
             'average_intensity': spectrum.mean(),
-            'max_intensity': spectrum.max()
+            'max_intensity': spectrum.max(),
             **spectrum.attrs
         }
         )
