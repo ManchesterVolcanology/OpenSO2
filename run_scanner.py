@@ -24,13 +24,11 @@ import subprocess
 from datetime import datetime
 from multiprocessing import Process
 
-from ifit.gps import GPS
-from openso2.parameters import Parameters
-from ifit.spectral_analysis import Analyser
-from openso2.spectrometers import Spectrometer
-
+from openso2.gps import GPS
 from openso2.scanner import Scanner
-from openso2.analyse_scan import analyse_scan, update_int_time
+from openso2.parameters import Parameters
+from openso2.spectrometers import Spectrometer
+from openso2.analyse_scan import Analyser, analyse_scan, update_int_time
 
 __version__ = 'v_1_5'
 

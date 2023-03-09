@@ -135,7 +135,7 @@ class Spectrometer():
             'serial_number': self.serial_number,
             'integration_time': self.integration_time,
             'coadds': self.coadds,
-            'time': spec_time,
+            'timestamp': spec_time,
             'dark_correction': self.correct_dark_counts,
             'nonlin_correction': self.correct_nonlinearity,
             'fname': fname

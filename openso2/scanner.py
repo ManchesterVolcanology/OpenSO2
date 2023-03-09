@@ -290,8 +290,8 @@ class Scanner:
         scan_info = {
             'filename': fname,
             'spectrometer': self.spectrometer.serial_number,
-            'scan_start_time': scan_start_time.strftime('%Y-%m-%dT%H:%M:%S'),
-            'scan_end_time': scan_end_time.strftime('%Y-%m-%dT%H:%M:%S'),
+            'scan_start_time': scan_start_time.strftime('%Y-%m-%d %H:%M:%S'),
+            'scan_end_time': scan_end_time.strftime('%Y-%m-%d %H:%M:%S'),
             'integration_time': self.spectrometer.integration_time,
             'coadds': self.spectrometer.coadds,
             'scan_number': self.scan_number,

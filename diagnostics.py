@@ -6,10 +6,9 @@ import traceback
 from datetime import datetime
 import seabreeze.spectrometers as sb
 
+from openso2.gps import GPS
 from openso2.scanner import Scanner
 from openso2.spectrometers import Spectrometer
-
-from ifit.gps import GPS
 
 
 class bcolors:
