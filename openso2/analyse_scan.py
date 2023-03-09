@@ -465,9 +465,9 @@ class Analyser(object):
             data_vars=fit_data,
             attrs={
             'fit_quality': fit_quality,
-            'min_intensity': fit.spectrum.min(),
-            'average_intensity': fit.spectrum.mean(),
-            'max_intensity': fit.spectrum.max()
+            'min_intensity': spectrum.min(),
+            'average_intensity': spectrum.mean(),
+            'max_intensity': spectrum.max()
             **spectrum.attrs
         }
         )
