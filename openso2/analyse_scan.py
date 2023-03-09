@@ -14,7 +14,7 @@ from scipy.signal import savgol_filter
 from tqdm.contrib.logging import logging_redirect_tqdm
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 
 warnings.filterwarnings(
     "ignore",
@@ -68,7 +68,7 @@ def analyse_scan(scan_data, analyser, save_fname=None):
         output_data[f'{par}_err'] = np.zeros(nspec)
 
     with logging_redirect_tqdm():
-        for i, spec in enumerate(tqdm(spectra, )):
+        for i, spec in enumerate(tqdm(spectra, leave=False)):
 
             try:
                 fit = analyser.fit_spectrum(spectrum=spec)
