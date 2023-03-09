@@ -72,7 +72,7 @@ def analyse_scan(scan_data, analyser, save_fname=None):
             output_data['max_intensity'][i] = fit.max_intensity
             output_data['max_residual'][i] = np.nanmax(fit.residual)
 
-            for par in fit.params.values():
+            for par in analyser.params.values():
                 output_data[par.name][i] = par.fit_val
                 output_data[par.name + '_err'][i] = par.fit_err
 
