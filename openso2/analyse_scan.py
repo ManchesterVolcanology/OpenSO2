@@ -66,7 +66,7 @@ def analyse_scan(scan_data, analyser, save_fname=None):
         try:
             fit = analyser.fit_spectrum(spectrum=spec)
 
-            output_data['fit_quality'][i] = fit.nerr
+            output_data['fit_quality'][i] = fit.fit_quality
             output_data['min_intensity'][i] = fit.min_intensity
             output_data['average_intensity'][i] = fit.average_intensity
             output_data['max_intensity'][i] = fit.max_intensity
