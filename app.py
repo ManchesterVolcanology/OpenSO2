@@ -15,16 +15,14 @@ from dash.dependencies import Output, Input, State
 with open('Station/station_settings.yml', 'r') as ymlfile:
     config = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
-home = '/home/pi/'
-
 # Set possible plot items
-plot_items = ["SO2", "O3", "Ring", "int_av", "fit_quality"]
+plot_items = ["SO2", "O3", "Ring", "average_intensity", "fit_quality"]
 
 # Get today's date
 tday_date = datetime.now().date()
 
 # Get the dates available
-data_folders = os.listdir(f"{home}/Results")
+data_folders = os.listdir(f"{config['output_folder']}")
 data_folders.sort()
 if len(data_folders) == 0:
     data_folders = [tday_date]
@@ -35,10 +33,10 @@ disabled_days = [
 ]
 
 
-def update_status():
+def update_scanner_status():
     # Get the station status
     try:
-        with open(f"{home}/OpenSO2/Station/status.txt", 'r') as r:
+        with open("Station/status.txt", 'r') as r:
             status_time, status_text = r.readline().split(' - ')
             status_time = datetime.strptime(
                 status_time, "%Y-%m-%d %H:%M:%S.%f"
@@ -49,23 +47,73 @@ def update_status():
     return f"Current status: {status_text} (at {status_time})"
 
 
+def update_board_status():
+    try:
+        # Read the file with the temperature, voltage and current info
+        with open('Station/board_status.yml', 'r') as ymlfile:
+            board = yaml.load(ymlfile, Loader=yaml.FullLoader)
+        temp_str = f'Temp: {board["temperature"]}'
+        vin_str = f'Vin: {board["Vin"]} V'
+        vout_str = f'Vout: {board["Vout"]} V'
+        iout_str = f'Iout: {board["Iout"]} A'
+        return [temp_str, vin_str, vout_str, iout_str]
+
+    except FileNotFoundError:
+        return ["Temp: -", "Vin: -", "Vout: -", "Iout: -"]
+
+
+
+def update_scanner_position():
+    # Get the scanner position
+    try:
+        scanner_pos = np.loadtxt('Station/scanner_position.txt')
+    except FileNotFoundError:
+        scanner_pos = np.nan
+
+    # Generate the figure
+    positionfig = px.line_polar(
+        r=[0, 1], theta=[0, scanner_pos], start_angle=90,
+        template="plotly_dark", title='Scanner Position',
+        markers=True
+    )
+    tickvals = np.concatenate([
+        [x for x in np.arange(270, 360, 10)],
+        [x for x in np.arange(0, 91, 10)],
+        [180]
+    ])
+    ticktext = [str(x) for x in np.arange(-90, 91, 10)] + ['Home']
+    positionfig.update_layout(
+        polar = dict(
+            radialaxis=dict(
+                range=[0, 1], showticklabels=False, ticks='', showgrid=False
+            ),
+            angularaxis = dict(
+                tickmode='array',
+                tickvals=tickvals,
+                ticktext=ticktext
+            )
+        )
+    )
+
+    return positionfig
+
+
 # Generate the map data
-vlat, vlon = config['volcano_location']
 with open('Station/location.yml', 'r') as ymlfile:
     scanner_location = yaml.load(ymlfile, Loader=yaml.FullLoader)
 slat, slon = scanner_location['Lat'], scanner_location['Lon']
 df = pd.DataFrame(
     {
-        "name": [config["station_name"], config["volcano_name"]],
-        "lat": [slat, vlat],
-        "lon": [slon, vlon],
-        "color": ["Red", "Blue"],
-        "size": [5, 5]
+        "name": [config["station_name"]],
+        "lat": [slat],
+        "lon": [slon],
+        "color": ["Red"],
+        "size": [5]
      }
 )
 
 map_fig = px.scatter_mapbox(
-    df, lat="lat", lon="lon", zoom=config['map_zoom'],
+    df, lat="lat", lon="lon", zoom=11,
     hover_data=["lat", "lon"],
     mapbox_style="stamen-terrain",
     color="color",
@@ -76,35 +124,7 @@ map_fig = px.scatter_mapbox(
 map_fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
 map_fig.update_layout(showlegend=False)
 
-# Geerate the scan position graph
-polar_fig = px.line_polar(
-    r=[0, 1], theta=[0, -90], start_angle=90, template="plotly_dark"
-)
-tickvals = np.concatenate([
-    [x for x in np.arange(270, 360, 10)],
-    [x for x in np.arange(0, 91, 10)],
-    [180]
-])
-ticktext = [str(x) for x in np.arange(-90, 91, 10)] + ['Home']
-polar_fig.update_layout(
-    polar = dict(
-        radialaxis=dict(
-            range=[0, 1], showticklabels=False, ticks='', showgrid=False
-        ),
-        angularaxis = dict(
-            tickmode='array',
-            tickvals=tickvals,
-            ticktext=ticktext
-        )
-    )
-)
 
-go.Figure(go.Indicator(
-    mode='gauge+number',
-    value=-180,
-    domain={'x': [0, 1], 'y': [0, 1]},
-    title={'text': 'Scanner Position'}
-))
 
 # Setup the Dash app
 server = Flask(__name__)
@@ -118,6 +138,79 @@ app.title = f"{config['station_name']} Dashboard"
 controls = dbc.Card(
     [
         html.Div(
+            [
+                dbc.Button("View logs", id="open", color="primary"),
+
+                dbc.Modal(
+                    [
+                        dbc.ModalHeader("Station logs"),
+                        dbc.ModalBody(
+                            dbc.Textarea(rows=10, id="log-text")
+                        ),
+                        dbc.ModalFooter(
+                            dbc.Button(
+                                "Close",
+                                id="close",
+                                className="ml-auto"
+                            )
+                        )
+                    ],
+                    id="modal",
+                    is_open=False,
+                    size="xl",
+                    backdrop=True,
+                    scrollable=True,
+                    centered=True,
+                    fade=True
+                ),
+
+                dbc.Button(
+                    "Refresh", id="refresh", color="primary",
+                    style={"margin-left": "15px"}
+                ),
+
+                dbc.Button(
+                    "Pause Scanning", id="pause", color="primary",
+                    style={"margin-left": "15px"}
+                ),
+
+                dbc.Button(
+                    "Reboot Scanner", id="reboot", color="primary",
+                    style={"margin-left": "15px"}
+                )
+            ]
+        ),
+
+        html.Hr(),
+
+        html.Div([dbc.Label(update_scanner_status())], id="status-text"),
+        html.Div([dbc.Label("-")], id="board-temp"),
+        html.Div([dbc.Label("-")], id="board-vin"),
+        html.Div([dbc.Label("-")], id="board-vout"),
+        html.Div([dbc.Label("-")], id="board-iout"),
+
+        html.Hr(),
+
+        html.Div(
+            [
+                dcc.Graph(id="polar-chart", figure=update_scanner_position()),
+                dcc.Interval(
+                    id='position-updater',
+                    interval=1 * 1000, n_intervals=0
+                )
+            ]
+        )
+    ],
+    body=True
+)
+
+# =============================================================================
+# App Plots
+# =============================================================================
+
+plots = dbc.Card(
+    [
+    html.Div(
             [
                 dcc.DatePickerSingle(
                     id="date-picker",
@@ -149,62 +242,11 @@ controls = dbc.Card(
         ),
 
         html.Hr(),
-
-        html.Div(
-            [
-                dbc.Button("View logs", id="open", color="primary"),
-
-                dbc.Modal(
-                    [
-                        dbc.ModalHeader("Station logs"),
-                        dbc.ModalBody(
-                            dbc.Textarea(rows=10, id="log-text")
-                        ),
-                        dbc.ModalFooter(
-                            dbc.Button(
-                                "Close",
-                                id="close",
-                                className="ml-auto"
-                            )
-                        )
-                    ],
-                    id="modal",
-                    is_open=False,
-                    size="xl",
-                    backdrop=True,
-                    scrollable=True,
-                    centered=True,
-                    fade=True
-                ),
-
-                dbc.Button("Refresh", id="refresh", color="primary",
-                           style={"margin-left": "15px"})
-            ]
-        ),
-
-        html.Hr(),
-
-        html.Div(
-            [
-                dbc.Label('Scanner Position'),
-                dcc.Graph(id="polar-chart", figure=polar_fig),
-            ]
-        )
-    ],
-    body=True
-)
-
-# =============================================================================
-# App Plots
-# =============================================================================
-
-plots = dbc.Card(
-    [
         html.Div([
             dcc.Graph(id="scan-chart"),
             dcc.Interval(
-                id='interval_component',
-                interval=1 * 1000, n_intervals=0
+                id='data-updater',
+                interval=600 * 1000, n_intervals=0
             )
         ]),
         html.Hr(),
@@ -240,7 +282,6 @@ plots = dbc.Card(
 app.layout = dbc.Container(
     [
         html.H1(f"{config['station_name']} Dashboard"),
-        html.Div([dbc.Label(update_status())], id="status-text"),
         html.Hr(),
         dbc.Row(
             [
@@ -259,10 +300,8 @@ app.layout = dbc.Container(
 
 @app.callback(
     [
-        Output("polar-chart", "figure"),
         Output("scan-chart", "figure"),
-        Output("param-chart", "figure"),
-        Output("status-text", "children")
+        Output("param-chart", "figure")
     ],
     [
         Input("date-picker", "date"),
@@ -270,41 +309,13 @@ app.layout = dbc.Container(
         Input("clim-hi", "value"),
         Input("clim-lo", "value"),
         Input("refresh", "n_clicks"),
-        Input("interval_component", "n_intervals")
+        Input("data-updater", "n_intervals")
     ]
 )
 def refresh(plot_date, plot_param, climhi, climlo, n, i_n):
     """Callback to refresh the dashboard."""
-    # Get the scanner position
-    try:
-        scanner_pos = np.loadtxt('Station/scanner_position.txt')
-    except FileNotFoundError:
-        scanner_pos = -180
-    polarfig = px.line_polar(
-        r=[0, 1], theta=[0, scanner_pos], start_angle=90,
-        template="plotly_dark"
-    )
-    tickvals = np.concatenate([
-        [x for x in np.arange(270, 360, 10)],
-        [x for x in np.arange(0, 91, 10)],
-        [180]
-    ])
-    ticktext = [str(x) for x in np.arange(-90, 91, 10)] + ['Home']
-    polarfig.update_layout(
-        polar = dict(
-            radialaxis=dict(
-                range=[0, 1], showticklabels=False, ticks='', showgrid=False
-            ),
-            angularaxis = dict(
-                tickmode='array',
-                tickvals=tickvals,
-                ticktext=ticktext
-            )
-        )
-    )
-
     # Get the path to the data
-    fpath = f'{home}/{config["output_folder"]}'
+    fpath = f'{config["output_folder"]}'
 
     # Get the data files
     try:
@@ -320,13 +331,15 @@ def refresh(plot_date, plot_param, climhi, climlo, n, i_n):
             columns=["Scan Time (UTC)", "Scan Angle (deg)", plot_param]
         )
         scanfig = px.scatter(
-            scandf, x="Scan Angle (deg)", y=plot_param, template="plotly_dark"
+            scandf, x="Scan Angle (deg)", y=plot_param, template="plotly_dark",
+            title='Last Scan'
         )
         paramfig = px.scatter(
             paramdf, x="Scan Time (UTC)", y="Scan Angle (deg)",
-            color=plot_param, range_color=[0, 1], template="plotly_dark"
+            color=plot_param, range_color=[0, 1], template="plotly_dark",
+            title='Scan Map'
         )
-        return [polarfig, scanfig, paramfig, [dbc.Label(update_status())]]
+        return [scanfig, paramfig]
 
     plot_data = {'Scan Time (UTC)': [], 'Scan Angle (deg)': [], plot_param: []}
 
@@ -374,14 +387,64 @@ def refresh(plot_date, plot_param, climhi, climlo, n, i_n):
 
     # Generate the figures
     scanfig = px.line(
-        scandf, x="Scan Angle (deg)", y=plot_param, template="plotly_dark"
+        scandf, x="Scan Angle (deg)", y=plot_param, template="plotly_dark",
+        title='Last Scan'
     )
     paramfig = px.scatter(
         paramdf, x="Scan Time (UTC)", y="Scan Angle (deg)",
-        color=plot_param, range_color=limits, template="plotly_dark"
+        color=plot_param, range_color=limits, template="plotly_dark",
+            title='Scan Map'
     )
 
-    return [polarfig, scanfig, paramfig, [dbc.Label(update_status())]]
+    return [scanfig, paramfig]
+
+
+@app.callback(
+    [
+        Output("polar-chart", "figure"),
+        Output("status-text", "children"),
+        Output("board-temp", "children"),
+        Output("board-vin", "children"),
+        Output("board-vout", "children"),
+        Output("board-iout", "children")
+    ],
+    [
+        Input("refresh", "n_clicks"),
+        Input("position-updater", "n_intervals")
+    ]
+)
+def update_scanner_status_cb(n_clicks, n_intervals):
+    """Update scanner position and status."""
+    return [
+        update_scanner_position(),
+        [dbc.Label(update_scanner_status())],
+        *[[label] for label in update_board_status()]
+    ]
+
+
+@app.callback(
+        Output("pause", "children"),
+        [Input("pause", "n_clicks")],
+)
+def pause_scanner(n_clicks):
+    if n_clicks is not None:
+        if not os.path.isfile('Station/pause'):
+            open('Station/pause', 'w').close()
+            return "Continue Scanning"
+        else:
+            os.remove('Station/pause')
+            return "Pause Scanning"
+    return 'Pause Scanning'
+
+
+@app.callback(
+        Output("reboot", "children"),
+        [Input("reboot", "n_clicks")],
+)
+def reboot_scanner(n_clicks):
+    if n_clicks is not None:
+        os.system("sudo reboot")
+    return 'Reboot Scanner'
 
 
 @app.callback(
@@ -401,7 +464,7 @@ def toggle_modal(n1, n2, is_open):
 )
 def update_log_text(date):
     # Try to read the log file
-    fname = f"{home}/{config['output_folder']}/{date}/{date}.log"
+    fname = f"{config['output_folder']}/{date}/{date}.log"
     try:
         with open(fname, "r") as r:
             lines = r.readlines()
@@ -415,4 +478,4 @@ def update_log_text(date):
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server(host='0.0.0.0')
