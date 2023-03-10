@@ -57,7 +57,7 @@ if not os.path.exists(f'{results_fpath}/so2/'):
 if not os.path.exists(f'{results_fpath}/spectra/'):
     os.makedirs(f'{results_fpath}/spectra/')
 
-# Add a file handler o the logger
+# Add a file handler to the logger
 file_handler = logging.FileHandler(f'{results_fpath}/{datestamp}.log')
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 file_format = logging.Formatter(log_fmt, '%Y-%m-%d %H:%M:%S')
@@ -240,8 +240,26 @@ def main_loop():
     )
     logger.info('Scanner engaged')
 
+    # Ensure scanning isn't paused
+    if os.path.isfile('Station/pause'):
+        os.remove('Station/pause')
+
     # Begin loop
     while datetime.now().time() < stop_time:
+
+        # Check if scanning is paused
+        scan_flag = True
+        if os.path.isfile('Station/pause'):
+            logger.info('Scanning paused')
+            log_status('Paused')
+            scan_flag = False
+
+        while not scan_flag:
+            if not os.path.isfile('Station/pause'):
+                logger.info('Scanning resumed')
+                log_status('Active')
+                scan_flag = True
+            time.sleep(1)
 
         # Log status change and scan number
         log_status('Active')
