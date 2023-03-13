@@ -1,12 +1,12 @@
 import os
 import yaml
-import xarray as xr
+import subprocess
 import numpy as np
+import xarray as xr
 import pandas as pd
-import plotly.graph_objects as go
+from flask import Flask
 import plotly.express as px
 from datetime import datetime
-from flask import Flask
 from dash import Dash, dcc, html
 import dash_bootstrap_components as dbc
 from dash.dependencies import Output, Input, State
@@ -48,19 +48,16 @@ def update_scanner_status():
 
 
 def update_board_status():
-    try:
-        # Read the file with the temperature, voltage and current info
-        with open('Station/board_status.yml', 'r') as ymlfile:
-            board = yaml.load(ymlfile, Loader=yaml.FullLoader)
-        temp_str = f'Temp: {board["temperature"]}'
-        vin_str = f'Vin: {board["Vin"]} V'
-        vout_str = f'Vout: {board["Vout"]} V'
-        iout_str = f'Iout: {board["Iout"]} A'
-        return [temp_str, vin_str, vout_str, iout_str]
-
-    except FileNotFoundError:
-        return ["Temp: -", "Vin: -", "Vout: -", "Iout: -"]
-
+    output = subprocess.run(
+        "/home/pi/OpenSO2/utility/read_board_status.sh",
+        capture_output=True
+    )
+    board_data = output.stdout.decode('utf-8').strip().split(' | ')
+    temp_str = f"Temp: {board_data[0].split(' / ')[0]}"
+    vin_str = f"Vin: {board_data[1]} V"
+    vout_str = f"Vout: {board_data[2]} V"
+    iout_str = f"Iout: {board_data[3]} A"
+    return [temp_str, vin_str, vout_str, iout_str]
 
 
 def update_scanner_position():
