@@ -568,10 +568,13 @@ class MainWindow(QMainWindow):
 #   Add Scanning Stations
 # =============================================================================
 
-    def add_station(self, name, com_info, loc_info, sync_flag):
+    def add_station(self, name, com_info, loc_info, sync_flag,
+                    filter_spectra_flag=False):
         """Add station controls and displays to a new tab."""
         # Create the station object
-        self.stations[name] = Station(name, com_info, loc_info, sync_flag)
+        self.stations[name] = Station(
+            name, com_info, loc_info, sync_flag, filter_spectra_flag
+        )
 
         # Create the tab to hold the station widgets
         self.stationTabs[name] = QWidget()
@@ -620,9 +623,11 @@ class MainWindow(QMainWindow):
         layout.addWidget(stat_az, 0, coln)
 
         # Add option to filter the bad spectra from display
-        filter_spectra_flag = QCheckBox('Hide bad\nspectra?')
-        layout.addWidget(filter_spectra_flag, 1, coln)
-        filter_spectra_flag.stateChanged.connect(
+        filter_spectra_cb = QCheckBox('Hide bad\nspectra?')
+        print(filter_spectra_flag)
+        filter_spectra_cb.setChecked(filter_spectra_flag)
+        layout.addWidget(filter_spectra_cb, 1, coln)
+        filter_spectra_cb.stateChanged.connect(
             lambda: self.update_scan_plot(name, self.widgets.get('sync_folder'))
         )
 
@@ -644,7 +649,8 @@ class MainWindow(QMainWindow):
         self.station_widgets[name] = {
             'loc': stat_loc,
             'az': stat_az,
-            'sync_flag': sync_flag
+            'sync_flag': sync_flag,
+            'filter_spectra_flag': filter_spectra_cb
         }
 
         # Create the graphs
@@ -1025,6 +1031,11 @@ class MainWindow(QMainWindow):
         # Get the scans in the directory
         scan_fnames = os.listdir(f'{fpath}/{name}/so2')
 
+        # Pull the filter spectra flag
+        filter_spectra_flag = self.station_widgets[name][
+            'filter_spectra_flag'
+        ].isChecked()
+
         if len(scan_fnames) == 0:
             return
 
@@ -1054,7 +1065,7 @@ class MainWindow(QMainWindow):
                 ploty = np.zeros(shape)
 
             # Check if the scans should be filtered
-            if self.widgets.get('filter_spectra_flag'):
+            if filter_spectra_flag:
                 mask = np.row_stack([
                     scan_df['SO2'] < float(self.widgets.get('lo_scd_lim')),
                     scan_df['SO2'] > float(self.widgets.get('hi_scd_lim')),
@@ -1122,7 +1133,7 @@ class MainWindow(QMainWindow):
         scan_int = scan_int.flatten()
 
         # Check if the scans should be filtered
-        if self.widgets.get('filter_spectra_flag'):
+        if filter_spectra_flag:
             mask = np.row_stack([
                 scan_so2 < float(self.widgets.get('lo_scd_lim')),
                 scan_so2 > float(self.widgets.get('hi_scd_lim')),
@@ -1239,9 +1250,14 @@ class MainWindow(QMainWindow):
         # Add the station ssettings to the config
         config['stations'] = {}
         for name, station in self.stations.items():
-            config['stations'][name] = {'com_info': station.com_info,
-                                        'loc_info': station.loc_info,
-                                        'sync_flag': station.sync_flag}
+            config['stations'][name] = {
+                'com_info': station.com_info,
+                'loc_info': station.loc_info,
+                'sync_flag': station.sync_flag,
+                'filter_spectra_flag': self.station_widgets[name][
+                    'filter_spectra_flag'
+                ].isChecked()
+            }
 
         # Get save filename if required
         if asksavepath or self.config_fname is None:
