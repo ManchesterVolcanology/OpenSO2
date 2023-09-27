@@ -17,16 +17,17 @@ from collections import OrderedDict
 from logging.handlers import RotatingFileHandler
 from PyQt5.QtGui import QPalette, QColor, QFont, QIcon
 from PyQt5.QtCore import Qt, QThreadPool, QTimer, pyqtSlot, QThread
-from PyQt5.QtWidgets import (QMainWindow, QWidget, QApplication, QGridLayout,
-                             QMessageBox, QLabel, QLineEdit, QPushButton,
-                             QFrame, QSplitter, QTabWidget, QFileDialog,
-                             QScrollArea, QToolBar, QPlainTextEdit, QComboBox,
-                             QFormLayout, QDialog, QAction, QDateTimeEdit,
-                             QDateEdit, QSpinBox, QDoubleSpinBox, QCheckBox)
+from PyQt5.QtWidgets import (
+    QMainWindow, QWidget, QApplication, QGridLayout, QMessageBox, QLabel,
+    QLineEdit, QPushButton, QFrame, QSplitter, QTabWidget, QFileDialog,
+    QScrollArea, QToolBar, QPlainTextEdit, QComboBox, QFormLayout, QDialog,
+    QAction, QDateTimeEdit, QDateEdit, QSpinBox, QDoubleSpinBox, QCheckBox
+)
 
 from openso2.station import Station
-from openso2.gui_funcs import (SyncWorker, PostAnalysisWorker, Widgets,
-                               QTextEditLogger, browse)
+from openso2.gui_funcs import (
+    SyncWorker, PostAnalysisWorker, Widgets, QTextEditLogger, browse
+)
 from openso2.plume import calc_end_point
 
 __version__ = '1.3'
@@ -251,7 +252,8 @@ class MainWindow(QMainWindow):
 
         self.widgets['scan_pair_flag'] = QCheckBox('Calc Plume\nLocation?')
         self.widgets['scan_pair_flag'].setToolTip(
-            'Toggle whether plume location is calculated from paired scans')
+            'Toggle whether plume location is calculated from paired scans'
+        )
         volc_layout.addWidget(self.widgets['scan_pair_flag'], nrow, 2, 2, 1)
         nrow += 1
 
@@ -617,6 +619,13 @@ class MainWindow(QMainWindow):
                          + u"\N{DEGREE SIGN}")
         layout.addWidget(stat_az, 0, coln)
 
+        # Add option to filter the bad spectra from display
+        filter_spectra_flag = QCheckBox('Hide bad\nspectra?')
+        layout.addWidget(filter_spectra_flag, 1, coln)
+        filter_spectra_flag.stateChanged.connect(
+            lambda: self.update_scan_plot(name, self.widgets.get('sync_folder'))
+        )
+
         layout.addWidget(QVLine(), 0, coln+1, 2, 1)
         coln += 2
 
@@ -632,8 +641,11 @@ class MainWindow(QMainWindow):
         coln += 1
 
         # Add the station widgets to a dictionary
-        self.station_widgets[name] = {'loc': stat_loc, 'az': stat_az,
-                                      'sync_flag': sync_flag}
+        self.station_widgets[name] = {
+            'loc': stat_loc,
+            'az': stat_az,
+            'sync_flag': sync_flag
+        }
 
         # Create the graphs
         self.station_graphwin[name] = pg.GraphicsLayoutWidget(show=True)
@@ -766,13 +778,15 @@ class MainWindow(QMainWindow):
                 stat_lon += u"\N{DEGREE SIGN}E"
             else:
                 stat_lon += u"\N{DEGREE SIGN}W"
-            self.station_widgets[name]['loc'].setText(f'Location: {stat_lat}, '
-                                                      + f'{stat_lon}')
-            self.station_widgets[name]['az'].setText('Orientation: '
-                                                     + f'{loc_info["azimuth"]}'
-                                                     + u"\N{DEGREE SIGN}")
+            self.station_widgets[name]['loc'].setText(
+                f'Location: {stat_lat}, {stat_lon}'
+            )
+            self.station_widgets[name]['az'].setText(
+                f'Orientation: {loc_info["azimuth"]}' + u"\N{DEGREE SIGN}"
+            )
             self.station_widgets[name]['sync_flag'].setText(
-                f'Syncing: {station.sync_flag}')
+                f'Syncing: {station.sync_flag}'
+            )
 
             # Update the station map
             self.update_station_map(name)
@@ -1038,8 +1052,20 @@ class MainWindow(QMainWindow):
                 shape = [len(scan_fnames[-5:]), len(scan_df['angle'])]
                 plotx = np.zeros(shape)
                 ploty = np.zeros(shape)
-            plotx[i] = scan_df['angle'].to_numpy()
-            ploty[i] = scan_df['SO2'].to_numpy()
+
+            # Check if the scans should be filtered
+            if self.widgets.get('filter_spectra_flag'):
+                mask = np.row_stack([
+                    scan_df['SO2'] < float(self.widgets.get('lo_scd_lim')),
+                    scan_df['SO2'] > float(self.widgets.get('hi_scd_lim')),
+                    scan_df['int_av'] < float(self.widgets.get('lo_int_lim')),
+                    scan_df['int_av'] > float(self.widgets.get('hi_int_lim'))
+                ]).any(axis=0)
+                plotx[i] = scan_df['angle'].to_numpy()
+                ploty[i] = np.where(mask, 0, scan_df['SO2'].to_numpy())
+            else:
+                plotx[i] = scan_df['angle'].to_numpy()
+                ploty[i] = scan_df['SO2'].to_numpy()
 
             # Get the scan time from the filename to use as a label
             labels.append(f'{fname[9:11]}:{fname[11:13]}')
@@ -1063,13 +1089,9 @@ class MainWindow(QMainWindow):
         scan_angle = np.full([len(scan_fnames), len(plotx[0])], np.nan)
         scan_time = np.full([len(scan_fnames), len(plotx[0])], np.nan)
         scan_so2 = np.full([len(scan_fnames), len(plotx[0])], np.nan)
+        scan_int = np.full([len(scan_fnames), len(plotx[0])], np.nan)
 
         for i, fname in enumerate(scan_fnames):
-
-            # Pull year, month and day from file name
-            y = int(fname[:4])
-            m = int(fname[4:6])
-            d = int(fname[6:8])
 
             # Load the scan file, unpacking the angle and SO2 data
             with xr.open_dataset(f'{fpath}/{name}/so2/{fname}') as da:
@@ -1082,6 +1104,7 @@ class MainWindow(QMainWindow):
                 )
             scan_angle[i] = scan_df['angle'].to_numpy()
             scan_so2[i] = scan_df['SO2'].to_numpy()
+            scan_int[i] = scan_df['int_av']
 
             # Pull the time and convert to a unix timestamp
             for j, ts in enumerate(scan_df['time']):
@@ -1096,6 +1119,17 @@ class MainWindow(QMainWindow):
         scan_angle = scan_angle.flatten()
         scan_time = scan_time.flatten()
         scan_so2 = scan_so2.flatten()
+        scan_int = scan_int.flatten()
+
+        # Check if the scans should be filtered
+        if self.widgets.get('filter_spectra_flag'):
+            mask = np.row_stack([
+                scan_so2 < float(self.widgets.get('lo_scd_lim')),
+                scan_so2 > float(self.widgets.get('hi_scd_lim')),
+                scan_int < float(self.widgets.get('lo_int_lim')),
+                scan_int > float(self.widgets.get('hi_int_lim'))
+            ]).any(axis=0)
+            scan_so2 = np.where(mask, 0, scan_so2)
 
         self.station_so2_data[name] = scan_so2
 
