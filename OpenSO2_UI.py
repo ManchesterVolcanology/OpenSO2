@@ -624,7 +624,6 @@ class MainWindow(QMainWindow):
 
         # Add option to filter the bad spectra from display
         filter_spectra_cb = QCheckBox('Hide bad\nspectra?')
-        print(filter_spectra_flag)
         filter_spectra_cb.setChecked(filter_spectra_flag)
         layout.addWidget(filter_spectra_cb, 1, coln)
         filter_spectra_cb.stateChanged.connect(
