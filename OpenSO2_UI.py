@@ -628,7 +628,10 @@ class MainWindow(QMainWindow):
         filter_spectra_cb.setChecked(filter_spectra_flag)
         layout.addWidget(filter_spectra_cb, 1, coln)
         filter_spectra_cb.stateChanged.connect(
-            lambda: self.update_scan_plot(name, self.widgets.get('sync_folder'))
+            lambda: self.update_scan_plot(
+                name,
+                f'{self.widgets.get("sync_folder")}/{datetime.now().date()}'
+            )
         )
 
         layout.addWidget(QVLine(), 0, coln+1, 2, 1)
