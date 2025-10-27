@@ -51,7 +51,7 @@ logger.addHandler(stdout_handler)
 datestamp = datetime.now().date()
 
 # Create results folder
-results_fpath = f'/home/pi/Results/{datestamp}'
+results_fpath = f'~/Results/{datestamp}'
 if not os.path.exists(f'{results_fpath}/so2/'):
     os.makedirs(f'{results_fpath}/so2/')
 if not os.path.exists(f'{results_fpath}/spectra/'):
