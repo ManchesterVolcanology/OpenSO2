@@ -21,6 +21,7 @@ import time
 import yaml
 import logging
 import subprocess
+from pathlib import Path
 from datetime import datetime
 from multiprocessing import Process
 
@@ -51,7 +52,8 @@ logger.addHandler(stdout_handler)
 datestamp = datetime.now().date()
 
 # Create results folder
-results_fpath = f'~/Results/{datestamp}'
+home = Path.home()
+results_fpath = f'{home}/Results/{datestamp}'
 if not os.path.exists(f'{results_fpath}/so2/'):
     os.makedirs(f'{results_fpath}/so2/')
 if not os.path.exists(f'{results_fpath}/spectra/'):
@@ -113,6 +115,9 @@ def gps_time_sync(gps):
         tstr = ts.strftime('%a %b %d %H:%M:%S UTC %Y')
         subprocess.call(f'sudo date -s "{tstr}"', shell=True)
 
+        # Also write the system time to the wittypi
+        subprocess.call('./write_rtc_time.sh', shell=True)
+
         # Log the scanner location
         logger.info(
             'Scanner position:\n'
@@ -159,10 +164,8 @@ def main_loop():
     # Connect to the GPS
     gps = GPS()
 
-    # Set a background task to sync the station time and position with the GPS
-    p = Process(target=gps_time_sync, args=[gps])
-    p.daemon = True
-    p.start()
+    # Set a task to sync the station time and position with the GPS
+    gps_time_sync(gps)
 
 # =============================================================================
 #   Connect to the spectrometer
