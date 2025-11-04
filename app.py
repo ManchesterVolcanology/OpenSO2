@@ -14,6 +14,7 @@ from dash.dependencies import Output, Input, State
 # Read the station settings
 with open('Station/station_settings.yml', 'r') as ymlfile:
     config = yaml.load(ymlfile, Loader=yaml.FullLoader)
+    config['output_folder'] = '/home/scan/Results'
 
 # Set possible plot items
 plot_items = ["SO2", "O3", "Ring", "average_intensity", "fit_quality"]
@@ -53,10 +54,17 @@ def update_board_status():
         capture_output=True
     )
     board_data = output.stdout.decode('utf-8').strip().split(' | ')
-    temp_str = f"Temp: {board_data[0].split(' / ')[0]}"
-    vin_str = f"Vin: {board_data[1]} V"
-    vout_str = f"Vout: {board_data[2]} V"
-    iout_str = f"Iout: {board_data[3]} A"
+    print(board_data)
+    try:
+        temp_str = f"Temp: {board_data[0].split(' / ')[0]} C"
+        vin_str = f"Vin: {board_data[1]} V"
+        vout_str = f"Vout: {board_data[2]} V"
+        iout_str = f"Iout: {board_data[3]} A"
+    except IndexError:
+        temp_str = f"Temp: - C"
+        vin_str = f"Vin: - V"
+        vout_str = f"Vout: - V"
+        iout_str = f"Iout: - A"
     return [temp_str, vin_str, vout_str, iout_str]
 
 
@@ -109,7 +117,7 @@ df = pd.DataFrame(
      }
 )
 
-map_fig = px.scatter_mapbox(
+map_fig = px.scatter_map(
     df, lat="lat", lon="lon", zoom=11,
     hover_data=["lat", "lon"],
     mapbox_style="stamen-terrain",
