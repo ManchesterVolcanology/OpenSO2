@@ -21,6 +21,9 @@ import time
 import yaml
 import logging
 import subprocess
+import numpy as np
+import pandas as pd
+from glob import glob
 from pathlib import Path
 from datetime import datetime
 from multiprocessing import Process
@@ -31,7 +34,7 @@ from openso2.parameters import Parameters
 from openso2.spectrometers import Spectrometer
 from openso2.analyse_scan import Analyser, analyse_scan, update_int_time
 
-__version__ = 'v_1_5'
+__version__ = 'v_1_6'
 
 # =============================================================================
 # Set up logging
@@ -58,6 +61,8 @@ if not os.path.exists(f'{results_fpath}/so2/'):
     os.makedirs(f'{results_fpath}/so2/')
 if not os.path.exists(f'{results_fpath}/spectra/'):
     os.makedirs(f'{results_fpath}/spectra/')
+if not os.path.exists(f'{results_fpath}/pointing/'):
+    os.makedirs(f'{results_fpath}/pointing/')
 
 # Add a file handler to the logger
 file_handler = logging.FileHandler(f'{results_fpath}/{datestamp}.log')
@@ -211,9 +216,18 @@ def main_loop():
     logger.info(params.pretty_print(cols=['name', 'value', 'vary', 'xpath']))
 
 # =============================================================================
-#   Begin the scanning loop
+# Begin the control loop
 # =============================================================================
 
+    # Calculate the timings for the measurement block
+    scan_mins = settings['scan_block_minutes']
+    point_mins = settings['point_block_minutes']
+    block_length = scan_mins + point_mins
+
+    # Get today's date
+    today = pd.Timestamp.now().floor('D')
+
+    # Pull the opertaion start and stop times
     start_time = datetime.strptime(settings['start_time'], '%H:%M').time()
     stop_time = datetime.strptime(settings['stop_time'], '%H:%M').time()
 
@@ -243,80 +257,166 @@ def main_loop():
     )
     logger.info('Scanner engaged')
 
-    # Ensure scanning isn't paused
-    if os.path.isfile('Station/pause'):
-        os.remove('Station/pause')
+    # Create a flag to ensure we always start with scanning
+    init_scan_flag = True
 
     # Begin loop
     while datetime.now().time() < stop_time:
 
-        # Check if scanning is paused
-        scan_flag = True
-        if os.path.isfile('Station/pause'):
-            logger.info('Scanning paused')
-            log_status('Paused')
-            scan_flag = False
-
-        while not scan_flag:
-            if not os.path.isfile('Station/pause'):
-                logger.info('Scanning resumed')
-                log_status('Active')
-                scan_flag = True
-            time.sleep(1)
-
-        # Log status change and scan number
+        # Log the status change
         log_status('Active')
-        logger.info(f'Begin scan {scanner.scan_number}')
 
-        # Scan!
-        scan_data = scanner.acquire_scan(settings, results_fpath)
+        # Pull the time since today's start
+        delta_time = (pd.Timestamp.now() - today) / pd.Timedelta(1, 'm')
 
-        # Save the scan
-        scan_data.to_netcdf(scan_data.filename)
+        # Calcualte what block number we're in
+        block_number = delta_time // block_length
+        logger.info(f'In analysis block {int(block_number)}')
 
-        # Log scan completion
-        logger.info(f'Scan {scanner.scan_number} complete')
+        # Calcualte the time through this current block
+        block_time = delta_time - (block_number * block_length)
+        logger.info(f'Currently {block_time} minutes through the block')
 
-        # Update the spectrometer integration time
-        new_int_time = update_int_time(scan_data, settings)
-        spectro.update_integration_time(new_int_time)
-        logger.info(f'Integration time updated to {int(new_int_time)}')
+        # Scanning ============================================================
 
-        # Clear any finished processes from the processes list
-        processes = [p for p in processes if p.is_alive()]
+        if init_scan_flag or block_time <= scan_mins:
 
-        # Check the number of processes. If there are more than two then don't
-        #  start another to prevent too many processes running at once
-        if len(processes) <= 2:
+            log_status('Scanning')
 
-            # Log the start of the scan analysis
-            _, tail = os.path.split(scan_data.filename)
-            logger.info(f'Start analysis for scan {tail}')
+            logger.info(f'Begin scan {scanner.scan_number}')
 
-            # Build the save filename
-            save_fname = f'{results_fpath}/so2/{tail[:-11]}_results.nc'
+            # Scan!
+            scan_data = scanner.acquire_scan(settings, results_fpath)
 
-            # Create new process to handle fitting of the last scan
-            p = Process(
-                target=analyse_scan,
-                args=[scan_data, analyser, save_fname]
-            )
+            # Save the scan
+            scan_data.to_netcdf(scan_data.filename)
 
-            # Add to array of active processes
-            processes.append(p)
+            # Log scan completion
+            logger.info(f'Scan {scanner.scan_number} complete')
 
-            # Begin the process
-            p.start()
+            # Update the spectrometer integration time
+            new_int_time = update_int_time(scan_data, settings)
+            spectro.update_integration_time(new_int_time)
+            logger.info(f'Integration time updated to {int(new_int_time)}')
+
+            # Clear any finished processes from the processes list
+            processes = [p for p in processes if p.is_alive()]
+
+            # Check the number of processes. If there are more than two then
+            # don't start another to prevent too many processes running at once
+            if len(processes) <= 2:
+
+                # Log the start of the scan analysis
+                _, tail = os.path.split(scan_data.filename)
+                logger.info(f'Start analysis for scan {tail}')
+
+                # Build the save filename
+                save_fname = f'{results_fpath}/so2/{tail[:-11]}_results.nc'
+
+                # Create new process to handle fitting of the last scan
+                p = Process(
+                    target=analyse_scan,
+                    args=[scan_data, analyser, save_fname]
+                )
+
+                # Add to array of active processes
+                processes.append(p)
+
+                # Begin the process
+                p.start()
+
+            else:
+                # Log that the process was not started
+                logger.warning(
+                    'Too many processes running, '
+                    f'scan {scanner.scan_number} not analysed'
+                )
+
+            # Update the scan number
+            scanner.scan_number += 1
+
+        # Pointing ============================================================
 
         else:
-            # Log that the process was not started
-            logger.warning(
-                'Too many processes running, '
-                f'scan {scanner.scan_number} not analysed'
-            )
 
-        # Update the scan number
-        scanner.scan_number += 1
+            log_status('Pointing')
+
+            logger.info('Begin pointing block')
+
+            # Rotate the scanner to home
+            logger.info('Returning to home position...')
+            scanner.find_home()
+
+            # Create a new directory to hold this pointing data
+            point_fpath = f''
+
+            # Acquire dark spectra NEED TO WRITE THIS BIT!
+
+            # Get the end time of this pointing block
+            block_time_offset = pd.Timedelta(mins=block_number * block_length)
+            block_length_mins = pd.Timedelta(mins=block_length)
+            point_end_time = today + block_offset_time + block_length_mins
+
+            # Begin the pointing block setup loop
+            while pd.Timestamp.now() < point_end_time:
+
+                # Get the most recently analysed scan SO2 data
+                so2_files = glob(f'{results_fpath}/so2/*_results.nc')
+                so2_files.sort()
+
+                if len(so2_files) == 0:
+                    while(glob(f'{results_fpath}/so2/*_results.nc'))
+                    logger.info('No SO2 files found, waiting...')
+                    time.sleep(1)
+
+                else:
+
+                    # Open the last scan SO2 data
+                    last_so2_fname = so2_files[-1]
+                    with xr.open_dataset(last_so2_fname) as ds:
+
+                        # Pull the scan angles
+                        scan_angle = ds.angle.data
+
+                        # Pull the SO2 data where there is good fit quality
+                        mask = ds.fit_quality.data == 1
+                        scan_so2 = np.where(mask, ds.SO2.data)
+
+                        # Get the angle at the maximum
+                        pointing_angle = scan_angle[np.nanargmax(scan_so2)]
+
+                    logger.info(f'Rotating to {pointing_angle:.02f} degrees')
+
+                    # Calcualte the number of steps to the pointing angle
+                    n_steps = int(
+                        (pointing_angle + 180) / settings['angle_per_step']
+                    )
+
+                    # Move the scanner to the pointing direction
+                    scanner.step(nsteps)
+
+                    # Break out of this holding loop
+                    break
+
+            # Begin the pointing block acquisition loop
+            while pd.Timestamp.now() < point_end_time:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     # Return the scanner to home and release to conserve power
     scanner.find_home()
