@@ -23,6 +23,7 @@ import logging
 import subprocess
 import numpy as np
 import pandas as pd
+import xarray as xr
 from glob import glob
 from pathlib import Path
 from datetime import datetime
@@ -31,7 +32,7 @@ from multiprocessing import Process
 from openso2.gps import GPS
 from openso2.scanner import Scanner
 from openso2.parameters import Parameters
-from openso2.spectrometers import Spectrometer
+from openso2.spectrometers import Spectrometer, VSpectrometer
 from openso2.analyse_scan import Analyser, analyse_scan, update_int_time
 
 __version__ = 'v_1_6'
@@ -140,6 +141,14 @@ def gps_time_sync(gps):
 
 
 # =============================================================================
+# Pointing analysis process
+# =============================================================================
+
+def analyse_pointing_spectra(analyser):
+    """Analyse pointing spectra as they land."""
+
+
+# =============================================================================
 # Begin the main program
 # =============================================================================
 
@@ -177,6 +186,11 @@ def main_loop():
 # =============================================================================
 
     spectro = Spectrometer(
+        integration_time=settings['start_int_time'],
+        coadds=settings['start_coadds']
+    )
+
+    spectro = VSpectrometer(
         integration_time=settings['start_int_time'],
         coadds=settings['start_coadds']
     )
@@ -281,6 +295,10 @@ def main_loop():
 
         if init_scan_flag or block_time <= scan_mins:
 
+            # Turn of forcing to scan first if we are in a scan block
+            if init_scan_flag and block_time <= scan_mins:
+                init_scan_flag = False
+
             log_status('Scanning')
 
             logger.info(f'Begin scan {scanner.scan_number}')
@@ -348,14 +366,33 @@ def main_loop():
             scanner.find_home()
 
             # Create a new directory to hold this pointing data
-            point_fpath = f''
+            point_fpath = str(
+                f'{results_fpath}/pointing/{pd.Timestamp.now().strftime("%H%M")}'
+            )
+            if not os.path.isdir(point_fpath):
+                os.makedirs(point_fpath)
 
-            # Acquire dark spectra NEED TO WRITE THIS BIT!
+            # Create spectrum counter
+            n = 0
+
+            # Acquire dark spectra
+            logger.info('Acquiring dark spectra')
+            int_times = np.arange(
+                settings['min_int_time'],
+                settings['max_int_time'] + settings['int_time_step'],
+                settings['int_time_step']
+            )
+            for int_time in int_times:
+                spectro.update_integration_time(int_time)
+                spectro.fpath = 'TEST/dark.txt'
+                spectro.get_spectrum(
+                    fname=f'{point_fpath}/dark_{int(int_time)}ms.nc'
+                )
 
             # Get the end time of this pointing block
-            block_time_offset = pd.Timedelta(mins=block_number * block_length)
-            block_length_mins = pd.Timedelta(mins=block_length)
-            point_end_time = today + block_offset_time + block_length_mins
+            block_time_offset = pd.Timedelta(minutes=block_number * block_length)
+            block_length_mins = pd.Timedelta(minutes=block_length)
+            point_end_time = today + block_time_offset + block_length_mins
 
             # Begin the pointing block setup loop
             while pd.Timestamp.now() < point_end_time:
@@ -365,14 +402,16 @@ def main_loop():
                 so2_files.sort()
 
                 if len(so2_files) == 0:
-                    while(glob(f'{results_fpath}/so2/*_results.nc'))
-                    logger.info('No SO2 files found, waiting...')
-                    time.sleep(1)
+                    while(glob(f'{results_fpath}/so2/*_results.nc')):
+                        logger.info('No SO2 files found, waiting...')
+                        time.sleep(1)
 
                 else:
 
                     # Open the last scan SO2 data
                     last_so2_fname = so2_files[-1]
+                    _, tail = os.path.split(last_so2_fname)
+                    logger.info(f'Reading last analysed scan: {tail}')
                     with xr.open_dataset(last_so2_fname) as ds:
 
                         # Pull the scan angles
@@ -380,15 +419,22 @@ def main_loop():
 
                         # Pull the SO2 data where there is good fit quality
                         mask = ds.fit_quality.data == 1
-                        scan_so2 = np.where(mask, ds.SO2.data)
+                        scan_so2 = np.where(mask, ds.SO2.data, np.nan)
 
-                        # Get the angle at the maximum
-                        pointing_angle = scan_angle[np.nanargmax(scan_so2)]
+                        # Add a fallback in case there was an error in the last
+                        # scan, using zenith instead
+                        if mask.all():
+                            logger.info('Issue with last scan, using zenith')
+                            pointing_angle = 0
+
+                        # Otherwise get the angle at the maximum SO2 value
+                        else:
+                            pointing_angle = scan_angle[np.nanargmax(scan_so2)]
 
                     logger.info(f'Rotating to {pointing_angle:.02f} degrees')
 
                     # Calcualte the number of steps to the pointing angle
-                    n_steps = int(
+                    nsteps = int(
                         (pointing_angle + 180) / settings['angle_per_step']
                     )
 
@@ -399,24 +445,27 @@ def main_loop():
                     break
 
             # Begin the pointing block acquisition loop
+            logger.info('Begin pointing acquisition')
             while pd.Timestamp.now() < point_end_time:
 
+                # Take a spectrum
+                spectro.fpath = 'TEST/spectrum_00366.txt'
+                spectrum = spectro.get_spectrum(
+                    fname=f'{point_fpath}/spectrum_{n:05d}.nc'
+                )
+                n += 1
 
+                # Adjust the integration time
+                scale = settings['target_int'] / np.max(spectrum.data)
+                int_time = spectrum.integration_time * scale
 
+                # Get the nearest allowed integration time
+                diff = ((int_times - int_time)**2)**0.5
+                idx = np.nanargmin(diff)
+                new_int_time = int(int_times[idx])
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+                # Update the integration time
+                spectro.update_integration_time(new_int_time)
 
     # Return the scanner to home and release to conserve power
     scanner.find_home()

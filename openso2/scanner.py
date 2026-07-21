@@ -250,6 +250,7 @@ class Scanner:
 
         # Take the dark spectrum
         logger.info('Acquiring dark spectrum')
+        self.spectrometer.fpath = 'TEST/dark.txt'
         spectrum = self.spectrometer.get_spectrum()
         spectra[0] = spectrum.data
         wavelengths = spectrum.wavelength
@@ -273,6 +274,7 @@ class Scanner:
         for step_no in range(1, settings['specs_per_scan']+1):
 
             # Acquire the spectrum
+            self.spectrometer.fpath = 'TEST/spectrum_00366.txt'
             spectrum = self.spectrometer.get_spectrum()
             spectra[step_no] = spectrum.data
             scan_angles[step_no] = self.angle
@@ -312,6 +314,9 @@ class Scanner:
 
         # Return the scan data
         return scan_data
+
+
+    # def acquire_pointing_data()
 
 
 # =============================================================================

@@ -75,6 +75,8 @@ class Spectrometer():
             self.correct_dark_counts = correct_dark_counts
             self.correct_nonlinearity = correct_nonlinearity
 
+            self.fpath = ''
+
         except SeaBreezeError:
             logger.warning('No spectrometer found')
             self.serial_number = None
@@ -128,7 +130,7 @@ class Spectrometer():
         y = np.average(y_arr, axis=0)
 
         # Get the spectrum read time
-        spec_time = datetime.now()
+        spec_time = str(datetime.now())
 
         # Form a dictionary of spectrum info
         info = {
@@ -210,14 +212,14 @@ class VSpectrometer():
         y += noise
 
         # Get the spectrum read time
-        spec_time = datetime.now()
+        spec_time = str(datetime.now())
 
         # Form a dictionary of spectrum info
         info = {
             'serial_number': self.serial_number,
             'integration_time': self.integration_time,
             'coadds': self.coadds,
-            'time': spec_time,
+            'timestamp': spec_time,
             'dark_correction': self.correct_dark_counts,
             'nonlin_correction': self.correct_nonlinearity,
             'fname': fname
