@@ -23,7 +23,7 @@ class Scanner:
     """
 
     # Initialise
-    def __init__(self, switch_pin=24, step_type='single', angle_per_step=1.8,
+    def __init__(self, switch_pin=27, step_type='single', angle_per_step=1.8,
                  home_angle=180, max_steps_home=1000, spectrometer=None,
                  gps=None, position_file=None):
         """Initialise.

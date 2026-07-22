@@ -35,9 +35,11 @@ stdout_formatter = logging.Formatter('%(asctime)s - %(message)s', '%H:%M:%S')
 stdout_handler.setFormatter(stdout_formatter)
 logger.addHandler(stdout_handler)
 
-print('Welcome to OpenSO2 diagnosis\n'
-      + 'This script will run through tests to ensure the scanner is '
-      + 'working as expected')
+print(
+    'Welcome to OpenSO2 diagnosis\n'
+    'This script will run through tests to ensure the scanner is '
+    'working as expected'
+)
 
 print(f'Current system time: {datetime.now()}')
 
@@ -49,7 +51,12 @@ try:
 
     print('Station settings:')
     for key, item in settings.items():
-        print(key, item)
+        if isinstance(item, dict):
+            print(key)
+            for k, v in item.items():
+                print('  ', k, v)
+        else:
+            print(key, item)
 except FileNotFoundError:
     print('No settings file found, using default')
     with open('Station/station_settings_ex.yml', 'r') as ymlfile:

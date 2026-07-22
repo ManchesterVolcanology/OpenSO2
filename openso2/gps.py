@@ -166,6 +166,7 @@ class GPS():
                 ]
 
         logger.warning(f'No GPS fix acquired after {time_to_wait} seconds')
+        return
 
     def close(self):
         """Close the connection."""

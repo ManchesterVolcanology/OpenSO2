@@ -8,7 +8,8 @@ will perform the following tasks in order:
     - Connect to the spectrometer and prepare for analysis
     - Wait until the designated start time
     - Connect to the scanner head and find home
-    - Scan continuously until the designated stop time
+    - Operate through defined SCAN and POINT blocks, operating continuously
+      until the designated stop time
     - Disconnect the scanner head
     - Finish any outstanding analysis
     - Wait to power down, allowing the home station to sync the data as
@@ -27,7 +28,7 @@ import xarray as xr
 from glob import glob
 from pathlib import Path
 from datetime import datetime
-from multiprocessing import Process
+from multiprocessing import Process, Queue
 
 from openso2.gps import GPS
 from openso2.scanner import Scanner
@@ -144,8 +145,60 @@ def gps_time_sync(gps):
 # Pointing analysis process
 # =============================================================================
 
-def analyse_pointing_spectra(analyser):
+def pointing_worker(analyser, q):
     """Analyse pointing spectra as they land."""
+
+    while True:
+
+        # Wait for something to land in the queue
+        response = q.get()
+
+        # Define exit clause
+        if isinstance(response, str) and response == 'kill':
+            logger.info('Killing scanning worker process')
+            break
+
+        else:
+
+            # Unpack the spectrum and path to the outputs
+            spectrum, point_fpath = response
+
+            # Analyse the spectrum
+
+            output_fname = f'{point_fpath}/pointing_so2.csv'
+            if not os.path.isfile(output_fname)
+            with open(output_fname, 'w') as w:
+                w.write('Timestamp,SO2,SO2_err')
+
+
+def scanning_worker(analyser, q):
+    """Analyse scanning spectra as they land."""
+
+    while True:
+
+        # Wait for something to land in the queue
+        response = q.get()
+
+        # Define exit clause
+        if isinstance(response, str) and response == 'kill':
+            logger.info('Killing scanning worker process')
+            break
+
+        else:
+
+            # Log the start of the scan analysis
+            scan_data = response
+            _, tail = os.path.split(scan_data.filename)
+            logger.info(f'Start analysis for scan {tail}')
+
+            # Build the save filename
+            save_fname = f'{results_fpath}/so2/{tail[:-11]}_results.nc'
+
+            # Reset the analyser initial guess parameters
+            analyser.p0 = analyser.params.fittedvalueslist()
+
+            # Analyse the scan
+            analyse_scan(scan_data, analyser, save_fname)
 
 
 # =============================================================================
@@ -167,8 +220,13 @@ def main_loop():
     settings['version'] = __version__
 
     msg = 'Scanner Settings:'
-    for key, value in settings.items():
-        msg += f'\n{key}:\t{value}'
+    for key, item in settings.items():
+        if isinstance(item, dict):
+            msg += f'\n{key}:'
+            for k, v in item.items():
+                msg += f'\n{k}:\t{v}'
+        else:
+            msg += f'\n{key}:\t{item}'
     logger.info(msg)
 
 # =============================================================================
@@ -185,10 +243,10 @@ def main_loop():
 #   Connect to the spectrometer
 # =============================================================================
 
-    spectro = Spectrometer(
-        integration_time=settings['start_int_time'],
-        coadds=settings['start_coadds']
-    )
+    # spectro = Spectrometer(
+    #     integration_time=settings['start_int_time'],
+    #     coadds=settings['start_coadds']
+    # )
 
     spectro = VSpectrometer(
         integration_time=settings['start_int_time'],
@@ -228,6 +286,24 @@ def main_loop():
 
     # Report fitting parameters
     logger.info(params.pretty_print(cols=['name', 'value', 'vary', 'xpath']))
+
+# =============================================================================
+# Set up workers to analyse spectra
+# =============================================================================
+
+    # Define the scanning queue
+    scan_queue = Queue()
+    scan_worker = Process(target=scanning_worker, args=(analyser, scan_queue,))
+    scan_worker.daemon = True
+    scan_worker.start()
+
+    # Define the scanning queue
+    point_queue = Queue()
+    point_worker = Process(
+        target=pointing_worker, args=(analyser, point_queue,)
+    )
+    point_worker.daemon = True
+    point_worker.start()
 
 # =============================================================================
 # Begin the control loop
@@ -289,10 +365,13 @@ def main_loop():
 
         # Calcualte the time through this current block
         block_time = delta_time - (block_number * block_length)
-        logger.info(f'Currently {block_time} minutes through the block')
+        delta_block_time = pd.Timedelta(minutes=block_time)
+        logger.info(f'Currently {delta_block_time} through the block')
 
         # Scanning ============================================================
 
+        # Check if we're in a scanning block, or if we haven't had a scanning
+        # block yet
         if init_scan_flag or block_time <= scan_mins:
 
             # Turn of forcing to scan first if we are in a scan block
@@ -312,43 +391,12 @@ def main_loop():
             # Log scan completion
             logger.info(f'Scan {scanner.scan_number} complete')
 
+            # Send the scan for processing
+            scan_queue.put(scan_data)
+
             # Update the spectrometer integration time
             new_int_time = update_int_time(scan_data, settings)
             spectro.update_integration_time(new_int_time)
-            logger.info(f'Integration time updated to {int(new_int_time)}')
-
-            # Clear any finished processes from the processes list
-            processes = [p for p in processes if p.is_alive()]
-
-            # Check the number of processes. If there are more than two then
-            # don't start another to prevent too many processes running at once
-            if len(processes) <= 2:
-
-                # Log the start of the scan analysis
-                _, tail = os.path.split(scan_data.filename)
-                logger.info(f'Start analysis for scan {tail}')
-
-                # Build the save filename
-                save_fname = f'{results_fpath}/so2/{tail[:-11]}_results.nc'
-
-                # Create new process to handle fitting of the last scan
-                p = Process(
-                    target=analyse_scan,
-                    args=[scan_data, analyser, save_fname]
-                )
-
-                # Add to array of active processes
-                processes.append(p)
-
-                # Begin the process
-                p.start()
-
-            else:
-                # Log that the process was not started
-                logger.warning(
-                    'Too many processes running, '
-                    f'scan {scanner.scan_number} not analysed'
-                )
 
             # Update the scan number
             scanner.scan_number += 1
@@ -375,6 +423,9 @@ def main_loop():
             # Create spectrum counter
             n = 0
 
+            # Get the current integration time
+            current_integration_time = self.integration_time
+
             # Acquire dark spectra
             logger.info('Acquiring dark spectra')
             int_times = np.arange(
@@ -389,8 +440,11 @@ def main_loop():
                     fname=f'{point_fpath}/dark_{int(int_time)}ms.nc'
                 )
 
+            # Put the integration time back to what it was before
+            spectro.update_integration_time(current_integration_time)
+
             # Get the end time of this pointing block
-            block_time_offset = pd.Timedelta(minutes=block_number * block_length)
+            block_time_offset = pd.Timedelta(minutes=block_number*block_length)
             block_length_mins = pd.Timedelta(minutes=block_length)
             point_end_time = today + block_time_offset + block_length_mins
 
