@@ -49,7 +49,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 stdout_handler = logging.StreamHandler(sys.stdout)
 stdout_handler.setLevel(logging.INFO)
-stdout_formatter = logging.Formatter('%(asctime)s - %(message)s', '%H:%M:%S')
+stdout_formatter = logging.Formatter('%(asctime)s - %(processName)s - %(message)s', '%H:%M:%S')
 stdout_handler.setFormatter(stdout_formatter)
 logger.addHandler(stdout_handler)
 
@@ -68,7 +68,7 @@ if not os.path.exists(f'{results_fpath}/pointing/'):
 
 # Add a file handler to the logger
 file_handler = logging.FileHandler(f'{results_fpath}/{datestamp}.log')
-log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(processName)s - %(message)s'
 file_format = logging.Formatter(log_fmt, '%Y-%m-%d %H:%M:%S')
 file_handler.setFormatter(file_format)
 logger.addHandler(file_handler)
@@ -150,25 +150,60 @@ def pointing_worker(analyser, q):
 
     while True:
 
-        # Wait for something to land in the queue
-        response = q.get()
+        try:
 
-        # Define exit clause
-        if isinstance(response, str) and response == 'kill':
-            logger.info('Killing scanning worker process')
-            break
+            # Wait for something to land in the queue
+            response = q.get()
 
-        else:
+            # Define exit clause
+            if isinstance(response, str) and response == 'kill':
+                logger.info('Killing scanning worker process')
+                break
 
-            # Unpack the spectrum and path to the outputs
-            spectrum, point_fpath = response
+            else:
 
-            # Analyse the spectrum
+                # Unpack the spectrum and path to the outputs
+                spectrum, point_fpath = response
+                logger.info(f'Analysing {spectrum.fname}')
 
-            output_fname = f'{point_fpath}/pointing_so2.csv'
-            if not os.path.isfile(output_fname)
-            with open(output_fname, 'w') as w:
-                w.write('Timestamp,SO2,SO2_err')
+                # Set the output path, creating the file if it doesn't exist
+                output_fname = f'{point_fpath}/pointing_so2.csv'
+
+                # If it doesn't exist then we are in a new block. Write the file
+                # header and reset the analyser initial guess
+                if not os.path.isfile(output_fname):
+                    with open(output_fname, 'w') as w:
+                        w.write('Timestamp,SO2,SO2_err')
+                    analyser.p0 = analyser.params.fittedvalueslist()
+
+                # Get the integration time and load the relevant dark
+                spec_int_time = spectrum.integration_time
+                dark_fname = f'{point_fpath}/dark_{int(spec_int_time)}ms.nc'
+                if os.path.isfile(dark_fname):
+                    with xr.open_dataarray(dark_fname) as dark:
+                        spectrum.data = spectrum.data - dark.data
+                else:
+                    logger.info(f"Can't find dark file {dark_fname}")
+
+                # Analyse the spectrum
+                fit = analyser.fit_spectrum(spectrum=spectrum)
+
+                # Set the output path, creating the file if it doesn't exist
+                output_fname = f'{point_fpath}/pointing_so2.csv'
+                if not os.path.isfile(output_fname):
+                    with open(output_fname, 'w') as w:
+                        w.write('Timestamp,SO2,SO2_err')
+
+                # Write the results
+                with open(output_fname, 'a') as w:
+                    w.write(
+                        f'\n{spectrum.timestamp},'
+                        f'{analyser.params["SO2"].fit_val},'
+                        f'{analyser.params["SO2"].fit_err}'
+                    )
+
+        except ValueError as msg:
+            logger.warning(f'Error in analysis, skipping\n{msg}')
 
 
 def scanning_worker(analyser, q):
@@ -243,15 +278,17 @@ def main_loop():
 #   Connect to the spectrometer
 # =============================================================================
 
-    # spectro = Spectrometer(
-    #     integration_time=settings['start_int_time'],
-    #     coadds=settings['start_coadds']
-    # )
-
-    spectro = VSpectrometer(
+    # Use this block for actual analysis
+    spectro = Spectrometer(
         integration_time=settings['start_int_time'],
         coadds=settings['start_coadds']
     )
+
+    # Use this block for testing without the spectrometer attached
+    # spectro = VSpectrometer(
+    #     integration_time=settings['start_int_time'],
+    #     coadds=settings['start_coadds']
+    # )
 
 # =============================================================================
 #   Set up iFit analyser
@@ -424,7 +461,7 @@ def main_loop():
             n = 0
 
             # Get the current integration time
-            current_integration_time = self.integration_time
+            current_integration_time = spectro.integration_time
 
             # Acquire dark spectra
             logger.info('Acquiring dark spectra')
@@ -508,6 +545,9 @@ def main_loop():
                     fname=f'{point_fpath}/spectrum_{n:05d}.nc'
                 )
                 n += 1
+
+                # Send the specturm for analysis
+                point_queue.put([spectrum, point_fpath])
 
                 # Adjust the integration time
                 scale = settings['target_int'] / np.max(spectrum.data)

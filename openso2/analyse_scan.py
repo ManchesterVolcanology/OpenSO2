@@ -12,7 +12,7 @@ from scipy.interpolate import griddata
 from scipy.signal import savgol_filter
 
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 warnings.filterwarnings(
     "ignore",
