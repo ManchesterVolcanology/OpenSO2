@@ -133,6 +133,7 @@ def get_log_text(date_str):
         with open(fname, "r") as r:
             # deque will efficiently pull only the last 200 lines into memory
             last_lines = deque(r, maxlen=500)
+            last_lines.reverse()
             
             # Join the lines back into a single string for the text_area
             return "".join(last_lines)
@@ -232,9 +233,9 @@ with st.sidebar:
     # 1. Create a dropdown with sensible interval options (0 = off)
     refresh_rate = st.selectbox(
         "Auto-Refresh Rate",
-        options=[0, 5, 10, 30, 60, 300],
+        options=[0, 1, 2, 3, 4, 5, 10, 30, 60],
         format_func=lambda x: "Off (Manual Only)" if x == 0 else f"Every {x} seconds",
-        index=1 # Defaults to 5 seconds
+        index=5 # Defaults to 5 seconds
     )
     
     # 2. Trigger the autorefresh dynamically if it is greater than 0
@@ -412,7 +413,7 @@ else:
     fig_pointing.update_traces(mode='lines+markers')
     
     # Ensure it spans the full width of the dashboard
-    st.plotly_chart(fig_pointing, use_container_width=True)
+    st.plotly_chart(fig_pointing, width='content')
 
 st.markdown("---")
 # ---------------------------------------------------------
