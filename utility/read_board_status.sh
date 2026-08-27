@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Get the WittyPi utility functions
-. /home/pi/wittypi/utilities.sh
+. /home/uom/wittypi/utilities.sh
 
 temp=$(get_temperature)
 vin=$(get_input_voltage)
