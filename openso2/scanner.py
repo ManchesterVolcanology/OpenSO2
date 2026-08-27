@@ -187,7 +187,7 @@ class Scanner:
         for i in range(steps):
 
             # Add a short rest between steps to improve accuracy
-            time.sleep(0.01)
+            time.sleep(0.02)
 
             # Step the motor
             self.motor.onestep(
